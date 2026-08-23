@@ -1,0 +1,12 @@
+# Local credentials and secret material
+.env
+.env.*
+**/*credentials*
+**/*secrets*
+credentials/
+secrets/
+*.pem
+*.key
+
+# Downloaded provider-supplied raw data
+/data/raw/
