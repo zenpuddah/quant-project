@@ -41,7 +41,7 @@
 - **Accepted:** No production source code has been created.
 - **Accepted:** A user-requested one-month Alpaca historical-data sample for `SPY`, `AAPL`, `MSFT`, and `AMZN` was acquired on 2026-08-23 under `data/raw/alpaca/`; the raw data is Git-ignored and no credentials were stored.
 - **Accepted:** The acquisition uses Alpaca `1Day` bars with `feed=iex` and `adjustment=raw`; this operational choice does not establish the canonical Phase 1 data source or feed.
-- **Accepted:** A local Git repository was initialized on `main` on 2026-08-23; the initial documentation baseline is committed locally, while no GitHub remote has been configured and no push has been performed.
+- **Accepted:** A local Git repository was initialized on `main` on 2026-08-23; the public GitHub repository `https://github.com/zenpuddah/quant-project` was created, configured as `origin` over HTTPS, and the initial `main` commit was pushed.
 
 ## Current architecture task
 
