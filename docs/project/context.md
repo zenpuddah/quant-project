@@ -67,6 +67,7 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 - **Implemented:** A first concrete data-model slice now exercises exact values, reference intervals, observed record shapes, and structural invariants.
 - **Accepted:** `docs/architecture/data-model.md` is the living Mermaid representation to update with every data-model change.
 - **Next:** Review and accept the provisional concrete choices: exact fields, required/optional semantics, invariants, event/action representation, and transformation contracts.
+- **Iteration 2 review item:** `ReferenceHistory::at()` currently performs a reverse linear scan over ordered reference versions. Preserve the Iteration 1 implementation for now; in the second implementation/performance pass, benchmark point-in-time lookup and consider binary search over the ordered non-overlapping intervals if lookup frequency or history size justifies it.
 - **Then:** Design storage/access/replay and the provider port/Databento adapter against those concrete types.
 
 ## Open questions
