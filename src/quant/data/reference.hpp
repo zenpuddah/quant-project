@@ -2,6 +2,7 @@
 
 #include "quant/data/value_types.hpp"
 
+#include <algorithm>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -35,10 +36,10 @@ public:
         if (version.valid_until && *version.valid_until <= version.valid_from) {
             throw std::invalid_argument("ReferenceVersion validity interval must be positive");
         }
-        if (version.tick_size && !version.tick_size->value().is_positive()) {
+        if (version.tick_size && !version.tick_size->is_positive()) {
             throw std::invalid_argument("ReferenceVersion tick size must be positive");
         }
-        if (version.lot_size && version.lot_size->value().is_zero()) {
+        if (version.lot_size && version.lot_size->is_zero()) {
             throw std::invalid_argument("ReferenceVersion lot size must be positive");
         }
 
@@ -56,10 +57,20 @@ public:
     }
 
     [[nodiscard]] const ReferenceVersion* at(const Timestamp time) const noexcept {
-        for (auto it = versions_.rbegin(); it != versions_.rend(); ++it) {
-            if (it->valid_from <= time && (!it->valid_until || time < *it->valid_until)) {
-                return &*it;
-            }
+        const auto candidate = std::upper_bound(
+            versions_.begin(),
+            versions_.end(),
+            time,
+            [](const Timestamp lookup_time, const ReferenceVersion& version) {
+                return lookup_time < version.valid_from;
+            });
+        if (candidate == versions_.begin()) {
+            return nullptr;
+        }
+
+        const auto& version = *(candidate - 1);
+        if (!version.valid_until || time < *version.valid_until) {
+            return &version;
         }
         return nullptr;
     }

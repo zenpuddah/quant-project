@@ -51,47 +51,26 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 
 ## Current repository state
 
-- **Implemented:** The first executable C++20 data-model slice exists under `src/quant/data/`, with framework-free invariant tests in `tests/data_model_tests.cpp`.
-- **Implemented:** The slice covers strong IDs, exact fixed-decimal values, source/order evidence, point-in-time reference history, and MBO/Trade/Quote/Bar record validation.
+- **Implemented:** The executable C++20 data-model slice exists under `src/quant/data/`, with framework-free invariant tests in `tests/data_model_tests.cpp`.
+- **Implemented:** Iteration 2 uses binary point-in-time lookup, compact `uint32_t` venue/source IDs with separate metadata tables, fixed-scale integer `Price`/`Quantity`/`Money`, and a synchronous typed MBO writer/buffer/view path.
+- **Implemented:** `MboRecord` is a 64-byte, 64-byte-aligned fixed-stride record with presence bits and a shared instrument/venue/source stream context.
+- **Measured:** The dependency-free benchmark in `benchmarks/data_model_benchmark.cpp` measured 32/40/48/64-byte candidates, padding, alignment, cache-line crossings, traversal, memory usage, and binary reference lookup on Apple clang 21 arm64. The 64-byte record is finalized for this boundary.
 - **Deferred:** No provider adapter, storage, replay, reducers, lineage persistence, Python binding, or backtesting implementation has been created.
 - **Generated:** The living Mermaid data model has matching outputs at `diagrams/data-model.svg` and `diagrams/data-model.pdf`.
 - **Accepted:** A one-month Alpaca historical-data sample for `SPY`, `AAPL`, `MSFT`, and `AMZN` exists under Git-ignored `data/raw/alpaca/`, using `1Day`, `feed=iex`, and `adjustment=raw`; it does not define the canonical Phase 1 provider/model.
 - **Accepted:** The public repository is `https://github.com/zenpuddah/quant-project` on `main`.
-- **Accepted:** The documentation baseline now includes `AGENTS.md`, `docs/project/context.md`, `docs/project/engineering-book.md`, `docs/project/alpaca-data-acquisition.md`, `docs/architecture/phase1-system-context.md`, `docs/architecture/phase1-data-model.md`, `docs/architecture/phase1-data-model-implementation.md`, and the living Mermaid overview `docs/architecture/data-model.md`.
+- **Accepted:** The documentation baseline now includes `AGENTS.md`, `docs/project/context.md`, `docs/project/engineering-book.md`, `docs/project/alpaca-data-acquisition.md`, `docs/architecture/phase1-system-context.md`, `docs/architecture/phase1-data-model.md`, `docs/architecture/phase1-data-model-implementation.md`, the dependency-free benchmark at `benchmarks/data_model_benchmark.cpp`, and the living Mermaid overview `docs/architecture/data-model.md`.
 - **Accepted:** The canonical market-data iteration was checked against current Databento documentation, current Nasdaq TotalView-ITCH specification references, and NautilusTrader order-book documentation before being recorded.
 
 ## Current architecture task
 
 - **Accepted:** The Phase 1 system context is established at a useful first level.
 - **Accepted:** Canonical market-data model Iteration 1 is complete enough to stop adding abstract concepts.
-- **Implemented:** A first concrete data-model slice now exercises exact values, reference intervals, observed record shapes, and structural invariants.
+- **Implemented:** Iteration 2 now exercises canonical integer values, compact reference IDs, binary reference lookup, typed MBO writes, fixed-stride round trips, and structural invariants.
 - **Accepted:** `docs/architecture/data-model.md` is the living Mermaid representation to update with every data-model change.
-- **Accepted:** The main concrete representation problems discovered during the Iteration 1 review have been discussed and each has an Iteration 2 implementation direction. Iteration 2 should now implement these candidates, preserve domain semantics, add/adjust tests, and benchmark the performance-sensitive choices before freezing their final physical layout.
+- **Accepted:** The main concrete representation problems from the Iteration 1 review are implemented without expanding into deferred layers. Finalized choices are Price scale 9, Quantity scale 6, Money scale 2; exact checked normalization; 32-bit venue/source IDs; binary reference lookup; and a 64-byte presence-bit MBO record.
 
-### Iteration 2 implementation directions
-
-- **Accepted — `ReferenceHistory`:** `ReferenceHistory::at()` currently performs a reverse linear scan over ordered, non-overlapping reference versions. Implement a binary-search-based point-in-time lookup over the ordered intervals while preserving existing gap semantics and `[valid_from, valid_until)` behavior. Verify correctness against the current tests and add lookup-focused tests as needed. Benchmark only to confirm the change behaves as intended; the domain abstraction remains unchanged.
-
-- **Accepted — `VenueId`:** Preserve `VenueId` as the domain type, but replace its repeated string-backed hot-path representation with a compact integer-backed ID. Keep human-readable venue codes and any richer venue metadata in a separate venue-reference mapping/table. Market records should carry the compact ID, not duplicate venue strings.
-
-- **Accepted — source/provenance:** Preserve source/provenance semantics, but replace repeated per-event `SourceInfo` strings (`provider`, `dataset`, `schema`) with a compact `SourceId`/publisher-style integer reference. Keep provider/dataset/schema strings in a separate source metadata table keyed by the compact ID. Event records should carry the compact source reference.
-
-- **Accepted — exact numeric representation:** Replace the current per-value `FixedDecimal{coefficient, scale}` hot representation and string-based comparison path with a canonical fixed-scale integer representation as the first Iteration 2 candidate, using `int64_t` storage where the selected range/precision policy permits it. Normalize provider-specific decimal formats once at the adapter/boundary so downstream `Price` comparisons reduce to integer comparisons without per-value scale normalization. Keep instrument metadata such as currency and tick size in reference data rather than embedding currency in every `Price`; `Money` remains the concept that combines an amount with a currency. Decide and document the canonical scale(s), arithmetic/rescaling rules, and overflow policy during this implementation pass, and verify the chosen scale gives sufficient range and precision for Phase 1. `Price`, `Quantity`, and `Money` may use different canonical scale policies if their domain requirements justify it; do not assume one universal scale without checking.
-
-- **Accepted — MBO physical representation:** Replace the current action-plus-independent-`std::optional` MBO physical representation with a Databento-inspired compact fixed-size tagged MBO record as the first implementation candidate. Keep typed writer semantics for `Add`/`Modify`/`Cancel`/`Execute`/`Clear`, normalize those typed inputs into a contiguous fixed-stride MBO buffer, and let consumers iterate/read the records through typed/action-aware views. Prefer the predictable layout, constant-stride traversal, simple consumer logic, and potential cache/prefetch benefits over variable-length action-specific records initially; accept some unused payload bytes for sparse actions such as `Clear`.
-
-- **Accepted — MBO execution model:** Treat the first writer → buffer → consumer implementation as synchronous and single-threaded. Do not introduce lock-free queues, concurrency, or networking as part of Iteration 2. The abstraction should not prevent a future transport change, but concurrency must be justified separately by a demonstrated requirement.
-
-- **Accepted — MBO measurement requirement:** Before freezing the MBO record, measure concrete candidate layouts such as 32/40/48/64 bytes, including real `sizeof`, padding/alignment, cache-line interaction, sequential traversal throughput, and memory usage. The design sanity-check discussed for reasoning is: 1,000,000 fixed records at 64 bytes = 64 MB, versus 54.4 MB for a hypothetical variable layout where 30% `Clear` records shrink to 32 bytes, a 9.6 MB/~15% space premium for fixed stride. This example is not a target size; actual layout measurements decide the final representation.
-
-- **Accepted — scope:** Do not use Iteration 2 to implement `OriginalPool`, `TransformedPool`, lineage persistence, revisions, snapshots, provider adapters, storage/replay, or backtesting unless a concrete type change requires a minimal supporting abstraction. Those remain later layers. Iteration 2 is the concrete canonical-type/performance pass.
-
-## Open questions for Iteration 2
-
-- Exact canonical fixed scale(s), integer range, arithmetic/rescaling behavior, and overflow policy for `Price`, `Quantity`, and `Money`.
-- Exact integer widths for `VenueId` and `SourceId`, plus ownership/lifetime/API of their metadata tables.
-- Exact fixed-size MBO fields, widths, padding/alignment, sentinel or unused-field semantics, common-header split, and final record size.
-- Whether optional ordering fields in the event header should remain represented as `std::optional` in the final hot representation or use another compact presence/sentinel scheme; change only if the concrete layout/benchmark shows it matters.
+## Open questions
 - Provider port and Databento adapter API.
 - Economic-security versus venue-listing type split.
 - Storage/database/file format, physical layout, query/replay API, snapshots, and schema evolution.
@@ -104,8 +83,8 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 
 ## Next action
 
-- **Accepted:** Start Data Model Iteration 2 now.
-- **Next:** Implement the accepted Iteration 2 candidates above as focused, reviewable C++20 changes; preserve existing semantics, update tests, measure the performance-sensitive layouts, and update `docs/architecture/data-model.md`, the relevant implementation documentation, `docs/project/engineering-book.md`, and this context with the measured/finalized decisions.
+- **Accepted:** Data Model Iteration 2 implementation and measurement are complete for the concrete in-memory boundary.
+- **Next:** Review the Iteration 2 implementation and finalized measurements.
 - **Then:** After Iteration 2 is reviewed and accepted, design storage/access/replay and the provider port/Databento adapter against the finalized concrete types.
 
 ## Last updated

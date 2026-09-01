@@ -517,3 +517,96 @@ The framework-free test executable passed with:
 ```text
 clang++ -std=c++20 -Wall -Wextra -Wpedantic -Werror -I src tests/data_model_tests.cpp
 ```
+
+---
+
+# 2026-09-01 — Data-model Iteration 2 concrete types and MBO layout
+
+## Problem
+
+The first executable slice preserved domain semantics but left several hot representations provisional: point-in-time lookup scanned history backwards, venue and source strings were repeated in event headers, decimal comparisons aligned strings at runtime, and MBO actions lived beside independent optional fields. The accepted Iteration 2 directions required concrete, measurable replacements without introducing storage, replay, provider, or concurrency infrastructure.
+
+## Scope
+
+This pass implements only:
+
+- binary point-in-time lookup over the existing ordered `ReferenceHistory` vector;
+- `uint32_t` `VenueId` and `SourceId` values with separate metadata tables;
+- boundary normalization into fixed-scale `int64_t` `Price`, `Quantity`, and `Money` values;
+- typed MBO writer inputs, a synchronous contiguous buffer, and action-aware record views;
+- layout and sequential-traversal measurements for 32/40/48/64-byte candidates.
+
+Original/transformed pools, lineage, revisions, snapshots, provider adapters, storage/replay, backtesting, networking, and concurrency remain deferred.
+
+## Source check
+
+The existing primary-source check remains applicable: Databento MBO documents order IDs, actions, event/receive timestamps, sequence/channel information, flags, and scaled integer prices. Nasdaq TotalView-ITCH references and NautilusTrader order-book documentation were used as cross-checks for order-event and grouped-delta semantics. Those sources support the mechanisms; they do not prescribe this project's `MboBuffer`, reference tables, scales, or common-header split.
+
+## Decisions
+
+### Reference lookup
+
+`ReferenceHistory::at()` uses `std::upper_bound` over ascending `valid_from` values and checks the one candidate interval. This preserves gaps and `[valid_from, valid_until)` semantics while reducing lookup work from a reverse linear scan to logarithmic search. Append validation and ownership remain unchanged.
+
+### Compact references
+
+`VenueId` and `SourceId` are non-zero `uint32_t` strong IDs. `VenueReferenceTable` owns venue codes, and `SourceMetadataTable` owns provider/dataset/schema strings. `EventHeader` carries only the IDs. The tables are intentionally simple in-memory reference-data containers, not a storage or concurrent registry design.
+
+### Exact values
+
+The canonical scales are:
+
+| Type | Scale | Represented unit | Maximum positive value |
+| --- | ---: | --- | ---: |
+| `Price` | 9 | 1e-9 price units | 9,223,372,036.854775807 |
+| `Quantity` | 6 | 1e-6 quantity units | 9,223,372,036,854.775807 |
+| `Money` | 2 | minor currency units | 92,233,720,368,547,758.07 |
+
+Each hot value stores one signed `int64_t`. `Quantity` rejects negative values. Boundary input may have a decimal coefficient and scale through 18; upscaling checks overflow, while downscaling rejects non-zero discarded digits rather than rounding. Same-scale addition/subtraction is checked, money arithmetic requires the same currency, and cross-domain products such as price times quantity remain explicit future accounting operations.
+
+### MBO representation
+
+The writer boundary has typed `MboAdd`, `MboModify`, `MboCancel`, `MboExecute`, and `MboClear` inputs. `MboBuffer` is scoped to one instrument, venue, and source. Each `MboRecord` stores:
+
+```text
+offset  width  field
+0       8      event_time
+8       8      receive_time
+16      8      sequence
+24      8      order_id
+32      8      canonical price
+40      8      canonical quantity
+48      8      source_flags
+56      4      channel_id
+60      4      action/presence control
+```
+
+The record is `alignas(64)` and `sizeof(MboRecord) == 64`. The control word contains the action, optional-field presence bits, and side encoding. This avoids sentinel loss for valid zero timestamps, sequence values, channel values, or numeric values. Stream scope is stored once in `MboStreamContext`; views combine it with each record to restore `EventHeader`. The physical buffer is a `std::vector<MboRecord>` and is deliberately synchronous and single-threaded.
+
+## Measurement
+
+The standalone benchmark used Apple clang 21 on arm64, `-O2`, 1,000,000 records, three sequential traversal passes, and a 64-byte cache-line model:
+
+| Candidate | `sizeof` | `alignof` | Padding | Cache lines | Records crossing lines | Traversal records/s |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 32 bytes | 32 | 8 | 0 | 500,000 | 0 (0%) | 1.06414e9 |
+| 40 bytes | 40 | 8 | 0 | 625,000 | 500,000 (50%) | 1.35621e9 |
+| 48 bytes | 48 | 8 | 0 | 750,000 | 500,000 (50%) | 1.29436e9 |
+| 64 bytes | 64 | 64 | 0 | 1,000,000 | 0 (0%) | 1.14002e9 |
+
+The 32/40/48-byte structs are footprint probes with progressively incomplete fields. The 64-byte record is the smallest measured candidate carrying the selected event-local ordering, order, provenance flags, channel, action, and presence semantics. Its one-record-per-cache-line alignment also removes record-boundary crossings. The throughput numbers are a single-machine microbenchmark, not a universal performance claim; semantic completeness and predictable traversal determine the final choice.
+
+At 1,000,000 records, fixed 64-byte payload uses 64,000,000 bytes. The requested hypothetical variable layout with 70% 64-byte records and 30% 32-byte `Clear` records uses 54,400,000 bytes, a 9,600,000-byte (15%) fixed-stride premium.
+
+The same run performed 1,000,000 lookups across 100,000 reference versions at 39.9909 million lookups per second. This confirms the binary-search path is operational; it is not a domain-performance contract.
+
+## Trade-offs
+
+- Fixed stride spends space on unused `Clear` payload slots and uses more memory than the hypothetical variable layout.
+- The shared MBO stream context assumes a buffer has one instrument/venue/source scope; mixed-scope buffers are rejected rather than duplicating IDs in every record.
+- Fixed scales make hot comparisons integer-only but require the future adapter to normalize provider formats and require explicit policies for products/rescaling not exactly representable at the target scale.
+- The reference tables use simple linear lookup because they are outside the event hot path; their ownership and future persistence API remain open.
+
+## Verification
+
+The framework-free tests pass with C++20 warnings-as-errors. They cover scale normalization, range/overflow behavior, compact metadata references, binary lookup boundaries and gaps, typed MBO round trips, presence bits, fixed stride, scope validation, and the existing trade/quote/bar invariants. The benchmark compiles and runs independently without a build-system or third-party dependency.

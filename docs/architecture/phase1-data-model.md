@@ -4,7 +4,8 @@
 
 - **Accepted:** First-iteration canonical market-data design, reviewed on 2026-08-31.
 - **Accepted:** This document defines domain meaning, boundaries, information flow, and invariants.
-- **Deferred:** Exact C++ layouts, storage formats, database schemas, and provider API signatures.
+- **Implemented for the in-memory boundary:** Concrete C++ value/identity layouts and the fixed-stride MBO buffer are recorded in `phase1-data-model-implementation.md`.
+- **Deferred:** Storage formats, database schemas, and provider API signatures.
 
 ## Design goal
 
@@ -151,7 +152,9 @@ provenance
 
 Working canonical action vocabulary: `Add`, `Modify`, `Cancel`, `Execute`, `Clear`.
 
-- **Open:** exact enum/variant representation and provider-extension mechanism.
+- **Accepted:** Typed `MboAdd`, `MboModify`, `MboCancel`, `MboExecute`, and `MboClear` inputs normalize into a fixed-size tagged physical record. The logical `MboEvent` shape remains available at the boundary; provider-extension mechanisms remain open.
+
+The first physical MBO buffer is scoped to one instrument, venue, and source. Its records retain event time, receive time, sequence, order fields, source flags, channel, action, and presence bits. Instrument, venue, and source scope is stored once in the buffer context and restored by consumer views. The buffer is synchronous and single-threaded; it does not define a transport or storage layer.
 
 ### Execution is not Trade
 
@@ -265,7 +268,9 @@ revision history      -> revision reducer   -> accepted view
 - **Accepted:** Canonical `Price`, `Quantity`, and `Money` use exact decimal/fixed-point semantics rather than binary floating point.
 - **Accepted:** They become strong domain value types rather than unlabeled primitive numbers.
 - **Accepted:** Instrument/reference metadata provides constraints such as tick size, lot size, currency, and precision where applicable.
-- **Deferred:** Bit width, scale strategy, overflow behavior, and physical representation wait for concrete C++ type design.
+- **Accepted for Iteration 2:** `Price` uses a 9-decimal `int64_t` scale, `Quantity` uses a 6-decimal `int64_t` scale, and `Money` uses a 2-decimal `int64_t` scale.
+- **Accepted for Iteration 2:** Boundary normalization upscales with checked overflow and downscales only when discarded digits are zero. Same-scale arithmetic is checked; implicit rounding and binary floating-point conversion are not allowed.
+- **Deferred:** Cross-domain products such as price times quantity require a later explicit accounting policy.
 
 ## Snapshots / checkpoints
 
@@ -293,12 +298,13 @@ revision history      -> revision reducer   -> accepted view
 10. Financial values use exact semantics.
 11. Storage/layout decisions do not define financial meaning.
 12. Phase 1 remains stock-focused in use while the model boundary stays extensible to other instrument types.
+13. Venue and source strings are reference metadata, not repeated event payload.
+14. Fixed-stride MBO storage preserves action semantics through a tag and presence bits.
 
 ## Deliberately unresolved after iteration 1
 
-- Exact C++ struct/class/variant layout.
 - Provider port and Databento adapter API.
-- Exact action representation and provider-extension mechanism.
+- Provider-extension mechanism for actions beyond the current canonical vocabulary.
 - Economic-security versus venue-listing type split.
 - Storage/database/file format and physical layout.
 - Index/query/replay API.

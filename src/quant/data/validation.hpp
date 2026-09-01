@@ -56,14 +56,41 @@ inline void add_issue(ValidationIssues& issues, std::string code, std::string me
         break;
     case MboAction::Clear:
         break;
+    default:
+        add_issue(issues, "unknown_action", "MBO event has an unknown action");
+        break;
     }
 
     return issues;
 }
 
+[[nodiscard]] inline ValidationIssues validate(const MboAdd&) {
+    return {};
+}
+
+[[nodiscard]] inline ValidationIssues validate(const MboModify& event) {
+    ValidationIssues issues;
+    if (!event.side && !event.price && !event.quantity) {
+        add_issue(issues, "empty_modify", "Modify events require at least one order field");
+    }
+    return issues;
+}
+
+[[nodiscard]] inline ValidationIssues validate(const MboCancel&) {
+    return {};
+}
+
+[[nodiscard]] inline ValidationIssues validate(const MboExecute&) {
+    return {};
+}
+
+[[nodiscard]] inline ValidationIssues validate(const MboClear&) {
+    return {};
+}
+
 [[nodiscard]] inline ValidationIssues validate(const Trade& trade) {
     ValidationIssues issues;
-    if (trade.quantity.value().is_zero()) {
+    if (trade.quantity.is_zero()) {
         add_issue(issues, "zero_trade_quantity", "Trade quantity must be positive");
     }
     return issues;

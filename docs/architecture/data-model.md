@@ -12,12 +12,28 @@ classDiagram
         +unix_nanos : int64
     }
     class VenueId {
-        +value : string
+        +value : uint32
     }
-    class SourceInfo {
+    class SourceId {
+        +value : uint32
+    }
+    class VenueReference {
+        +id : VenueId
+        +code : string
+    }
+    class VenueReferenceTable {
+        +add(VenueReference)
+        +find(VenueId)
+    }
+    class SourceMetadata {
+        +id : SourceId
         +provider : string
         +dataset : string optional
         +schema : string optional
+    }
+    class SourceMetadataTable {
+        +add(SourceMetadata)
+        +find(SourceId)
     }
     class InstrumentType {
         Equity
@@ -28,19 +44,22 @@ classDiagram
     class CurrencyCode {
         +value : string
     }
-    class FixedDecimal {
+    class DecimalInput {
         +coefficient : int64
         +scale : uint8
     }
     class Price {
-        +value : FixedDecimal
+        +raw : int64
+        +canonical_scale : uint8 = 9
     }
     class Quantity {
-        +value : FixedDecimal
+        +raw : int64
+        +canonical_scale : uint8 = 6
     }
     class Money {
         +currency : CurrencyCode
-        +amount : FixedDecimal
+        +amount : int64
+        +canonical_scale : uint8 = 2
     }
     class Side {
         Buy
@@ -70,13 +89,13 @@ classDiagram
 
     class EventHeader {
         +instrument_id : InstrumentId
-        +venue : VenueId
+        +venue_id : VenueId
         +event_time : Timestamp
         +receive_time : Timestamp optional
         +sequence : uint64 optional
         +channel_id : uint32 optional
         +source_flags : uint64
-        +source : SourceInfo
+        +source_id : SourceId
     }
     class MboEvent {
         +action : MboAction
@@ -84,6 +103,66 @@ classDiagram
         +side : Side optional
         +price : Price optional
         +quantity : Quantity optional
+    }
+    class MboAdd {
+        +header : EventHeader
+        +order_id : OrderId
+        +side : Side
+        +price : Price
+        +quantity : Quantity
+    }
+    class MboModify {
+        +header : EventHeader
+        +order_id : OrderId
+        +side : Side optional
+        +price : Price optional
+        +quantity : Quantity optional
+    }
+    class MboCancel {
+        +header : EventHeader
+        +order_id : OrderId
+        +quantity : Quantity
+    }
+    class MboExecute {
+        +header : EventHeader
+        +order_id : OrderId
+        +quantity : Quantity
+    }
+    class MboClear {
+        +header : EventHeader
+    }
+    class MboStreamContext {
+        +instrument_id : InstrumentId
+        +venue_id : VenueId
+        +source_id : SourceId
+    }
+    class MboRecord {
+        +event_time : int64
+        +receive_time : int64
+        +sequence : uint64
+        +order_id : uint64
+        +price : int64
+        +quantity : int64
+        +source_flags : uint64
+        +channel_id : uint32
+        +control : uint32
+        +fixed_stride : 64 bytes
+        +alignment : 64 bytes
+    }
+    class MboRecordView {
+        +action()
+        +header()
+        +as_add()
+        +as_modify()
+        +as_cancel()
+        +as_execute()
+        +as_clear()
+    }
+    class MboBuffer {
+        +append(typed MBO)
+        +begin()
+        +end()
+        +size()
     }
     class Trade {
         +price : Price
@@ -148,15 +227,18 @@ classDiagram
     ReferenceVersion --> Price : tick size
     ReferenceVersion --> Quantity : lot size
 
-    Price *-- FixedDecimal : wraps
-    Quantity *-- FixedDecimal : wraps
-    Money *-- FixedDecimal : amount
+    VenueReferenceTable "1" *-- "0..*" VenueReference : maps
+    SourceMetadataTable "1" *-- "0..*" SourceMetadata : maps
+
+    Price ..> DecimalInput : normalizes at boundary
+    Quantity ..> DecimalInput : normalizes at boundary
+    Money ..> DecimalInput : normalizes at boundary
     Money --> CurrencyCode
 
     EventHeader --> InstrumentId : identifies
-    EventHeader --> VenueId
+    EventHeader --> VenueId : compact scope id
     EventHeader --> Timestamp
-    EventHeader --> SourceInfo
+    EventHeader --> SourceId : compact source id
     MboEvent *-- EventHeader
     Trade *-- EventHeader
     Quote *-- EventHeader
@@ -166,6 +248,20 @@ classDiagram
     MboEvent --> MboAction
     MboEvent --> Price
     MboEvent --> Quantity
+    MboAdd *-- EventHeader
+    MboModify *-- EventHeader
+    MboCancel *-- EventHeader
+    MboExecute *-- EventHeader
+    MboClear *-- EventHeader
+    MboBuffer *-- "0..*" MboRecord : contiguous fixed stride
+    MboBuffer *-- MboStreamContext : shared scope
+    MboRecordView --> MboRecord : reads
+    MboRecordView --> MboStreamContext : restores header scope
+    MboRecordView ..> MboAdd : typed view
+    MboRecordView ..> MboModify : typed view
+    MboRecordView ..> MboCancel : typed view
+    MboRecordView ..> MboExecute : typed view
+    MboRecordView ..> MboClear : typed view
     Trade --> Price
     Trade --> Quantity
     Quote --> Price
@@ -198,14 +294,15 @@ classDiagram
     DataState ..> EventHeader : reduced from quality events
 ```
 
-## Iteration 2 — accepted MBO physical-layout direction
+## Iteration 2 — implemented concrete type and MBO layout
 
-The Mermaid model above remains the logical/current Iteration 1 model. For the second implementation/performance pass, use a Databento-inspired fixed-size MBO record as the first physical-layout candidate rather than storing action-specific variable-length records or the current collection of independent `std::optional` fields.
+The Mermaid model retains `MboEvent` as the logical/action-aware boundary shape and shows the concrete physical records beside it. Iteration 2 implements the following choices:
 
-- Keep typed construction at the writer boundary (`Add`, `Modify`, `Cancel`, `Execute`, `Clear` semantics), then normalize into one compact fixed-size tagged MBO record.
-- Store records contiguously and let consumers iterate with a constant stride. The writer → buffer → consumer model is initially synchronous; this decision does not introduce threading or lock-free queues.
-- The action tag determines the semantics of the fixed payload fields. Actions such as `Clear` may leave some fixed slots unused; this deliberate space cost is traded for predictable layout, simple iteration, easier prefetch/cache behavior, and less per-record decoding logic.
-- Preserve the option to expose typed consumer views even if the physical buffer is one fixed record type.
-- Benchmark the actual record footprint before freezing the layout. Useful targets to test include 32, 40, 48, and 64 bytes, with cache-line interaction measured rather than assumed.
-- Sizing sanity check discussed during design: with 1,000,000 records, a 64-byte fixed layout uses 64 MB. If 30% are `Clear` and a hypothetical variable-length layout could encode `Clear` in 32 bytes while all other records remain 64 bytes, the variable layout would use 54.4 MB. The fixed layout therefore spends 9.6 MB, about 15%, for the constant-stride representation in that example.
-- Exact field widths, padding/alignment, sentinel/unused-field semantics, common-header layout, and the final record size remain Iteration 2 implementation/benchmark decisions.
+- `VenueId` and `SourceId` are non-zero `uint32_t` values. `VenueReferenceTable` and `SourceMetadataTable` own human-readable and provider/source strings outside event records.
+- `Price`, `Quantity`, and `Money` store one signed `int64_t` canonical integer. Their scales are respectively 9 decimal places, 6 decimal places, and 2 decimal places.
+- `DecimalInput` is boundary-only input. Upscaling checks for `int64_t` overflow; downscaling rejects non-zero discarded digits instead of rounding. Same-scale arithmetic is checked; mixed-currency money arithmetic is rejected.
+- `MboAdd`, `MboModify`, `MboCancel`, `MboExecute`, and `MboClear` provide typed writer inputs. `MboBuffer` is scoped to one instrument/venue/source context and rejects records from another scope.
+- `MboRecord` is 64 bytes with 64-byte alignment. It stores event-local times, sequence, order payload, source flags, channel, and a control word containing the action and presence bits. The shared `MboStreamContext` avoids repeating stream scope in every record while views restore the complete `EventHeader`.
+- Records are stored in a synchronous, single-threaded `std::vector<MboRecord>`. `MboRecordView` provides action-aware access and typed views without changing the fixed physical stride.
+- The benchmark measures actual object sizes, padding, alignment, cache-line crossings, sequential traversal, and logical payload memory for 32/40/48/64-byte candidates. On the recorded arm64 run, only the 64-byte candidate carries the complete chosen semantics and occupies one cache line without crossings.
+- For 1,000,000 records, the selected fixed layout uses 64,000,000 bytes. The documented 70% 64-byte / 30% 32-byte hypothetical variable layout uses 54,400,000 bytes, a 9,600,000-byte (15%) premium for fixed stride.
