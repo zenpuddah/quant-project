@@ -70,12 +70,13 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 - **Iteration 2 review item:** `ReferenceHistory::at()` currently performs a reverse linear scan over ordered reference versions. Preserve the Iteration 1 implementation for now; in the second implementation/performance pass, benchmark point-in-time lookup and consider binary search over the ordered non-overlapping intervals if lookup frequency or history size justifies it.
 - **Iteration 2 review item:** `VenueId` is currently string-backed and is carried through `EventHeader`, making its physical representation a potential hot-path memory/cache cost. Preserve the `VenueId` domain abstraction, but in the second implementation/performance pass benchmark replacing the string-backed representation with a compact integer ID plus a separate venue-reference mapping/table.
 - **Iteration 2 review item:** `SourceInfo` currently carries string-backed provider, dataset, and schema values through `EventHeader`. Preserve source/provenance semantics, but in the second implementation/performance pass benchmark replacing repeated per-event strings with a compact `SourceId`/publisher-style integer reference into a separate source metadata table.
+- **Iteration 2 accepted direction:** Replace the current action-plus-independent-`std::optional` MBO physical representation with a Databento-inspired compact fixed-size tagged MBO record as the first implementation candidate. Keep typed writer semantics for `Add`/`Modify`/`Cancel`/`Execute`/`Clear`, normalize them into a contiguous fixed-stride buffer, and let consumers iterate/read typed views from that buffer. Prefer the predictable layout, constant-stride traversal, simple consumer logic, and potential cache/prefetch benefits over variable-length action-specific records initially; accept some unused payload bytes for sparse actions such as `Clear`. Do not introduce threading as part of this decision: writer → buffer → consumer is synchronous first. Benchmark exact 32/40/48/64-byte layouts, alignment/cache-line behavior, and the space/throughput trade-off before freezing the final record. The design sanity-check example is 1,000,000 records at 64 bytes = 64 MB versus 54.4 MB for a hypothetical layout where 30% `Clear` records shrink to 32 bytes, i.e. a 9.6 MB/~15% space premium for fixed stride in that scenario.
 - **Then:** Design storage/access/replay and the provider port/Databento adapter against those concrete types.
 
 ## Open questions
 
-- Final canonical C++ type/variant layout, decimal arithmetic/overflow policy, and invariants.
-- Whether the provisional action-plus-optional-fields MBO representation should become typed variants.
+- Final canonical C++ type layout, decimal arithmetic/overflow policy, and invariants.
+- Exact fixed-size MBO record fields, widths, padding/alignment, sentinel/unused-field semantics, header split, and final record size.
 - Provider port and Databento adapter API.
 - Economic-security versus venue-listing type split.
 - Storage/database/file format, physical layout, query/replay API, snapshots, and schema evolution.
