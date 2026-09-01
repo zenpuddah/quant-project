@@ -69,6 +69,7 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 - **Next:** Review and accept the provisional concrete choices: exact fields, required/optional semantics, invariants, event/action representation, and transformation contracts.
 - **Iteration 2 review item:** `ReferenceHistory::at()` currently performs a reverse linear scan over ordered reference versions. Preserve the Iteration 1 implementation for now; in the second implementation/performance pass, benchmark point-in-time lookup and consider binary search over the ordered non-overlapping intervals if lookup frequency or history size justifies it.
 - **Iteration 2 review item:** `VenueId` is currently string-backed and is carried through `EventHeader`, making its physical representation a potential hot-path memory/cache cost. Preserve the `VenueId` domain abstraction, but in the second implementation/performance pass benchmark replacing the string-backed representation with a compact integer ID plus a separate venue-reference mapping/table.
+- **Iteration 2 review item:** `SourceInfo` currently carries string-backed provider, dataset, and schema values through `EventHeader`. Preserve source/provenance semantics, but in the second implementation/performance pass benchmark replacing repeated per-event strings with a compact `SourceId`/publisher-style integer reference into a separate source metadata table.
 - **Then:** Design storage/access/replay and the provider port/Databento adapter against those concrete types.
 
 ## Open questions
