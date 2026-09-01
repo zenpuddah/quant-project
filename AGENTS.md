@@ -9,12 +9,13 @@
 7. Never silently resolve a major architectural trade-off; surface it as a focused question.
 8. Record significant accepted decisions in `docs/architecture/` and record the problem, reasoning, source check, and trade-offs in the engineering book.
 9. For market/provider semantics, prefer primary provider/exchange documentation and cross-check mature implementations when useful. Separate source-supported facts from project-created design choices.
-10. Update `docs/project/context.md` after every meaningful work session.
-11. Run relevant verification before declaring implementation complete.
-12. Avoid production implementation until the relevant design has been accepted.
-13. Prefer focused, reviewable changes and preserve unrelated work.
-14. Preserve the canonical C++20/Python, research-first, end-to-end direction; do not let Phase 2 complexity distort Phase 1 prematurely.
-15. Do not turn a useful mental model into infrastructure before a concrete requirement justifies it.
+10. Keep repository documentation technical. Do not add council/persona/fictional-character framing, motivational commentary, or unrelated study-session material to engineering or architecture documents.
+11. Update `docs/project/context.md` after every meaningful work session.
+12. Run relevant verification before declaring implementation complete.
+13. Avoid production implementation until the relevant design has been accepted.
+14. Prefer focused, reviewable changes and preserve unrelated work.
+15. Preserve the canonical C++20/Python, research-first, end-to-end direction; do not let Phase 2 complexity distort Phase 1 prematurely.
+16. Do not turn a useful mental model into infrastructure before a concrete requirement justifies it.
 
 CLion is the intended IDE. Keep future tooling and project guidance compatible with CLion, but do not assume a build system, compiler configuration, library, or project layout before it is accepted.
 
