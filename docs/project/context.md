@@ -17,10 +17,10 @@
 - **Accepted:** Start with responsibilities, boundaries, data flow, and invariants; separate domain logic from infrastructure.
 - **Accepted:** Prefer correctness, clarity, testability, reproducibility, and free/open-source options before performance complexity.
 - **Accepted:** Do not invent missing requirements or present proposals as decisions.
-- **Accepted:** The developer intends to use CLion; future tooling choices must remain compatible without assuming a build system yet.
+- **Accepted:** CLion is the intended IDE; future tooling choices must remain compatible without assuming a build system yet.
 - **Accepted:** Implementation should be idiomatic, concise, human-maintainable, and free of AI markers, unnecessary boilerplate, or artificial attribution.
-- **Accepted:** The developer retains decision authority and implementation agency; significant trade-offs and changes must be presented for approval rather than silently decided by the assistant.
-- **Accepted:** The assistant acts as a tool and collaborator, not an autonomous owner; repository creation, commits, pushes, architecture decisions, and other consequential actions require explicit authorization.
+- **Accepted:** Significant architectural trade-offs and changes must be presented for approval rather than silently decided.
+- **Accepted:** Accepted architecture decisions live in `docs/architecture/`; their problem/reasoning/source checks live in `docs/project/engineering-book.md`.
 
 ## Superseded ideas
 
@@ -29,40 +29,58 @@
 - **Accepted:** Python research is a first-class workflow, not an afterthought.
 - **Accepted:** Concurrency, networking, and optimization are introduced only when a demonstrated problem justifies them.
 
-## Accepted decisions
+## Data architecture — accepted iteration 1
 
-- **Accepted:** The first architecture artifact is a Phase 1 system-context draft, not a detailed component or implementation design.
-- **Accepted:** Detailed classes, libraries, databases, serialization formats, APIs, event types, and directory structures remain undecided.
+- **Accepted:** Databento is the first serious Phase 1 data provider; Alpaca remains a later second adapter/provider-independence check.
+- **Accepted:** Phase 1 use is primarily stocks/equities, while canonical instrument identity remains extensible to later type-specific options/futures metadata.
+- **Accepted:** Provider-specific formats and terminology stop at adapters; the core uses provider-independent canonical semantics.
+- **Accepted:** Canonical market concepts include L3/MBO events, Trades, Quotes/L1, L2/price-level views, and Bars.
+- **Accepted:** High-information observations can be reduced/derived into lower-granularity views where source semantics allow it; reverse reconstruction is not assumed.
+- **Accepted:** Stable internal `InstrumentId` is canonical identity. Symbols/external identifiers live in time-aware reference/reconciliation data through `ReferenceHistory`.
+- **Accepted:** Source ordering evidence is preserved; C++ enforces provider-valid ordering/validation before persistence/use. Timestamp-only sorting is not sufficient.
+- **Accepted:** Observed canonical data lives conceptually in an original pool; derived data lives in a transformed pool and references ancestry through a lineage DAG.
+- **Accepted:** Venue/market state and data-quality state are separate histories reduced into `MarketState` and `DataState`.
+- **Accepted:** Corrections/revisions do not silently overwrite observed history. The revisioned-event mental model is nicknamed FGIT (Financial Git).
+- **Accepted:** Mutable/reconstructed state is derived through reducers from immutable history.
+- **Accepted:** `Price`, `Quantity`, and `Money` use exact decimal/fixed-point semantics rather than binary floating point.
+- **Accepted:** Snapshots are derived recovery checkpoints tied to a history position, not canonical historical truth.
+- **Accepted:** Canonical data is not an ML tensor or feature table; research/ML datasets are later derived views.
+
+See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/project/engineering-book.md` for the reasoning and source checks.
 
 ## Current repository state
 
-- **Accepted:** The repository was empty at session start and contained no existing guidance, source, configuration, documentation, or Git metadata.
-- **Accepted:** The initial documentation baseline now consists of this file, root `AGENTS.md`, and `docs/architecture/phase1-system-context.md`.
 - **Accepted:** No production source code has been created.
-- **Accepted:** A user-requested one-month Alpaca historical-data sample for `SPY`, `AAPL`, `MSFT`, and `AMZN` was acquired on 2026-08-23 under `data/raw/alpaca/`; the raw data is Git-ignored and no credentials were stored.
-- **Accepted:** The acquisition uses Alpaca `1Day` bars with `feed=iex` and `adjustment=raw`; this operational choice does not establish the canonical Phase 1 data source or feed.
-- **Accepted:** A local Git repository was initialized on `main` on 2026-08-23; the public GitHub repository `https://github.com/zenpuddah/quant-project` was created, configured as `origin` over HTTPS, and the initial `main` commit was pushed.
+- **Accepted:** A one-month Alpaca historical-data sample for `SPY`, `AAPL`, `MSFT`, and `AMZN` exists under Git-ignored `data/raw/alpaca/`, using `1Day`, `feed=iex`, and `adjustment=raw`; it does not define the canonical Phase 1 provider/model.
+- **Accepted:** The public repository is `https://github.com/zenpuddah/quant-project` on `main`.
+- **Accepted:** The documentation baseline now includes `AGENTS.md`, `docs/project/context.md`, `docs/project/engineering-book.md`, `docs/project/alpaca-data-acquisition.md`, `docs/architecture/phase1-system-context.md`, and `docs/architecture/phase1-data-model.md`.
+- **Accepted:** The canonical market-data iteration was checked against current Databento documentation, current Nasdaq TotalView-ITCH specification references, and NautilusTrader order-book documentation before being recorded.
 
 ## Current architecture task
 
-- **Accepted:** The first Phase 1 system-context layer has been drafted and reviewed before moving to more detailed architecture.
-- **Open question:** The system context must be refined after the initial Phase 1 scope and boundary decisions are answered.
-- **Accepted:** The Alpaca acquisition was completed as a data-input exercise without designing the C++ model or changing the Phase 1 architecture boundary.
+- **Accepted:** The Phase 1 system context is established at a useful first level.
+- **Accepted:** Canonical market-data model iteration 1 is complete enough to stop adding abstract concepts.
+- **Next:** Make the canonical model concrete: exact fields, required/optional semantics, invariants, event/action representation, and transformation contracts.
+- **Then:** Design storage/access/replay and the provider port/Databento adapter against those concrete types.
 
 ## Open questions
 
-- **Open question:** What initial instrument or asset scope, venue context, historical period, and data granularity should define Phase 1?
-- **Open question:** Whether the Alpaca IEX sample should become the canonical Phase 1 dataset remains undecided.
-- **Open question:** Which responsibilities belong in C++ and which remain in Python during Phase 1, including how accepted research logic is promoted into backtesting?
-- **Open question:** What minimum execution, fill, cost, slippage, and risk fidelity is required for Phase 1 correctness?
-- **Open question:** What configuration, environment, input-data, result-validation, and artifact information must make an experiment reproducible?
-- **Open question:** Is Phase 1 strictly historical research/backtesting, or must it include paper or live execution boundaries?
-- **Open question:** Which CLion-compatible compiler, build, test, and debug workflow should be accepted when implementation begins?
+- Exact canonical C++ type/variant layout and invariants.
+- Provider port and Databento adapter API.
+- Economic-security versus venue-listing type split.
+- Storage/database/file format, physical layout, query/replay API, snapshots, and schema evolution.
+- C++/Python responsibility split and research-logic promotion.
+- Minimum execution/fill/cost/slippage/risk fidelity.
+- Experiment reproducibility/artifact requirements.
+- Paper/live execution boundary.
+- CLion-compatible compiler/build/test/debug workflow.
+- ML feature/label temporal correctness when the research-dataset builder is designed.
 
 ## Next action
 
-- **Open question:** Answer the initial Phase 1 instrument/data scope question first; use that answer to narrow the system boundary and then decide the C++/Python boundary.
+- **Accepted:** Stop abstract architecture expansion after documenting iteration 1.
+- **Next session:** begin the concrete canonical-type design pass before writing production implementation.
 
 ## Last updated
 
-- **Accepted:** 2026-08-23.
+- **Accepted:** 2026-09-01.
