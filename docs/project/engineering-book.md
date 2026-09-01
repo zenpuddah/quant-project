@@ -459,3 +459,61 @@ transformation contracts
 ```
 
 Only after that should storage/access/replay and the provider port be designed in detail.
+
+---
+
+# 2026-09-01 — First executable canonical-data-model slice
+
+## Problem
+
+The accepted market-data model defined the required concepts and invariants, but the repository still had no executable representation against which those decisions could be checked.
+
+## Implementation scope
+
+The first implementation pass was intentionally limited to the domain boundary:
+
+- strong identity, venue, source, timestamp, currency, and exact-value types;
+- point-in-time reference history for one instrument;
+- observed MBO, Trade, Quote, and Bar record shapes;
+- structural validation for those records;
+- framework-free tests compiled directly with C++20.
+
+No provider, storage, replay, reducer, lineage, Python binding, or backtesting infrastructure was added.
+
+## Concrete implementation choices
+
+### Exact values
+
+`FixedDecimal` uses an `int64` coefficient and a decimal scale from 0 through 18. `Price`, `Quantity`, and `Money` are strong wrappers. Decimal comparisons align scales without converting through binary floating point. The representation retains the supplied scale; arithmetic, overflow, and final scale policy remain open.
+
+### Ordering evidence
+
+`EventHeader` carries event time, optional receive time, optional provider sequence, optional channel, and opaque source flags. The implementation does not create a project-wide sequence or sort records, because the provider-valid ordering policy depends on source semantics.
+
+### Record representation
+
+`MboEvent` currently uses an action enum with optional order fields. This makes incomplete source records representable for validation and quality handling without adding a provider schema to the core. Action-specific checks determine whether an event is structurally usable. A typed variant remains an open alternative.
+
+### Reference history
+
+`ReferenceHistory` is append-only for one instrument and uses explicit half-open validity intervals. It rejects mixed instruments, overlapping intervals, invalid intervals, and appending after an open interval. It permits gaps so unknown reference data is not invented.
+
+## What this solves
+
+- Core records can refer to stable instrument identity rather than symbols.
+- Exact financial values are not represented as unlabeled floating-point primitives.
+- Provider ordering facts have a place without inventing global ordering.
+- Reference metadata can be resolved at an event's point in time.
+- Basic record invariants are executable and reviewable before provider/storage work begins.
+
+## Trade-offs and remaining questions
+
+This is a provisional C++ representation, not a final architecture freeze. Numeric provider IDs, per-value decimal scale, action-plus-optionals, Unix nanoseconds, and the current validation rules are suitable for the first slice but must be reviewed against the concrete Databento adapter and the first replay requirements. No new provider API was introduced in this pass; the existing provider source check remains the basis for the deferred adapter design.
+
+## Verification
+
+The framework-free test executable passed with:
+
+```text
+clang++ -std=c++20 -Wall -Wextra -Wpedantic -Werror -I src tests/data_model_tests.cpp
+```

@@ -51,22 +51,28 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 
 ## Current repository state
 
-- **Accepted:** No production source code has been created.
+- **Implemented:** The first executable C++20 data-model slice exists under `src/quant/data/`, with framework-free invariant tests in `tests/data_model_tests.cpp`.
+- **Implemented:** The slice covers strong IDs, exact fixed-decimal values, source/order evidence, point-in-time reference history, and MBO/Trade/Quote/Bar record validation.
+- **Deferred:** No provider adapter, storage, replay, reducers, lineage persistence, Python binding, or backtesting implementation has been created.
+- **Generated:** The living Mermaid data model has matching outputs at `diagrams/data-model.svg` and `diagrams/data-model.pdf`.
 - **Accepted:** A one-month Alpaca historical-data sample for `SPY`, `AAPL`, `MSFT`, and `AMZN` exists under Git-ignored `data/raw/alpaca/`, using `1Day`, `feed=iex`, and `adjustment=raw`; it does not define the canonical Phase 1 provider/model.
 - **Accepted:** The public repository is `https://github.com/zenpuddah/quant-project` on `main`.
-- **Accepted:** The documentation baseline now includes `AGENTS.md`, `docs/project/context.md`, `docs/project/engineering-book.md`, `docs/project/alpaca-data-acquisition.md`, `docs/architecture/phase1-system-context.md`, and `docs/architecture/phase1-data-model.md`.
+- **Accepted:** The documentation baseline now includes `AGENTS.md`, `docs/project/context.md`, `docs/project/engineering-book.md`, `docs/project/alpaca-data-acquisition.md`, `docs/architecture/phase1-system-context.md`, `docs/architecture/phase1-data-model.md`, `docs/architecture/phase1-data-model-implementation.md`, and the living Mermaid overview `docs/architecture/data-model.md`.
 - **Accepted:** The canonical market-data iteration was checked against current Databento documentation, current Nasdaq TotalView-ITCH specification references, and NautilusTrader order-book documentation before being recorded.
 
 ## Current architecture task
 
 - **Accepted:** The Phase 1 system context is established at a useful first level.
 - **Accepted:** Canonical market-data model iteration 1 is complete enough to stop adding abstract concepts.
-- **Next:** Make the canonical model concrete: exact fields, required/optional semantics, invariants, event/action representation, and transformation contracts.
+- **Implemented:** A first concrete data-model slice now exercises exact values, reference intervals, observed record shapes, and structural invariants.
+- **Accepted:** `docs/architecture/data-model.md` is the living Mermaid representation to update with every data-model change.
+- **Next:** Review and accept the provisional concrete choices: exact fields, required/optional semantics, invariants, event/action representation, and transformation contracts.
 - **Then:** Design storage/access/replay and the provider port/Databento adapter against those concrete types.
 
 ## Open questions
 
-- Exact canonical C++ type/variant layout and invariants.
+- Final canonical C++ type/variant layout, decimal arithmetic/overflow policy, and invariants.
+- Whether the provisional action-plus-optional-fields MBO representation should become typed variants.
 - Provider port and Databento adapter API.
 - Economic-security versus venue-listing type split.
 - Storage/database/file format, physical layout, query/replay API, snapshots, and schema evolution.
@@ -80,7 +86,8 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 ## Next action
 
 - **Accepted:** Stop abstract architecture expansion after documenting iteration 1.
-- **Next session:** begin the concrete canonical-type design pass before writing production implementation.
+- **Accepted:** Begin the concrete canonical-type implementation pass with a deliberately provisional, reviewable slice.
+- **Next session:** review the implementation slice before expanding into storage, replay, or provider integration.
 
 ## Last updated
 
