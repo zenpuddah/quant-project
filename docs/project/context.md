@@ -21,6 +21,7 @@
 - **Accepted:** Implementation should be idiomatic, concise, human-maintainable, and free of AI markers, unnecessary boilerplate, or artificial attribution.
 - **Accepted:** Significant architectural trade-offs and changes must be presented for approval rather than silently decided.
 - **Accepted:** Accepted architecture decisions live in `docs/architecture/`; their problem/reasoning/source checks live in `docs/project/engineering-book.md`.
+- **Accepted:** Repository engineering/architecture documentation stays technical; do not include council/persona/fictional-character framing, motivational commentary, or unrelated study-session material.
 
 ## Superseded ideas
 
