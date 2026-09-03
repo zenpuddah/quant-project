@@ -16,6 +16,10 @@
 14. Prefer focused, reviewable changes and preserve unrelated work.
 15. Preserve the canonical C++20/Python, research-first, end-to-end direction; do not let Phase 2 complexity distort Phase 1 prematurely.
 16. Do not turn a useful mental model into infrastructure before a concrete requirement justifies it.
+17. Treat the repository owner as the engineering manager for architecture, product, and major trade-off decisions. Implementation agents execute accepted designs; they do not silently redesign them.
+18. If implementation exposes an ambiguity, contradiction, hidden provider requirement, significant performance/ownership trade-off, or need for a new external dependency, stop and ask one focused engineering-manager question before continuing.
+19. Do not implement a component marked ghost/deferred merely because doing so is convenient for the current task.
+20. For the current ingestion work, read `docs/architecture/phase1-historical-ingestion.md` and `docs/project/opencode-handoff.md` before writing code. OpenCode's role is implementation and verification of that accepted slice; architecture changes must be surfaced for review.
 
 CLion is the intended IDE. Keep future tooling and project guidance compatible with CLion, but do not assume a build system, compiler configuration, library, or project layout before it is accepted.
 

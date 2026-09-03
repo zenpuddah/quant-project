@@ -610,3 +610,241 @@ The same run performed 1,000,000 lookups across 100,000 reference versions at 39
 ## Verification
 
 The framework-free tests pass with C++20 warnings-as-errors. They cover scale normalization, range/overflow behavior, compact metadata references, binary lookup boundaries and gaps, typed MBO round trips, presence bits, fixed stride, scope validation, and the existing trade/quote/bar invariants. The benchmark compiles and runs independently without a build-system or third-party dependency.
+
+---
+
+# 2026-09-03 — Historical ingestion architecture and bottleneck pass
+
+## Starting point
+
+After Data Model Iteration 2, the next concrete question became how historical provider data enters the system without making Databento, caching, storage, or future concurrency define the canonical model.
+
+The design conversation deliberately worked through failure modes one at a time before implementation. The target was not a production ingestion platform; it was a thin synchronous slice whose boundaries survive later cache/storage/async work.
+
+## 1. Cache our canonical query, not the provider request
+
+### Problem
+
+A cache keyed by exact Databento request parameters would leak provider semantics into the core and would not naturally represent partial overlapping coverage.
+
+### Decision
+
+`MarketDataQuery` expresses canonical intent. A future cache reasons about canonical coverage segments over half-open `[start, end)` intervals.
+
+```text
+MarketDataQuery
+      ↓
+CachePort
+      ↓
+Miss / FullHit / PartialHit
+```
+
+The first implementation is `NoopCache`, always returning the full canonical range as missing.
+
+### Why the real cache is deferred
+
+The current slice does not yet know whether persisted data will be files, a database, memory, object storage, or a combination. The policy boundary is useful now; a storage-specific write contract is premature.
+
+## 2. Generate cache/reproducibility metadata even while the cache is a ghost
+
+### Problem
+
+Deferring caching must not mean losing the information a future cache needs.
+
+### Decision
+
+Ingestion owns `IngestionMetadata`; cache implementations consume it later.
+
+```text
+MarketDataQuery   = requested intent
+IngestionMetadata = actual coverage / quality / provenance / version evidence
+```
+
+Metadata is designed to carry actual coverage segments, provider/source provenance, quality state/evidence, optional source-artifact identity/checksum, and adapter/canonical-schema/mapping version identity.
+
+This keeps migration/regeneration possible without implementing a migration framework now.
+
+## 3. Instrument reconciliation starts human-managed and time-aware
+
+### Problem
+
+Canonical `InstrumentId` cannot simply equal a Databento ID or ticker. Historical symbols and provider mappings can change through time.
+
+### Source observation
+
+Databento's symbology documentation preserves historical symbols as they appeared at the event time and exposes mapping intervals. A requested symbol can partially resolve over a range.
+
+### Decision
+
+Bootstrap provider reconciliation with a human-maintained XML registry.
+
+Each canonical instrument may own several provider mapping intervals:
+
+```text
+InstrumentId 42
+├── [2012, 2022-06-09) -> FB / provider mapping A
+└── [2022-06-09, ...)  -> META / provider mapping B
+```
+
+Provider ID is optional. Symbol, venue/listing evidence, type/currency/reference information and interval validity can participate in the mapping. A query crossing a mapping boundary can split into multiple provider subqueries and normalize all returned records back to the same canonical `InstrumentId` where appropriate.
+
+AI/heuristics may later rank ambiguous candidates; they are not ingestion authority. Human-approved deterministic mapping remains authoritative.
+
+The XML parser dependency itself is intentionally not chosen yet.
+
+## 4. One quality model for ingestion and canonical data
+
+### Problem
+
+Provider ingestion can return degraded, missing, corrupt, or structurally invalid data. If ingestion invents its own quality state, the same problem will later be represented differently in cache, replay, research, and the canonical model.
+
+### Source observation
+
+Databento exposes historical dataset conditions including available, degraded, pending, and missing, plus `last_modified_date`. Those are provider evidence, not our canonical state vocabulary.
+
+### Decision
+
+Translate provider/validation evidence into canonical `DataQualityObservation` and reduce it through the same `DataState` mechanism already accepted in the data model.
+
+```text
+provider evidence
+      ↓
+DataQualityObservation
+      ↓
+DataStateReducer
+      ↓
+DataState
+```
+
+Ingestion workflow state remains separate. Provider/job `pending` does not automatically become a market-data quality state.
+
+No quality field is copied into every hot `MboRecord`.
+
+## 5. Recovery is a ghost policy seam
+
+### Problem
+
+Missing/degraded data will eventually need retries or range repair, but implementing retry workers before the quality/range boundaries are exercised would create unnecessary infrastructure.
+
+### Decision
+
+Preserve a `RecoveryPolicy` seam. The first implementation always chooses `NoAction`.
+
+Retry loops, backoff, scheduling, and repair execution remain deferred.
+
+## 6. Batch is the primitive; synchronous execution comes first
+
+### Problem
+
+MBO/L3 ranges can be too large to assume the whole query fits in memory. Future parallel work can also complete out of order.
+
+### Decision
+
+Treat the pipeline as batch/chunk oriented; a single record is a batch of one.
+
+The first executor is synchronous. It processes provider-valid order without adding threads, queues, futures, or locks.
+
+Future async/multithreading must reuse the same query/range/mapping/provider/quality semantics. Processing completion order is not market-event order. A future parallel form may use map/normalize workers followed by an ordering/reduce stage that respects provider sequence/channel semantics and does not invent a global order across independent channels.
+
+## 7. Overlapping work uses range resolution, not cache-specific logic
+
+### Problem
+
+Two future ingestion jobs may overlap:
+
+```text
+A wants [1,10)
+B already works [5,8)
+```
+
+### Decision
+
+Keep interval math in a reusable `RangeResolver`. A future `IngestionCoordinator` can join/wait for `[5,8)` and fetch `[1,5)` plus `[8,10)`.
+
+The synchronous first slice has no active-job registry. It only implements the pure range logic needed later.
+
+## 8. Partial results need no extra transaction abstraction
+
+Coverage segments plus `DataState` already represent:
+
+```text
+[1,5)  complete
+[5,8)  complete
+[8,10) unresolved/degraded
+```
+
+Successful data is not discarded, and failed ranges are not pretended to exist. Future recovery can target only unresolved segments.
+
+## 9. Provider leakage guardrail
+
+### Problem
+
+A generic query containing `dataset`, `mbo`, `stype_in`, or Databento request classes would simply be a Databento API in disguise.
+
+### Decision
+
+Canonical query fields remain provider-independent. The Databento implementation owns dataset/schema/symbology/request translation. Alpaca remains a ghost structural check: the provider port must not require concepts that only Databento can represent.
+
+Databento is still the only real provider implementation target now.
+
+## 10. L3 first
+
+### Source observation
+
+Databento documents MBO as L3/full order-book data, MBP-10 as L2/top-ten price levels, and MBP-1 as L1/BBO updates.
+
+### Decision
+
+Implement only the L3/MBO path first. Direct MBP-10/MBP-1 provider ingestion remains deferred. Later reducers may derive lower-information views from sufficiently complete L3 input, and direct provider-native lower-level data can be added for comparison/other use cases.
+
+## 11. Version evolution and storage stay constraints, not projects
+
+Metadata keeps adapter/canonical-schema/mapping version identity. Raw provider artifacts should generally be regenerable through newer adapters when retained; canonical/derived data may later need explicit migrations.
+
+No migration framework is built now.
+
+Storage/access/replay remain intentionally deferred. The only current guardrails are that ingestion does not assume one permanent in-memory representation, does not expose database/file operations through canonical query semantics, and operates on bounded batches/segments.
+
+## 12. Engineering-manager / implementation-agent boundary
+
+The repository owner acts as engineering manager for major architecture/product/trade-off decisions. OpenCode is an implementation agent.
+
+The next code slice is deliberately dependency-free and fake-driven. If implementation exposes an interface contradiction, hidden provider requirement, new external dependency, major ownership/performance issue, or need to make a ghost component real, the implementation agent must stop and ask one focused engineering-manager question instead of silently redesigning.
+
+## Source check
+
+Primary Databento documentation rechecked before recording this iteration:
+
+1. Schemas/data formats  
+   https://databento.com/docs/knowledge-base
+
+   Supports: MBO is L3/full order-book data, MBP-10 is L2, MBP-1 is L1.
+
+2. MBO schema  
+   https://databento.com/docs/schemas-and-data-formats/mbo
+
+   Supports: order-ID-keyed MBO events and the event/receive timestamp, channel/sequence, price/size and source fields used by the existing canonical design.
+
+3. Symbology  
+   https://databento.com/docs/standards-and-conventions/symbology
+
+   Supports: historical symbols remain point-in-time; mapping results contain validity intervals and can partially/not resolve over a requested date range.
+
+4. Historical dataset condition  
+   https://databento.com/docs/api-reference-historical/basics/authentication
+
+   Supports: provider-side availability/quality evidence (`available`, `degraded`, `pending`, `missing`) and `last_modified_date`.
+
+## Source-supported versus project-created
+
+**Source-supported mechanisms:** Databento L1/L2/L3 schema hierarchy, MBO ordering/provenance fields, point-in-time symbology mappings, and dataset condition/version evidence.
+
+**Project-created architecture choices:** canonical `MarketDataQuery`, `CachePort`/`NoopCache`, segmented canonical coverage, XML bootstrap registry, `IngestionMetadata`, recovery-policy seam, range resolver/coordinator split, batch-first synchronous execution, and engineering-manager implementation gate.
+
+## Implementation handoff
+
+Accepted architecture: `docs/architecture/phase1-historical-ingestion.md`.
+
+OpenCode execution plan: `docs/project/opencode-handoff.md`.
+
+The first implementation must stop after the generic synchronous skeleton is verified. Real Databento client and XML parser dependencies require a separate engineering-manager review.
