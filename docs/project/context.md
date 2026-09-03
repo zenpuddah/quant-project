@@ -55,6 +55,8 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 - **Implemented:** The executable C++20 data-model slice exists under `src/quant/data/`, with framework-free invariant tests in `tests/data_model_tests.cpp`.
 - **Implemented:** Iteration 2 uses binary point-in-time lookup, compact `uint32_t` venue/source IDs with separate metadata tables, fixed-scale integer `Price`/`Quantity`/`Money`, and a synchronous typed MBO writer/buffer/view path.
 - **Implemented:** `MboRecord` is a 64-byte, 64-byte-aligned fixed-stride record with presence bits and a shared instrument/venue/source stream context.
+- **Implemented:** The dependency-free synchronous ingestion skeleton exists under `src/quant/ingestion/`, covering canonical query/range resolution, cache/recovery ports, shared quality reduction, metadata/result envelopes, mapping/provider fakes, and L3 orchestration tests.
+- **Implemented:** The first ingestion result reuses one optional existing `MboBuffer`; mixed instrument/venue/source stream scopes are rejected explicitly rather than changing the 64-byte record or introducing a second physical MBO representation.
 - **Measured:** The dependency-free benchmark in `benchmarks/data_model_benchmark.cpp` measured 32/40/48/64-byte candidates, padding, alignment, cache-line crossings, traversal, memory usage, and binary reference lookup on Apple clang 21 arm64. The 64-byte record is finalized for this boundary.
 - **Deferred:** No real provider adapter, storage, replay, lineage persistence, Python binding, or backtesting implementation has been created.
 - **Generated:** The living Mermaid data model has matching outputs at `diagrams/data-model.svg` and `diagrams/data-model.pdf`.
@@ -105,12 +107,12 @@ See `docs/architecture/phase1-historical-ingestion.md` for the full accepted dir
 - **Accepted:** Canonical market-data model Iteration 1 is complete enough to stop adding abstract concepts.
 - **Implemented:** Iteration 2 exercises canonical integer values, compact reference IDs, binary reference lookup, typed MBO writes, fixed-stride round trips, and structural invariants.
 - **Accepted:** The historical-ingestion architecture is now defined enough to begin a generic synchronous implementation without choosing storage, cache backend, async execution, or external provider/XML dependencies.
+- **Implemented:** Historical-ingestion Tasks 1–6 are complete with deterministic fakes/no-op policies and no external dependencies, provider SDK, XML parser, storage, replay, retry, or concurrency infrastructure.
 
 ## Next action
 
-- **Next implementation:** OpenCode implements only the generic synchronous ingestion skeleton described in `docs/project/opencode-handoff.md`.
-- **Implementation gate:** Use fake/in-memory provider/mapping test doubles plus `NoopCache`/no-op recovery. Do not add Databento or XML dependencies in this first slice.
-- **Review checkpoint:** After the generic skeleton passes all existing/new tests, stop and report boundary problems plus proposed Databento C++ client and XML parser choices for engineering-manager approval.
+- **Review checkpoint:** Review the verified generic synchronous ingestion skeleton, its single-stream `MboBuffer` result boundary, and proposed Databento C++ client/XML parser choices before adding either dependency.
+- **Implementation gate:** Keep real Databento, XML parsing, cache/storage/replay, retry/repair, async/concurrency, and direct L2/L1 ingestion deferred until engineering-manager review.
 - **Then:** Connect the reviewed skeleton to real Databento historical MBO and the XML registry.
 
 ## Last updated
