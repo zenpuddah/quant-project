@@ -1,0 +1,69 @@
+%%{init: {"theme":"base", "themeVariables":{"fontFamily":"Arial","fontSize":"16px","primaryTextColor":"#1f2937","lineColor":"#64748b","clusterBkg":"#f8fafc","clusterBorder":"#94a3b8"}}}%%
+flowchart TB
+    title["PHASE 1 STATUS SUMMARY<br/>C++20 / Python quant platform<br/>Implementation slice complete"]:::title
+    target["TARGET SYSTEM<br/>Data -> Features -> Strategy -> Orders -> Risk -> Execution/Fills -> Portfolio/Accounting -> PnL -> Validation/Reporting"]:::target
+    title --> target
+
+    subgraph IMPLEMENTED["IMPLEMENTED NOW"]
+        direction LR
+        data["CANONICAL DATA MODEL<br/>src/quant/data/<br/>64-byte aligned MboRecord<br/>exact fixed-scale values<br/>ReferenceHistory + validation"]:::implemented
+        ingestion["SYNC INGESTION SKELETON<br/>src/quant/ingestion/<br/>Tasks 1-6<br/>L3/MBO only<br/>framework-free fakes"]:::implemented
+        verify["VERIFIED<br/>7 tests pass<br/>C++20 + warnings-as-errors<br/>No external dependencies"]:::verified
+        data --> ingestion --> verify
+    end
+
+    subgraph INGESTION["CURRENT INGESTION FLOW"]
+        direction LR
+        query["MarketDataQuery<br/>InstrumentId, optional VenueId<br/>L1/L2/L3 intent, [start,end)"]:::boundary
+        ranges["Range helpers<br/>overlap / intersection / subtract"]:::boundary
+        cache["CachePort<br/>NoopCache -> full miss"]:::ghost
+        mapping["InstrumentMappingRegistry<br/>time-aware provider segments<br/>optional symbol / provider ID"]:::boundary
+        provider["ProviderPort<br/>canonical MBO batch<br/>quality + source evidence"]:::boundary
+        quality["Validation + DataStateReducer<br/>Complete / Degraded / Missing / Corrupt<br/>SequenceGap -> Degraded"]:::boundary
+        result["IngestionResult<br/>metadata + optional existing MboBuffer<br/>single stream scope"]:::boundary
+        query --> ranges --> cache --> mapping --> provider --> quality --> result
+    end
+    ingestion --> query
+
+    subgraph DIAGRAMS["MERMAID AND GENERATED ARTIFACTS"]
+        direction TB
+        model_source["Living source<br/>docs/architecture/data-model.md<br/>full canonical data model"]:::artifact
+        model_svg["Generated SVG<br/>diagrams/data-model.svg"]:::artifact
+        model_pdf["Generated PDF<br/>diagrams/data-model.pdf"]:::artifact
+        status_source["This summary source<br/>docs/project/phase1-status-summary.mmd"]:::artifact
+        status_pdf["This status PDF<br/>docs/project/phase1-status-summary.pdf"]:::artifact
+        model_source --> model_svg
+        model_source --> model_pdf
+        status_source --> status_pdf
+    end
+    data --> model_source
+    verify --> status_source
+
+    subgraph DEFERRED["DEFERRED / NOT IMPLEMENTED"]
+        direction LR
+        real_provider["Real Databento adapter<br/>SDK/client dependency"]:::deferred
+        xml["XML mapping registry<br/>parser dependency"]:::deferred
+        storage["Cache backend, storage,<br/>access, replay, migration"]:::deferred
+        execution["Async, concurrency,<br/>retry/repair, direct L1/L2"]:::deferred
+        real_provider ~~~ xml
+        xml ~~~ storage
+        storage ~~~ execution
+    end
+    provider -. next reviewed step .-> real_provider
+    mapping -. next reviewed step .-> xml
+
+    subgraph REVIEW["ENGINEERING-MANAGER REVIEW GATE"]
+        direction TB
+        decisions["Decisions before real integration<br/>1. Pin official databento-cpp and approve dependency/build impact<br/>2. Choose XML parser: TinyXML-2 recommendation; pugixml/Expat alternatives<br/>3. Decide multi-venue/source result shape vs query constraint<br/>4. Confirm provisional quality precedence"]:::review
+    end
+    DEFERRED --> REVIEW
+
+    classDef title fill:#0f172a,color:#ffffff,stroke:#0f172a,stroke-width:2px;
+    classDef target fill:#e0f2fe,color:#0c4a6e,stroke:#0284c7,stroke-width:2px;
+    classDef implemented fill:#dcfce7,color:#14532d,stroke:#16a34a,stroke-width:2px;
+    classDef verified fill:#dbeafe,color:#1e3a8a,stroke:#2563eb,stroke-width:2px;
+    classDef boundary fill:#f8fafc,color:#1f2937,stroke:#64748b,stroke-width:1px;
+    classDef ghost fill:#fef3c7,color:#78350f,stroke:#d97706,stroke-width:1px;
+    classDef artifact fill:#f3e8ff,color:#581c87,stroke:#9333ea,stroke-width:1px;
+    classDef deferred fill:#fee2e2,color:#7f1d1d,stroke:#dc2626,stroke-width:1px;
+    classDef review fill:#ffedd5,color:#7c2d12,stroke:#ea580c,stroke-width:2px;
