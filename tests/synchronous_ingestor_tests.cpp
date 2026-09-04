@@ -99,10 +99,11 @@ void test_full_miss_produces_result() {
     require(provider.calls().size() == 1, "a full cache miss must produce one provider request");
     require(provider.calls()[0].range == range(0, 10), "provider request must use the canonical missing range");
     require(result.mbo.has_value() && result.mbo->size() == 1, "valid provider output must enter the MBO buffer");
-    require(result.metadata.actual_coverage == std::vector<TimeRange>{range(0, 10)},
-            "valid provider output must produce actual coverage");
+    require(result.metadata.actual_coverage.empty(),
+            "valid provider output without coverage evidence must not claim full actual coverage");
     require(result.metadata.unresolved_ranges.empty(), "complete provider output must have no unresolved ranges");
-    require(result.metadata.data_state == DataState::Complete, "valid provider output must reduce to complete state");
+    require(result.metadata.data_state == DataState::Unknown,
+            "valid provider output without quality evidence must reduce to unknown state");
     require(result.metadata.provider == "test-provider", "result metadata must retain provider identity");
     require(result.metadata.source_ids == std::vector<SourceId>{SourceId{9}},
             "result metadata must retain source identity");
@@ -135,7 +136,8 @@ void test_mapping_boundary_is_one_logical_result() {
     require(result.mbo->at(1).order_id()->value() == 101, "second provider event must remain second");
     require(result.mbo->at(0).header().instrument_id == InstrumentId{42},
             "normalized events must retain canonical instrument identity");
-    require(result.metadata.data_state == DataState::Complete, "complete mapping segments must reduce to complete state");
+    require(result.metadata.data_state == DataState::Unknown,
+            "mapping segments with events but no quality evidence must reduce to unknown state");
 }
 
 void test_provider_quality_and_validation() {
@@ -158,6 +160,43 @@ void test_provider_quality_and_validation() {
                 "degraded provider evidence must reduce to degraded state");
         require(result.metadata.unresolved_ranges == std::vector<TimeRange>{range(0, 10)},
                 "degraded provider evidence must remain unresolved for recovery policy input");
+    }
+
+    {
+        NoopCache cache;
+        InMemoryInstrumentMappingRegistry mappings;
+        mappings.add(mapping(0, 10, "TEST"));
+        FakeProvider provider{"test-provider"};
+        provider.enqueue_response(ProviderBatch{{}, {}, {}, std::nullopt});
+        NoopRecoveryPolicy recovery;
+        SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+        const auto result = ingestor.ingest(
+            MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(3));
+        require(result.metadata.data_state == DataState::Unknown,
+                "zero provider events without quality evidence must reduce to unknown state");
+        require(!result.mbo.has_value(), "zero provider events must not create an MBO buffer");
+    }
+
+    {
+        NoopCache cache;
+        InMemoryInstrumentMappingRegistry mappings;
+        mappings.add(mapping(0, 10, "TEST"));
+        FakeProvider provider{"test-provider"};
+        provider.enqueue_response(ProviderBatch{
+            {},
+            {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
+            {},
+            std::nullopt,
+        });
+        NoopRecoveryPolicy recovery;
+        SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+        const auto result = ingestor.ingest(
+            MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(3));
+        require(result.metadata.data_state == DataState::Complete,
+                "explicit complete evidence must reduce to complete state without events");
+        require(result.metadata.actual_coverage == std::vector<TimeRange>{range(0, 10)},
+                "explicit complete evidence must produce actual coverage without events");
+        require(!result.mbo.has_value(), "explicit complete evidence without events must not create an MBO buffer");
     }
 
     {

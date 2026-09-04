@@ -160,14 +160,12 @@ public:
                     source_artifact_identity = *response.source_artifact_identity;
                 }
 
-                bool has_quality_evidence = false;
                 for (const auto& observation : response.quality_observations) {
                     validate(observation.range);
                     const auto clipped = intersection(mapping_segment.range, observation.range);
                     if (!clipped) {
                         throw std::invalid_argument("provider quality evidence is outside its requested range");
                     }
-                    has_quality_evidence = true;
                     quality_observations.push_back(DataQualityObservation{*clipped, observation.kind});
                     switch (observation.kind) {
                     case DataQualityKind::Complete:
@@ -186,7 +184,6 @@ public:
                 }
 
                 bool validation_failed = false;
-                std::size_t valid_event_count = 0;
                 for (const auto& event : response.mbo_events) {
                     add_source_id(event.header.source_id);
                     const bool structurally_valid = data::is_valid(data::validate(event));
@@ -212,23 +209,11 @@ public:
                         throw std::logic_error("one ingestion result requires multiple MBO stream buffers");
                     }
                     mbo->append(event);
-                    ++valid_event_count;
                 }
 
                 if (validation_failed) {
                     quality_observations.push_back(
                         DataQualityObservation{mapping_segment.range, DataQualityKind::Corrupt});
-                    unresolved_ranges.push_back(mapping_segment.range);
-                }
-                if (valid_event_count > 0) {
-                    actual_coverage.push_back(mapping_segment.range);
-                    if (!has_quality_evidence) {
-                        quality_observations.push_back(
-                            DataQualityObservation{mapping_segment.range, DataQualityKind::Complete});
-                    }
-                } else if (!has_quality_evidence && !validation_failed) {
-                    quality_observations.push_back(
-                        DataQualityObservation{mapping_segment.range, DataQualityKind::Missing});
                     unresolved_ranges.push_back(mapping_segment.range);
                 }
             }
