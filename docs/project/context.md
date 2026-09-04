@@ -57,12 +57,13 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 - **Implemented:** `MboRecord` is a 64-byte, 64-byte-aligned fixed-stride record with presence bits and a shared instrument/venue/source stream context.
 - **Implemented:** The dependency-free synchronous ingestion skeleton exists under `src/quant/ingestion/`, covering canonical query/range resolution, cache/recovery ports, shared quality reduction, metadata/result envelopes, mapping/provider fakes, and L3 orchestration tests.
 - **Implemented:** The first ingestion result reuses one optional existing `MboBuffer`; mixed instrument/venue/source stream scopes are rejected explicitly rather than changing the 64-byte record or introducing a second physical MBO representation.
+- **Reviewed:** The Tasks 1–6 ingestion skeleton has passed the architecture review checkpoint. Its overall direction is accepted, but one quality-inference behavior must be corrected before real provider integration.
 - **Measured:** The dependency-free benchmark in `benchmarks/data_model_benchmark.cpp` measured 32/40/48/64-byte candidates, padding, alignment, cache-line crossings, traversal, memory usage, and binary reference lookup on Apple clang 21 arm64. The 64-byte record is finalized for this boundary.
 - **Deferred:** No real provider adapter, storage, replay, lineage persistence, Python binding, or backtesting implementation has been created.
 - **Generated:** The living Mermaid data model has matching outputs at `diagrams/data-model.svg` and `diagrams/data-model.pdf`.
 - **Accepted:** A one-month Alpaca historical-data sample for `SPY`, `AAPL`, `MSFT`, and `AMZN` exists under Git-ignored `data/raw/alpaca/`, using `1Day`, `feed=iex`, and `adjustment=raw`; it does not define the canonical Phase 1 provider/model.
 - **Accepted:** The public repository is `https://github.com/zenpuddah/quant-project` on `main`.
-- **Accepted:** The documentation baseline now includes `AGENTS.md`, `docs/project/context.md`, `docs/project/engineering-book.md`, `docs/project/alpaca-data-acquisition.md`, `docs/architecture/phase1-system-context.md`, `docs/architecture/phase1-data-model.md`, `docs/architecture/phase1-data-model-implementation.md`, the dependency-free benchmark at `benchmarks/data_model_benchmark.cpp`, and the living Mermaid overview `docs/architecture/data-model.md`.
+- **Accepted:** The documentation baseline now includes `AGENTS.md`, `docs/project/context.md`, `docs/project/engineering-book.md`, `docs/project/alpaca-data-acquisition.md`, `docs/project/opencode-handoff.md`, `docs/project/opencode-review-2026-09-04.md`, `docs/architecture/phase1-system-context.md`, `docs/architecture/phase1-data-model.md`, `docs/architecture/phase1-data-model-implementation.md`, the dependency-free benchmark at `benchmarks/data_model_benchmark.cpp`, and the living Mermaid overview `docs/architecture/data-model.md`.
 - **Accepted:** The canonical market-data iteration was checked against current Databento documentation, current Nasdaq TotalView-ITCH specification references, and NautilusTrader order-book documentation before being recorded.
 
 ## Historical ingestion architecture — accepted 2026-09-03
@@ -87,12 +88,22 @@ See `docs/architecture/phase1-historical-ingestion.md` for the full accepted dir
 - **Accepted:** Metadata keeps version identity sufficient for future regeneration/migration. No migration framework/scripts are built now.
 - **Accepted:** Storage/access/replay remain intentionally deferred unless the current ingestion slice exposes a concrete incompatibility.
 
+## Post-implementation ingestion review — 2026-09-04
+
+See `docs/project/opencode-review-2026-09-04.md` before continuing ingestion work.
+
+- **Required correction:** Event presence/absence is not data-quality evidence. The current skeleton must not infer `Complete` merely because valid events exist, and must not infer `Missing` merely because zero events were returned. Without explicit provider/adapter coverage or quality evidence, the interval reduces to `Unknown`.
+- **Accepted constraint:** The current fake `ProviderBatch` materializes a `std::vector<MboEvent>` only to prove orchestration. Do not cement full-request materialization into the real Databento boundary. Real provider integration must remain capable of incremental bounded batches/chunks without introducing premature async/concurrency/storage machinery.
+- **Unresolved engineering-manager decision:** The implementation exposed the `InstrumentId` versus venue-listing boundary. A query with unspecified venue can potentially resolve multiple venue/source stream scopes, while `IngestionResult` currently owns one optional single-scope `MboBuffer`. Do not change `MboBuffer`, create a multi-buffer canonical result, or redefine identity until the engineering manager decides whether one `InstrumentId` means one tradable venue listing or can span several venue listings of the same economic security.
+- **Accepted behavior until that decision:** Mixed MBO stream scopes remain explicitly rejected rather than hidden or coerced.
+- **Implementation gate:** Do not start the real Databento adapter or XML parser before the quality correction is made and the identity/listing decision plus dependency review are completed.
+
 ## Open questions
 
+- **Current engineering-manager question:** Should one canonical `InstrumentId` represent one specific tradable venue listing, or can one `InstrumentId` span several venue listings of the same economic security?
 - Exact Databento C++ client/dependency integration. Do not add a dependency before engineering-manager review.
 - Exact XML parsing library/dependency. Do not add a dependency before engineering-manager review.
-- Exact minimal `DataState` vocabulary/precedence if implementation exposes ambiguity beyond the accepted quality cases.
-- Economic-security versus venue-listing type split.
+- Exact minimal `DataState` vocabulary/precedence if real provider evidence exposes ambiguity beyond the accepted quality cases.
 - Storage/database/file format, physical layout, query/replay API, snapshots, and schema evolution implementation.
 - C++/Python responsibility split and research-logic promotion.
 - Minimum execution/fill/cost/slippage/risk fidelity.
@@ -106,15 +117,17 @@ See `docs/architecture/phase1-historical-ingestion.md` for the full accepted dir
 - **Accepted:** The Phase 1 system context is established at a useful first level.
 - **Accepted:** Canonical market-data model Iteration 1 is complete enough to stop adding abstract concepts.
 - **Implemented:** Iteration 2 exercises canonical integer values, compact reference IDs, binary reference lookup, typed MBO writes, fixed-stride round trips, and structural invariants.
-- **Accepted:** The historical-ingestion architecture is now defined enough to begin a generic synchronous implementation without choosing storage, cache backend, async execution, or external provider/XML dependencies.
 - **Implemented:** Historical-ingestion Tasks 1–6 are complete with deterministic fakes/no-op policies and no external dependencies, provider SDK, XML parser, storage, replay, retry, or concurrency infrastructure.
+- **Reviewed:** The generic synchronous ingestion skeleton is directionally accepted. The review exposed one required semantic correction and one real identity/result-shape decision rather than a need for broad redesign.
 
 ## Next action
 
-- **Review checkpoint:** Review the verified generic synchronous ingestion skeleton, its single-stream `MboBuffer` result boundary, and proposed Databento C++ client/XML parser choices before adding either dependency.
-- **Implementation gate:** Keep real Databento, XML parsing, cache/storage/replay, retry/repair, async/concurrency, and direct L2/L1 ingestion deferred until engineering-manager review.
-- **Then:** Connect the reviewed skeleton to real Databento historical MBO and the XML registry.
+1. **Next narrow implementation:** Remove event-count-based `Complete`/`Missing` inference from synchronous ingestion and update tests so absence of explicit quality/coverage evidence produces `Unknown`.
+2. **Engineering-manager decision:** Resolve whether canonical `InstrumentId` is venue-listing identity or can span multiple venue listings. Until resolved, preserve the current explicit mixed-scope rejection.
+3. **Dependency review:** Choose the Databento C++ integration approach and XML parser before adding either dependency.
+4. **Provider-boundary review:** Before the real Databento adapter, propose the minimum chunk-capable synchronous provider interface; do not add full concurrency/backpressure infrastructure.
+5. **Then:** Connect the reviewed skeleton to real Databento historical MBO and the XML-backed mapping registry.
 
 ## Last updated
 
-- **Accepted:** 2026-09-03.
+- **Accepted:** 2026-09-04.
