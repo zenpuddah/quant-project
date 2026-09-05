@@ -2,6 +2,7 @@
 
 #include "quant/ingestion/query.hpp"
 
+#include <stdexcept>
 #include <vector>
 
 namespace quant::ingestion {
@@ -28,7 +29,10 @@ class NoopCache final : public CachePort {
 public:
     [[nodiscard]] CacheLookup lookup(const MarketDataQuery& query) override {
         validate(query);
-        return CacheLookup{CacheStatus::Miss, {}, {query.range}};
+        if (!query.event_time_range) {
+            throw std::invalid_argument("cache lookup requires an event-time range for mapping resolution");
+        }
+        return CacheLookup{CacheStatus::Miss, {}, {*query.event_time_range}};
     }
 };
 

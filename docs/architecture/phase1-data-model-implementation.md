@@ -102,7 +102,7 @@ Normalization and arithmetic rules are explicit:
 | Offset | Width | Field |
 | ---: | ---: | --- |
 | 0 | 8 | event time |
-| 8 | 8 | receive time |
+| 8 | 8 | source receive time |
 | 16 | 8 | sequence |
 | 24 | 8 | order ID |
 | 32 | 8 | canonical price |

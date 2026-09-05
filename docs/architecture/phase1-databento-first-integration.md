@@ -45,7 +45,7 @@ Conceptually:
 ```text
 MarketDataQuery
 ├── event_time_range      optional
-├── receive_time_range    optional
+├── source_receive_time_range optional
 ├── fetch policy
 └── optional derivation margin
 ```
@@ -54,14 +54,18 @@ Rules:
 
 - at least one time range must be present;
 - event time is the default/primary semantic for ordinary canonical queries;
-- if only event time is supplied, an adapter whose provider filters on receive time may derive a receive-time fetch range;
+- if only event time is supplied, an adapter whose provider filters on source receive time may derive a source-receive-time fetch range;
 - the derivation behavior is explicit through query policy rather than hidden adapter behavior;
 - the query may provide before/after safety margin for that derived provider range;
 - if the strict/explicit policy is selected and the provider requires a missing time basis, fail before making the provider request;
-- if both event-time and receive-time ranges are explicitly present, returned records must satisfy both;
+- if both event-time and source-receive-time ranges are explicitly present, returned records must satisfy both;
 - preserve both timestamps in canonical observations whenever the provider supplies both.
+- mapping validity is resolved only with `event_time`; a source-receive-time-only query is rejected for this slice;
+- `ts_recv` is provider/source receive time, not the time our own infrastructure received the event.
 
-Databento historical `timeseries.get_range` filters `start`/`end` on `ts_recv` when the schema contains it, otherwise on `ts_event`. MBO contains both.
+The canonical name is `source_receive_time` to make that ownership explicit. Historical ingestion does not fabricate a local per-event receive timestamp; `ingestion_time` remains the operation-level timestamp.
+
+Databento historical `timeseries.get_range` filters `start`/`end` on provider `ts_recv` when the schema contains it, otherwise on `ts_event`. MBO contains both.
 
 ## 3. Databento MBO actions are interpreted, not blindly enum-mapped
 
@@ -174,7 +178,7 @@ our structural/unusable validation failure
     -> Corrupt
 ```
 
-Record/channel flags may worsen the result. In particular, bad-book/gap evidence can degrade a range. Receive-timestamp-quality evidence should affect receive-time quality and must not automatically mean that the book itself is corrupt.
+Record/channel flags may worsen the result. In particular, bad-book/gap evidence can degrade a range. Source-receive-timestamp quality evidence should affect source-receive-time quality and must not automatically mean that the book itself is corrupt.
 
 Do not infer completeness from event count.
 
@@ -216,7 +220,7 @@ The existing canonical record model already has the needed primary MBO fields:
 
 ```text
 ts_event      -> event_time
-ts_recv       -> receive_time
+ts_recv       -> source_receive_time
 sequence      -> sequence
 channel_id    -> channel_id
 flags         -> source_flags
@@ -303,6 +307,17 @@ Keep deferred:
 - L1/L2 provider support;
 - repo-wide build-system redesign;
 - generalized provider-metadata framework beyond what the first adapter needs.
+
+Acquisition provenance is explicit at the result/ingestion-metadata boundary:
+
+```text
+enum class AcquisitionMode {
+    Historical,
+    Live
+};
+```
+
+It is not stored on every `MboRecord` and remains independent of event time and provider/source receive time.
 
 If real Databento records expose a contradiction with the accepted canonical boundaries, stop and raise one focused engineering-manager question rather than silently redesigning the model.
 

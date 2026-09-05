@@ -91,7 +91,7 @@ classDiagram
         +instrument_id : InstrumentId
         +venue_id : VenueId
         +event_time : Timestamp
-        +receive_time : Timestamp optional
+        +source_receive_time : Timestamp optional
         +sequence : uint64 optional
         +channel_id : uint32 optional
         +source_flags : uint64
@@ -138,7 +138,7 @@ classDiagram
     }
     class MboRecord {
         +event_time : int64
-        +receive_time : int64
+        +source_receive_time : int64
         +sequence : uint64
         +order_id : uint64
         +price : int64

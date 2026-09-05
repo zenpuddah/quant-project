@@ -96,6 +96,14 @@ inline void add_issue(ValidationIssues& issues, std::string code, std::string me
     return issues;
 }
 
+[[nodiscard]] inline ValidationIssues validate(const OrderExecution& execution) {
+    ValidationIssues issues;
+    if (execution.executed_quantity.is_zero()) {
+        add_issue(issues, "zero_execution_quantity", "Order execution quantity must be positive");
+    }
+    return issues;
+}
+
 [[nodiscard]] inline ValidationIssues validate(const Quote& quote) {
     ValidationIssues issues;
     if (quote.bid_price.has_value() != quote.bid_quantity.has_value()) {

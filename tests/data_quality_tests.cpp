@@ -48,6 +48,9 @@ void test_quality_reduction() {
         reduce(requested, {{requested, DataQualityKind::SequenceGap}}) == DataState::Degraded,
         "sequence-gap evidence must reduce to degraded state");
     require(
+        reduce(requested, {{requested, DataQualityKind::Pending}}) == DataState::Unknown,
+        "pending provider evidence must reduce to unknown state");
+    require(
         reduce(requested, {{requested, DataQualityKind::Complete}, {range(15, 18), DataQualityKind::Corrupt}}) ==
             DataState::Corrupt,
         "corrupt evidence must take precedence over overlapping complete evidence");

@@ -299,7 +299,7 @@ void test_mbo_events() {
     };
     MboBuffer edge_buffer{MboStreamContext{InstrumentId{1}, VenueId{1}, SourceId{1}}};
     edge_buffer.append(MboClear{edge_header});
-    require(edge_buffer.at(0).receive_time()->unix_nanos() == std::numeric_limits<std::int64_t>::min(),
+    require(edge_buffer.at(0).source_receive_time()->unix_nanos() == std::numeric_limits<std::int64_t>::min(),
             "MBO presence bits must preserve the full receive timestamp range");
     require(edge_buffer.at(0).sequence() == std::optional<std::uint64_t>{0},
             "MBO presence bits must preserve zero sequence values");
@@ -349,6 +349,12 @@ void test_trade_quote_and_bar() {
     const Trade zero_trade{event_header, bid, Quantity::from_raw(0), std::nullopt};
     require(contains_code(validate(zero_trade), "zero_trade_quantity"),
             "zero trade quantity must be rejected");
+
+    const OrderExecution execution{event_header, OrderId{100}, quantity, bid};
+    require(is_valid(validate(execution)), "positive order execution must validate");
+    const OrderExecution zero_execution{event_header, OrderId{100}, Quantity::from_raw(0), bid};
+    require(contains_code(validate(zero_execution), "zero_execution_quantity"),
+            "zero order execution quantity must be rejected");
 
     const Quote quote{event_header, bid, quantity, ask, quantity};
     require(is_valid(validate(quote)), "two-sided quote must validate");

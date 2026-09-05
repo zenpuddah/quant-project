@@ -49,7 +49,9 @@ void test_query_boundary() {
     require(query.instrument_id == InstrumentId{42}, "query must retain canonical instrument identity");
     require(query.venue_id == std::optional<VenueId>{VenueId{7}}, "query must retain optional venue constraint");
     require(query.level == MarketDataLevel::L3, "query must retain canonical data level");
-    require(query.range.start == time(10) && query.range.end == time(20), "query must retain its half-open range");
+    require(
+        query.event_time_range == std::optional<TimeRange>{range(10, 20)} && !query.source_receive_time_range,
+        "event-only query must retain its half-open event-time range");
 
     require_throws(
         [] { TimeRange{time(10), time(10)}; },
@@ -57,6 +59,38 @@ void test_query_boundary() {
     require_throws(
         [] { TimeRange{time(20), time(10)}; },
         "backwards time ranges must be rejected");
+}
+
+void test_dual_time_query() {
+    const auto event_range = range(10, 20);
+    const auto source_receive_range = range(12, 24);
+    const MarketDataQuery query{
+        InstrumentId{42},
+        std::nullopt,
+        MarketDataLevel::L3,
+        std::optional<TimeRange>{event_range},
+        std::optional<TimeRange>{source_receive_range},
+        TimeBasis::SourceReceiveTime,
+        FetchPolicy::RequireExplicitRange,
+        TimeMargin{3, 4},
+    };
+    require(query.primary_range() == source_receive_range,
+            "source receive-time basis must select the source receive-time range");
+    require(query.effective_primary_time_basis() == TimeBasis::SourceReceiveTime,
+            "source receive-time basis must remain explicit when both ranges exist");
+    require(matches_time(query, time(15), time(20)), "a record inside both ranges must match");
+    require(!matches_time(query, time(9), time(20)), "event-time lower bound must be enforced");
+    require(!matches_time(query, time(15), time(24)), "receive-time upper bound must be enforced half-open");
+    require(expand(event_range, TimeMargin{2, 3}) == range(8, 23), "time margin must expand both sides");
+
+    require_throws(
+        [] {
+            MarketDataQuery{InstrumentId{42}, std::nullopt, MarketDataLevel::L3, std::nullopt, std::nullopt};
+        },
+        "a query without either time basis must be rejected");
+    require_throws(
+        [] { TimeMargin{-1, 0}; },
+        "negative derivation margins must be rejected");
 }
 
 void test_intervals() {
@@ -108,6 +142,7 @@ void test_intervals() {
 int main() {
     try {
         test_query_boundary();
+        test_dual_time_query();
         test_intervals();
         std::cout << "ingestion_query_tests: passed\n";
     } catch (const std::exception& error) {

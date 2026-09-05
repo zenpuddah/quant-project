@@ -263,7 +263,7 @@ result
 
 Future asynchronous ingestion must reuse the same query, range, mapping, provider, validation, and quality semantics. Sync/async is an execution policy, not a separate domain model.
 
-Avoid hidden global mutable state. Preserve source ordering evidence (`event_time`, `receive_time`, `sequence`, `channel_id`, flags). Processing completion order must never be assumed to equal market-event order.
+Avoid hidden global mutable state. Preserve source ordering evidence (`event_time`, `source_receive_time`, `sequence`, `channel_id`, flags). Processing completion order must never be assumed to equal market-event order.
 
 A future parallel form may use a map/reduce-like pipeline:
 

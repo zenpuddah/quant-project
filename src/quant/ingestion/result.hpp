@@ -16,6 +16,31 @@ struct SourceArtifactProvenance {
     friend bool operator==(const SourceArtifactProvenance&, const SourceArtifactProvenance&) = default;
 };
 
+struct ProviderConditionEvidence {
+    std::string date;
+    std::string condition;
+    std::optional<std::string> last_modified_date;
+
+    friend bool operator==(const ProviderConditionEvidence&, const ProviderConditionEvidence&) = default;
+};
+
+struct ProviderBatchMetadata {
+    std::string dataset;
+    std::string schema;
+    std::string provider_start;
+    std::string provider_end;
+    std::vector<ProviderConditionEvidence> conditions;
+    std::vector<std::string> partial_symbols;
+    std::vector<std::string> not_found_symbols;
+
+    friend bool operator==(const ProviderBatchMetadata&, const ProviderBatchMetadata&) = default;
+};
+
+enum class AcquisitionMode {
+    Historical,
+    Live,
+};
+
 struct IngestionMetadata {
     MarketDataQuery query;
     std::vector<DataStateSegment> actual_coverage;
@@ -30,11 +55,16 @@ struct IngestionMetadata {
     std::string adapter_version;
     std::string canonical_schema_version;
     std::string mapping_version;
+    std::vector<data::ProviderRecordMetadata> provider_records;
+    std::vector<ProviderBatchMetadata> provider_batches;
+    AcquisitionMode acquisition_mode = AcquisitionMode::Historical;
 };
 
 struct IngestionResult {
     std::vector<data::MboBuffer> mbo_buffers;
     IngestionMetadata metadata;
+    std::vector<data::Trade> trades;
+    std::vector<data::OrderExecution> order_executions;
 };
 
 } // namespace quant::ingestion

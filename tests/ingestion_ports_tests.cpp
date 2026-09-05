@@ -30,7 +30,9 @@ void test_noop_cache() {
     const auto lookup = cache.lookup(query);
     require(lookup.status == CacheStatus::Miss, "NoopCache must always report a miss");
     require(lookup.covered.empty(), "NoopCache must not report covered ranges");
-    require(lookup.missing == std::vector<TimeRange>{query.range}, "NoopCache must miss the full canonical range");
+    require(
+        lookup.missing == std::vector<TimeRange>{query.primary_range()},
+        "NoopCache must miss the full primary canonical range");
 }
 
 void test_noop_recovery() {
@@ -42,7 +44,7 @@ void test_noop_recovery() {
         TimeRange{time(10), time(20)},
     };
     const std::vector<DataStateSegment> state_segments{
-        DataStateSegment{query.range, DataState::Unknown},
+        DataStateSegment{query.primary_range(), DataState::Unknown},
     };
     const RecoveryContext context{
         query,

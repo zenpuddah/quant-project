@@ -45,7 +45,9 @@ See `docs/architecture/phase1-data-model.md` and `docs/project/engineering-book.
 - **Implemented:** Source artifact provenance is plural and range-aware.
 - **Implemented:** Mapping scope can include optional `SourceId`; same instrument can legitimately produce overlapping venue/source streams.
 - **Verified:** Data-model and ingestion tests were reported passing with C++20 warnings-as-errors plus ASan/UBSan in the latest maintenance pass.
-- **Deferred:** No real provider adapter, XML parser, persistent cache, storage/replay, Python binding, lineage persistence, or backtesting implementation yet.
+- **Implemented:** Official Databento `XNAS.ITCH` historical adapter/interpreter is isolated behind `ProviderPort`; deterministic translation tests and an opt-in standalone CMake smoke target are present.
+- **Implemented:** Canonical observations preserve provider-side `source_receive_time`; mapping resolution is event-time-only; result metadata carries `AcquisitionMode`.
+- **Deferred:** XML parser, persistent cache, storage/replay, Python binding, lineage persistence, live ingestion, and backtesting implementation remain deferred.
 - **Accepted:** A small Alpaca raw sample exists only as prior research data and does not define the canonical provider architecture.
 
 ## Historical ingestion architecture
@@ -68,6 +70,13 @@ Accepted baseline:
 - Recovery is injected policy; retry/backoff/repair execution remains deferred.
 - Range-local quality/state remains scoped and non-destructive.
 
+Current Databento slice status:
+
+- **Implemented:** `src/quant/ingestion/databento_provider.hpp` translates XNAS MBO actions into canonical MBO, Trade, and OrderExecution observations, preserves provider metadata sidecars, maps dataset conditions, and rejects source-receive-time-only mapping requests.
+- **Implemented:** `integration/databento/` provides a minimal isolated CMake build using the pinned official SDK checkout or `FetchContent` tag `v0.67.0`.
+- **Verified:** All direct C++20 warnings-as-errors tests, ASan/UBSan tests, and the deterministic Databento translation CTest pass.
+- **Pending:** Credentialed historical smoke execution; the current environment has no `DATABENTO_API_KEY`.
+
 ## Databento first real integration — accepted 2026-09-05
 
 See `docs/architecture/phase1-databento-first-integration.md`.
@@ -80,14 +89,15 @@ See `docs/architecture/phase1-databento-first-integration.md`.
 
 ### Dual query time semantics
 
-- **Accepted:** Canonical query semantics must preserve both exchange-event time and provider-receive time.
-- **Accepted:** `MarketDataQuery` evolves from one generic range to optional `event_time_range` and optional `receive_time_range`; at least one is required.
+- **Accepted:** Canonical query semantics must preserve both exchange-event time and provider/source receive time.
+- **Accepted:** `MarketDataQuery` evolves from one generic range to optional `event_time_range` and optional `source_receive_time_range`; at least one is required, but the current ingestion path rejects source-receive-time-only queries because mappings are event-time valid.
 - **Accepted:** Event time is the default/primary semantic for ordinary canonical queries.
 - **Accepted:** If only event time is supplied and a provider such as Databento MBO filters on receive time, the adapter may derive a receive-time fetch range when the query selects derivation policy.
 - **Accepted:** The query can carry before/after safety margin for that derived provider range.
 - **Accepted:** A strict policy can require the provider-native time range explicitly and fail before the request if it is absent.
 - **Accepted:** If both ranges are supplied, returned canonical records must satisfy both.
-- **Accepted:** Preserve both timestamps on canonical observations whenever the provider supplies both.
+- **Accepted:** Preserve both `event_time` and provider-side `source_receive_time` on canonical observations whenever the provider supplies both. `source_receive_time` is not our own live-system receive timestamp.
+- **Accepted:** `AcquisitionMode::Historical` and `AcquisitionMode::Live` identify the ingestion path at result metadata level and are independent of both timestamps.
 
 ### Databento MBO action interpretation
 
@@ -123,7 +133,7 @@ provider event group
   - `missing` -> `Missing`;
   - structurally/unusably invalid canonical input -> `Corrupt`.
 - **Accepted:** `last_modified_date` is provenance/version evidence, not quality state by itself.
-- **Accepted:** Bad-book/gap evidence may degrade affected data. Receive-timestamp-quality evidence affects receive-time quality and must not automatically mean the book is corrupt.
+- **Accepted:** Bad-book/gap evidence may degrade affected data. Source-receive-timestamp quality evidence affects source-receive-time quality and must not automatically mean the book is corrupt.
 - **Accepted:** Never infer `Complete` from event count.
 
 ### API/infrastructure failure semantics
@@ -135,7 +145,7 @@ provider event group
 
 ### Field normalization and provider metadata
 
-- **Accepted:** Existing canonical MBO representation is sufficient for primary Databento fields (`ts_event`, `ts_recv`, sequence, channel, flags, price, size, order id); normalization is adapter work unless real data exposes a mismatch.
+- **Accepted:** Existing canonical MBO representation is sufficient for primary Databento fields (`ts_event`, `ts_recv` as `source_receive_time`, sequence, channel, flags, price, size, order id); normalization is adapter work unless real data exposes a mismatch.
 - **Accepted:** Do not widen the 64-byte `MboRecord` for Databento-only control/native metadata.
 - **Accepted:** Preserve provider-specific metadata through a sidecar/component/reference outside the hot record; store stream/batch metadata once when possible.
 - **Guardrail:** Do not build a generalized provider-metadata framework until concrete Databento fields justify the exact shape.
@@ -151,9 +161,8 @@ provider event group
 
 Only questions that should block implementation when actually encountered:
 
-- Minimal project/build integration needed for `databento-cpp` without silently introducing an unwanted repo-wide build-system redesign.
-- Exact minimal `OrderExecution` field set after inspecting the concrete C++ MBO record API.
-- Exact Databento provider-metadata sidecar shape after identifying which native fields are not already canonical and are worth preserving.
+- Whether the isolated Databento CMake target should later be adopted by a repo-wide build remains deferred; no root build-system decision has been made.
+- Future `OrderExecution` or provider-sidecar fields should be added only when another concrete source justifies them; the first Databento shape is implemented.
 - Exact ingestion-operation failure/partial-result envelope once a real SDK failure path exposes the necessary information.
 - XML parsing library/dependency — intentionally deferred until Databento vertical slice works.
 - Storage/replay/cache persistence, C++/Python boundary, execution realism, ML dataset correctness, and other later Phase 1 concerns remain deferred.
@@ -162,18 +171,16 @@ Only questions that should block implementation when actually encountered:
 
 - **Implemented:** Canonical data model and generic synchronous ingestion skeleton are stable enough for the first real provider slice.
 - **Accepted:** Databento first-integration semantics above are now the active design.
+- **Implemented:** The first Databento historical adapter/translation slice is verified without committing to root build integration or live ingestion.
 - **Do not add:** XML parser, persistent storage/cache, replay, retry loops, async/concurrency, L1/L2 provider support, or broad build/tooling refactors during this slice.
 
 ## Next action
 
-1. Pull latest `main` and read the current architecture/context.
-2. Implement the smallest real Databento historical `XNAS.ITCH` MBO vertical slice using the official C++ client.
-3. First update the canonical types/tests required by accepted design: dual query time semantics and provider-neutral `OrderExecution`.
-4. Add the Databento adapter/interpreter and manual/in-memory mapping needed for one small real query.
-5. Integrate Databento daily dataset-condition evidence into existing quality observations without treating API failures as canonical data state.
-6. Keep one request -> one batch for the first test.
-7. Run existing tests plus focused adapter/integration tests, then stop for engineering-manager review before XML or multi-batch work.
+1. Run the credentialed one-to-two-day Databento smoke query when `DATABENTO_API_KEY` is available.
+2. Review the first real adapter vertical slice and its provider-condition/record-quality evidence.
+3. Stop for engineering-manager review before XML, persistent cache/storage, live ingestion, or multi-batch work.
 
 ## Last updated
 
 - **Accepted:** 2026-09-05.
+- **Implemented:** 2026-09-05 Databento first-slice worktree update.

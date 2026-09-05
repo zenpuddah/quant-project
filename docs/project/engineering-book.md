@@ -571,7 +571,7 @@ The writer boundary has typed `MboAdd`, `MboModify`, `MboCancel`, `MboExecute`, 
 ```text
 offset  width  field
 0       8      event_time
-8       8      receive_time
+8       8      source_receive_time
 16      8      sequence
 24      8      order_id
 32      8      canonical price
@@ -848,3 +848,28 @@ Accepted architecture: `docs/architecture/phase1-historical-ingestion.md`.
 OpenCode execution plan: `docs/project/opencode-handoff.md`.
 
 The first implementation must stop after the generic synchronous skeleton is verified. Real Databento client and XML parser dependencies require a separate engineering-manager review.
+
+---
+
+# 2026-09-05 — Provider receive time and acquisition provenance
+
+## Problem
+
+The first Databento adapter preserved `ts_recv` under the generic name `receive_time`. That name can be read as the time our own live infrastructure observed an event, which is not true for historical records. Mapping validity also needs a single unambiguous time basis, while a result must identify whether its data entered through historical or live ingestion.
+
+## Decision
+
+- Canonical observations and query filters call the provider-side timestamp `source_receive_time` / `source_receive_time_range`.
+- Instrument mappings are resolved only against `event_time` validity. A query with both ranges resolves mappings by event time and applies source receive time as an additional record filter. Source-receive-time-only ingestion is rejected for now.
+- Historical ingestion does not fabricate a local per-event receive timestamp. `ingestion_time` remains the operation timestamp.
+- `AcquisitionMode::Historical` and `AcquisitionMode::Live` identify the acquisition path at ingestion-result metadata level; the mode is not added to the 64-byte `MboRecord`.
+
+## What it solves
+
+- Provider/source timestamp ownership is explicit.
+- Symbol/provider-identity validity cannot be incorrectly inferred from receive time.
+- Historical and future live results can be distinguished without changing the hot record layout.
+
+## What remains open
+
+Live ingestion wiring and any future receive-time-based mapping model remain out of scope for the first Databento historical slice.

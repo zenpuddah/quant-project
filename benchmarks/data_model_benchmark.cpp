@@ -22,7 +22,7 @@ struct Candidate32 {
 
 struct Candidate40 {
     std::int64_t event_time;
-    std::int64_t receive_time;
+    std::int64_t source_receive_time;
     std::uint64_t order_id;
     std::int64_t price;
     std::int64_t quantity;
@@ -30,7 +30,7 @@ struct Candidate40 {
 
 struct Candidate48 {
     std::int64_t event_time;
-    std::int64_t receive_time;
+    std::int64_t source_receive_time;
     std::uint64_t sequence;
     std::uint64_t order_id;
     std::int64_t price;

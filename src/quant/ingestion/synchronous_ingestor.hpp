@@ -75,15 +75,16 @@ inline void append_event(std::vector<data::MboBuffer>& buffers, const data::MboE
     return segment.venue_id ? segment.venue_id : query.venue_id;
 }
 
-[[nodiscard]] inline bool event_matches_request(
-    const data::MboEvent& event,
+[[nodiscard]] inline bool header_matches_request(
+    const data::EventHeader& header,
     const MarketDataQuery& query,
     const ProviderMappingSegment& segment) noexcept {
-    return event.header.instrument_id == query.instrument_id &&
-           (!query.venue_id || event.header.venue_id == *query.venue_id) &&
-           (!segment.venue_id || event.header.venue_id == *segment.venue_id) &&
-           (!segment.source_id || event.header.source_id == *segment.source_id) &&
-           event.header.event_time >= segment.range.start && event.header.event_time < segment.range.end;
+    return header.instrument_id == query.instrument_id &&
+           (!query.venue_id || header.venue_id == *query.venue_id) &&
+           (!segment.venue_id || header.venue_id == *segment.venue_id) &&
+           (!segment.source_id || header.source_id == *segment.source_id) &&
+           matches_time(query, header.event_time, header.source_receive_time) &&
+           contains(segment.range, header.event_time);
 }
 
 [[nodiscard]] inline bool quality_scope_matches(
@@ -117,6 +118,9 @@ public:
         if (query.level != MarketDataLevel::L3) {
             throw std::invalid_argument("synchronous ingestion currently supports only L3/MBO queries");
         }
+        if (!query.event_time_range) {
+            throw std::invalid_argument("synchronous ingestion requires an event-time range for mapping resolution");
+        }
 
         const std::string provider_name{provider_.provider_name()};
         if (provider_name.empty()) {
@@ -125,7 +129,7 @@ public:
 
         const auto cache_lookup = cache_.lookup(query);
         if (cache_lookup.status != CacheStatus::Miss || !cache_lookup.covered.empty() ||
-            cache_lookup.missing != std::vector<TimeRange>{query.range}) {
+            cache_lookup.missing != std::vector<TimeRange>{*query.event_time_range}) {
             throw std::logic_error("synchronous ingestion currently requires a full NoopCache miss");
         }
 
@@ -134,6 +138,10 @@ public:
         std::vector<SourceArtifactProvenance> source_artifacts;
         std::vector<std::optional<data::MboStreamContext>> expected_scopes;
         std::vector<data::MboBuffer> mbo_buffers;
+        std::vector<data::Trade> trades;
+        std::vector<data::OrderExecution> order_executions;
+        std::vector<data::ProviderRecordMetadata> provider_records;
+        std::vector<ProviderBatchMetadata> provider_batches;
 
         for (const auto& missing_range : cache_lookup.missing) {
             validate(missing_range);
@@ -208,7 +216,13 @@ public:
                     detail::add_unique_source(source_ids, *mapping_segment.source_id);
                 }
 
-                ProviderBatch response = provider_.fetch(mapping_segment);
+                ProviderBatch response = provider_.fetch(query, mapping_segment);
+                for (const auto& batch_metadata : response.batch_metadata) {
+                    if (batch_metadata.dataset.empty() || batch_metadata.schema.empty()) {
+                        throw std::invalid_argument("provider batch metadata must identify its dataset and schema");
+                    }
+                    provider_batches.push_back(batch_metadata);
+                }
                 for (const auto source_id : response.source_ids) {
                     detail::add_unique_source(source_ids, source_id);
                     if (const auto venue = detail::effective_venue(query, mapping_segment)) {
@@ -233,28 +247,93 @@ public:
                 std::vector<std::optional<data::MboStreamContext>> response_scopes;
                 std::vector<std::optional<data::MboStreamContext>> invalid_event_scopes;
                 bool validation_failed = false;
+                for (const auto& record : response.provider_records) {
+                    if (!detail::header_matches_request(record.header, query, mapping_segment)) {
+                        continue;
+                    }
+                    detail::add_unique_source(source_ids, record.header.source_id);
+                    const auto record_context = std::optional<data::MboStreamContext>{data::MboStreamContext{
+                        record.header.instrument_id,
+                        record.header.venue_id,
+                        record.header.source_id,
+                    }};
+                    detail::add_unique_scope(response_scopes, record_context);
+                    detail::add_unique_scope(expected_scopes, record_context);
+                    provider_records.push_back(record);
+                }
+
                 for (const auto& event : response.mbo_events) {
+                    const bool in_requested_scope = detail::header_matches_request(event.header, query, mapping_segment);
+                    if (!in_requested_scope) {
+                        continue;
+                    }
                     detail::add_unique_source(source_ids, event.header.source_id);
                     const bool structurally_valid = data::is_valid(data::validate(event));
-                    const bool in_requested_scope = detail::event_matches_request(event, query, mapping_segment);
                     const auto event_context = std::optional<data::MboStreamContext>{data::MboStreamContext{
                         event.header.instrument_id,
                         event.header.venue_id,
                         event.header.source_id,
                     }};
-                    if (!structurally_valid || !in_requested_scope) {
+                    if (!structurally_valid) {
                         validation_failed = true;
-                        if (in_requested_scope) {
-                            detail::add_unique_scope(invalid_event_scopes, event_context);
-                            detail::add_unique_scope(response_scopes, event_context);
-                            detail::add_unique_scope(expected_scopes, event_context);
-                        }
+                        detail::add_unique_scope(invalid_event_scopes, event_context);
+                        detail::add_unique_scope(response_scopes, event_context);
+                        detail::add_unique_scope(expected_scopes, event_context);
                         continue;
                     }
 
                     detail::add_unique_scope(response_scopes, event_context);
                     detail::add_unique_scope(expected_scopes, event_context);
                     detail::append_event(mbo_buffers, event);
+                }
+
+                for (const auto& trade : response.trades) {
+                    const bool in_requested_scope = detail::header_matches_request(trade.header, query, mapping_segment);
+                    if (!in_requested_scope) {
+                        continue;
+                    }
+                    detail::add_unique_source(source_ids, trade.header.source_id);
+                    const bool structurally_valid = data::is_valid(data::validate(trade));
+                    const auto trade_context = std::optional<data::MboStreamContext>{data::MboStreamContext{
+                        trade.header.instrument_id,
+                        trade.header.venue_id,
+                        trade.header.source_id,
+                    }};
+                    if (!structurally_valid) {
+                        validation_failed = true;
+                        detail::add_unique_scope(invalid_event_scopes, trade_context);
+                        detail::add_unique_scope(response_scopes, trade_context);
+                        detail::add_unique_scope(expected_scopes, trade_context);
+                        continue;
+                    }
+                    detail::add_unique_scope(response_scopes, trade_context);
+                    detail::add_unique_scope(expected_scopes, trade_context);
+                    trades.push_back(trade);
+                }
+
+                for (const auto& execution : response.order_executions) {
+                    const bool in_requested_scope =
+                        detail::header_matches_request(execution.header, query, mapping_segment);
+                    if (!in_requested_scope) {
+                        continue;
+                    }
+                    detail::add_unique_source(source_ids, execution.header.source_id);
+                    const bool structurally_valid = data::is_valid(data::validate(execution));
+                    const auto execution_context = std::optional<data::MboStreamContext>{data::MboStreamContext{
+                        execution.header.instrument_id,
+                        execution.header.venue_id,
+                        execution.header.source_id,
+                    }};
+                    if (!structurally_valid) {
+                        validation_failed = true;
+                        detail::add_unique_scope(invalid_event_scopes, execution_context);
+                        detail::add_unique_scope(response_scopes, execution_context);
+                        detail::add_unique_scope(expected_scopes, execution_context);
+                        continue;
+                    }
+                    detail::add_unique_scope(response_scopes, execution_context);
+                    detail::add_unique_scope(expected_scopes, execution_context);
+                    order_executions.push_back(execution);
                 }
 
                 const auto observation_scopes = [&]() {
@@ -317,7 +396,7 @@ public:
         }
 
         const auto data_state_segments = DataStateReducer::reduce(
-            query.range,
+            *query.event_time_range,
             quality_observations,
             expected_scopes);
         const auto data_state = summarize_data_state(data_state_segments);
@@ -354,8 +433,16 @@ public:
             std::move(adapter_version),
             std::move(canonical_schema_version),
             std::move(mapping_version),
+            std::move(provider_records),
+            std::move(provider_batches),
+            AcquisitionMode::Historical,
         };
-        return IngestionResult{std::move(mbo_buffers), std::move(metadata)};
+        return IngestionResult{
+            std::move(mbo_buffers),
+            std::move(metadata),
+            std::move(trades),
+            std::move(order_executions),
+        };
     }
 
 private:

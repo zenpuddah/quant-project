@@ -19,13 +19,17 @@ struct ProviderBatch {
     std::vector<DataQualityObservation> quality_observations;
     std::vector<data::SourceId> source_ids;
     std::vector<SourceArtifactProvenance> source_artifacts;
+    std::vector<data::Trade> trades;
+    std::vector<data::OrderExecution> order_executions;
+    std::vector<data::ProviderRecordMetadata> provider_records;
+    std::vector<ProviderBatchMetadata> batch_metadata;
 };
 
 class ProviderPort {
 public:
     virtual ~ProviderPort() = default;
     [[nodiscard]] virtual std::string_view provider_name() const noexcept = 0;
-    virtual ProviderBatch fetch(const ProviderMappingSegment& segment) = 0;
+    virtual ProviderBatch fetch(const MarketDataQuery& query, const ProviderMappingSegment& segment) = 0;
 };
 
 class FakeProvider final : public ProviderPort {
@@ -40,7 +44,8 @@ public:
 
     void enqueue_response(ProviderBatch response) { responses_.push_back(std::move(response)); }
 
-    ProviderBatch fetch(const ProviderMappingSegment& segment) override {
+    ProviderBatch fetch(const MarketDataQuery& query, const ProviderMappingSegment& segment) override {
+        validate(query);
         validate(segment);
         if (segment.provider != provider_) {
             throw std::invalid_argument("provider mapping does not match provider port");
@@ -49,15 +54,18 @@ public:
             throw std::logic_error("fake provider has no response for requested segment");
         }
         calls_.push_back(segment);
+        queries_.push_back(query);
         return std::move(responses_[next_response_++]);
     }
 
     [[nodiscard]] const std::vector<ProviderMappingSegment>& calls() const noexcept { return calls_; }
+    [[nodiscard]] const std::vector<MarketDataQuery>& queries() const noexcept { return queries_; }
 
 private:
     std::string provider_;
     std::vector<ProviderBatch> responses_;
     std::vector<ProviderMappingSegment> calls_;
+    std::vector<MarketDataQuery> queries_;
     std::size_t next_response_ = 0;
 };
 

@@ -123,6 +123,10 @@ void test_full_miss_produces_result() {
         {},
         {SourceId{9}},
         {},
+        {},
+        {},
+        {},
+        {},
     });
     NoopRecoveryPolicy recovery;
     SynchronousIngestor ingestor{cache, mappings, provider, recovery};
@@ -152,6 +156,117 @@ void test_full_miss_produces_result() {
     require(result.metadata.canonical_schema_version == "schema-v1",
             "result must retain canonical schema version identity");
     require(result.metadata.mapping_version == "mapping-v1", "result must retain mapping version identity");
+    require(result.metadata.acquisition_mode == AcquisitionMode::Historical,
+            "synchronous historical results must identify their acquisition mode");
+}
+
+void test_event_mapping_and_source_receive_filter() {
+    NoopCache cache;
+    InMemoryInstrumentMappingRegistry mappings;
+    mappings.add(mapping(0, 10, "TEST"));
+    FakeProvider provider{"test-provider"};
+    provider.enqueue_response(ProviderBatch{
+        {add_event(2, 100), add_event(5, 101)},
+        {},
+        {SourceId{9}},
+        {},
+        {},
+        {},
+        {},
+        {},
+    });
+    NoopRecoveryPolicy recovery;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+
+    const MarketDataQuery query{
+        InstrumentId{42},
+        VenueId{7},
+        MarketDataLevel::L3,
+        std::optional<TimeRange>{range(0, 10)},
+        std::optional<TimeRange>{range(0, 4)},
+        TimeBasis::SourceReceiveTime,
+        FetchPolicy::RequireExplicitRange,
+    };
+    const auto result = ingestor.ingest(query, time(1000));
+    require(result.mbo_buffers.size() == 1 && result.mbo_buffers[0].size() == 1,
+            "source receive-time constraints must filter records after event-time mapping");
+    require(result.mbo_buffers[0].at(0).order_id()->value() == 100,
+            "the record inside both event and source receive ranges must survive");
+
+    require_throws(
+        [&] {
+            (void)ingestor.ingest(
+                MarketDataQuery{
+                    InstrumentId{42},
+                    VenueId{7},
+                    MarketDataLevel::L3,
+                    std::nullopt,
+                    std::optional<TimeRange>{range(0, 10)},
+                    TimeBasis::SourceReceiveTime,
+                    FetchPolicy::RequireExplicitRange,
+                },
+                time(1001));
+        },
+        "receive-only ingestion must be rejected without event-time mapping validity");
+}
+
+void test_out_of_scope_records_are_ignored_without_corruption() {
+    NoopCache cache;
+    InMemoryInstrumentMappingRegistry mappings;
+    mappings.add(mapping(0, 10, "TEST"));
+    FakeProvider provider{"test-provider"};
+    provider.enqueue_response(ProviderBatch{
+        {add_event(2, 100), add_event(20, 101)},
+        {},
+        {SourceId{9}},
+        {},
+        {},
+        {},
+        {},
+        {},
+    });
+    NoopRecoveryPolicy recovery;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+
+    const auto result = ingestor.ingest(
+        MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(1002));
+    require(result.mbo_buffers.size() == 1 && result.mbo_buffers[0].size() == 1,
+            "records outside a mapping segment must not enter the result");
+    require(result.metadata.data_state != DataState::Corrupt,
+            "valid records outside a requested segment must not create corruption evidence");
+}
+
+void test_trade_and_execution_observations() {
+    NoopCache cache;
+    InMemoryInstrumentMappingRegistry mappings;
+    mappings.add(mapping(0, 10, "TEST"));
+    FakeProvider provider{"test-provider"};
+    provider.enqueue_response(ProviderBatch{
+        {},
+        {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
+        {SourceId{9}},
+        {},
+        {Trade{header(2), Price::from_integer(100), Quantity::from_integer(4), Side::Buy}},
+        {OrderExecution{header(3), OrderId{100}, Quantity::from_integer(2), Price::from_integer(100)}},
+        {},
+        {},
+    });
+    NoopRecoveryPolicy recovery;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+
+    const auto result = ingestor.ingest(
+        MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(1500));
+
+    require(result.mbo_buffers.empty(), "trade and execution observations must not create book mutations");
+    require(result.trades.size() == 1 && result.trades[0].quantity == Quantity::from_integer(4),
+            "provider trades must survive the synchronous ingestion result");
+    require(
+        result.order_executions.size() == 1 &&
+            result.order_executions[0].resting_order_id == OrderId{100} &&
+            result.order_executions[0].executed_quantity == Quantity::from_integer(2),
+        "provider order executions must survive the synchronous ingestion result");
+    require(result.metadata.data_state == DataState::Complete,
+            "complete quality evidence must cover non-book observations");
 }
 
 void test_mapping_boundary_is_one_logical_result() {
@@ -160,8 +275,8 @@ void test_mapping_boundary_is_one_logical_result() {
     mappings.add(mapping(0, 10, "OLD"));
     mappings.add(mapping(10, 20, "NEW"));
     FakeProvider provider{"test-provider"};
-    provider.enqueue_response(ProviderBatch{{add_event(9, 100, 1)}, {}, {SourceId{9}}, {}});
-    provider.enqueue_response(ProviderBatch{{add_event(10, 101, 2)}, {}, {SourceId{9}}, {}});
+    provider.enqueue_response(ProviderBatch{{add_event(9, 100, 1)}, {}, {SourceId{9}}, {}, {}, {}, {}, {}});
+    provider.enqueue_response(ProviderBatch{{add_event(10, 101, 2)}, {}, {SourceId{9}}, {}, {}, {}, {}, {}});
     NoopRecoveryPolicy recovery;
     SynchronousIngestor ingestor{cache, mappings, provider, recovery};
 
@@ -196,6 +311,10 @@ void test_provider_quality_and_validation() {
             {DataQualityObservation{range(0, 10), DataQualityKind::Degraded}},
             {SourceId{9}},
             {},
+            {},
+            {},
+            {},
+            {},
         });
         NoopRecoveryPolicy recovery;
         SynchronousIngestor ingestor{cache, mappings, provider, recovery};
@@ -213,7 +332,7 @@ void test_provider_quality_and_validation() {
         InMemoryInstrumentMappingRegistry mappings;
         mappings.add(mapping(0, 10, "TEST"));
         FakeProvider provider{"test-provider"};
-        provider.enqueue_response(ProviderBatch{{}, {}, {}, {}});
+        provider.enqueue_response(ProviderBatch{{}, {}, {}, {}, {}, {}, {}, {}});
         NoopRecoveryPolicy recovery;
         SynchronousIngestor ingestor{cache, mappings, provider, recovery};
         const auto result = ingestor.ingest(
@@ -234,6 +353,10 @@ void test_provider_quality_and_validation() {
         provider.enqueue_response(ProviderBatch{
             {},
             {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
+            {},
+            {},
+            {},
+            {},
             {},
             {},
         });
@@ -260,6 +383,10 @@ void test_provider_quality_and_validation() {
             {DataQualityObservation{range(0, 10), DataQualityKind::Missing}},
             {},
             {},
+            {},
+            {},
+            {},
+            {},
         });
         NoopRecoveryPolicy recovery;
         SynchronousIngestor ingestor{cache, mappings, provider, recovery};
@@ -277,6 +404,10 @@ void test_provider_quality_and_validation() {
         FakeProvider provider{"test-provider"};
         provider.enqueue_response(ProviderBatch{
             {MboEvent{header(2), MboAction::Add, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+            {},
+            {},
+            {},
+            {},
             {},
             {},
             {},
@@ -305,11 +436,19 @@ void test_multiple_stream_scopes() {
         {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
         {SourceId{9}},
         {},
+        {},
+        {},
+        {},
+        {},
     });
     provider.enqueue_response(ProviderBatch{
         {add_event(3, 200, 1, VenueId{8}, SourceId{10}), add_event(5, 201, 2, VenueId{8}, SourceId{10})},
         {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
         {SourceId{10}},
+        {},
+        {},
+        {},
+        {},
         {},
     });
     NoopRecoveryPolicy recovery;
@@ -353,6 +492,10 @@ void test_artifact_provenance_and_recovery_context() {
             SourceArtifactProvenance{"artifact-a", range(0, 4)},
             SourceArtifactProvenance{"artifact-b", range(4, 10)},
         },
+        {},
+        {},
+        {},
+        {},
     });
     RecordingRecoveryPolicy recovery;
     SynchronousIngestor ingestor{cache, mappings, provider, recovery};
@@ -366,7 +509,7 @@ void test_artifact_provenance_and_recovery_context() {
                                                   },
             "result metadata must retain plural range-aware artifact provenance");
     require(recovery.called, "ingestion must consult the injected recovery policy");
-    require(recovery.observed_query && recovery.observed_query->range == range(0, 10),
+    require(recovery.observed_query && recovery.observed_query->primary_range() == range(0, 10),
             "recovery context must retain the requested query");
     require(recovery.observed_state == DataState::Unknown,
             "recovery context must retain the derived data state");
@@ -403,6 +546,9 @@ void test_explicit_unsupported_levels() {
 int main() {
     try {
         test_full_miss_produces_result();
+        test_event_mapping_and_source_receive_filter();
+        test_out_of_scope_records_are_ignored_without_corruption();
+        test_trade_and_execution_observations();
         test_mapping_boundary_is_one_logical_result();
         test_provider_quality_and_validation();
         test_multiple_stream_scopes();

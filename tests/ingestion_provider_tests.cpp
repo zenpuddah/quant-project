@@ -150,10 +150,20 @@ void test_provider_returns_canonical_batch() {
         {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
         {SourceId{9}},
         {},
+        {},
+        {},
+        {},
+        {},
     });
 
     const auto requested_segment = mapping(0, 10, "OLD", std::nullopt);
-    const auto response = provider.fetch(requested_segment);
+    const auto requested_query = MarketDataQuery{
+        InstrumentId{42},
+        VenueId{7},
+        MarketDataLevel::L3,
+        range(0, 10),
+    };
+    const auto response = provider.fetch(requested_query, requested_segment);
     require(provider.provider_name() == "test-provider", "provider identity must remain behind the provider port");
     require(provider.calls().size() == 1, "provider fake must record one synchronous request");
     require(provider.calls()[0].range == range(0, 10), "provider fake must receive the resolved canonical range");

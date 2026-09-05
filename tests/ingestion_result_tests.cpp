@@ -45,7 +45,7 @@ void test_result_keeps_intent_and_outcome_distinct() {
     MboBuffer buffer{MboStreamContext{InstrumentId{42}, VenueId{7}, SourceId{5}}};
     buffer.append(MboAdd{header(), OrderId{100}, Side::Buy, Price::from_integer(100), Quantity::from_integer(2)});
 
-    const IngestionMetadata metadata{
+    IngestionMetadata metadata{
         query,
         {DataStateSegment{range(10, 15), DataState::Complete}},
         {DataStateSegment{range(15, 20), DataState::Missing}},
@@ -65,12 +65,16 @@ void test_result_keeps_intent_and_outcome_distinct() {
         "fake-adapter-v1",
         "canonical-mbo-v1",
         "mapping-config-v1",
+        {},
+        {},
     };
     std::vector<MboBuffer> buffers;
     buffers.push_back(std::move(buffer));
-    const IngestionResult result{std::move(buffers), metadata};
+    const IngestionResult result{std::move(buffers), metadata, {}, {}};
 
-    require(result.metadata.query.range == range(10, 20), "metadata must retain the requested range");
+    require(
+        result.metadata.query.primary_range() == range(10, 20),
+        "metadata must retain the requested primary range");
     require(result.metadata.actual_coverage ==
                 std::vector<DataStateSegment>{DataStateSegment{range(10, 15), DataState::Complete}},
             "metadata must retain actual coverage separately from the request");
@@ -80,6 +84,8 @@ void test_result_keeps_intent_and_outcome_distinct() {
     require(result.metadata.data_state_segments.size() == 2,
             "metadata must retain range-local state segments");
     require(result.metadata.data_state == DataState::Missing, "metadata must retain reduced data state");
+    require(result.metadata.acquisition_mode == AcquisitionMode::Historical,
+            "ingestion metadata must identify historical acquisition");
     require(result.mbo_buffers.size() == 1, "result must expose the canonical MBO buffer when data is valid");
     require(result.mbo_buffers[0].size() == 1, "result MBO output must reuse the existing buffer representation");
     require(result.mbo_buffers[0].at(0).header().instrument_id == InstrumentId{42},
@@ -88,7 +94,7 @@ void test_result_keeps_intent_and_outcome_distinct() {
 
 void test_metadata_versions_and_optional_artifact() {
     const MarketDataQuery query{InstrumentId{42}, std::nullopt, MarketDataLevel::L3, range(0, 1)};
-    const IngestionMetadata metadata{
+    IngestionMetadata metadata{
         query,
         {},
         {DataStateSegment{range(0, 1), DataState::Missing}},
@@ -102,6 +108,8 @@ void test_metadata_versions_and_optional_artifact() {
         "adapter-2",
         "schema-3",
         "mapping-4",
+        {},
+        {},
     };
 
     require(metadata.source_artifacts ==
@@ -111,6 +119,9 @@ void test_metadata_versions_and_optional_artifact() {
     require(metadata.canonical_schema_version == "schema-3", "canonical schema version must round-trip");
     require(metadata.mapping_version == "mapping-4", "mapping version must round-trip");
     require(metadata.ingestion_time == time(2), "ingestion timestamp must round-trip");
+    metadata.acquisition_mode = AcquisitionMode::Live;
+    require(metadata.acquisition_mode == AcquisitionMode::Live,
+            "ingestion metadata must support explicit live acquisition provenance");
 }
 
 } // namespace

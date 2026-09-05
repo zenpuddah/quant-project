@@ -18,7 +18,7 @@ struct ProviderMappingSegment {
     std::optional<std::string> symbol;
     std::optional<data::VenueId> venue_id;
     std::optional<std::string> provider_id;
-    TimeRange range;
+    TimeRange range; // Provider-identity validity is expressed in event time.
     std::optional<data::SourceId> source_id = std::nullopt;
 };
 
@@ -41,7 +41,7 @@ public:
     virtual std::vector<ProviderMappingSegment> resolve(
         data::InstrumentId instrument_id,
         std::string_view provider,
-        TimeRange range,
+        TimeRange event_time_range,
         std::optional<data::VenueId> venue_id = std::nullopt) const = 0;
 };
 
@@ -60,9 +60,9 @@ public:
     [[nodiscard]] std::vector<ProviderMappingSegment> resolve(
         const data::InstrumentId instrument_id,
         const std::string_view provider,
-        const TimeRange range,
+        const TimeRange event_time_range,
         const std::optional<data::VenueId> venue_id = std::nullopt) const override {
-        validate(range);
+        validate(event_time_range);
         if (provider.empty()) {
             throw std::invalid_argument("provider mapping name must not be empty");
         }
@@ -75,7 +75,7 @@ public:
             if (venue_id && mapping.venue_id != venue_id) {
                 continue;
             }
-            if (const auto overlap = intersection(mapping.range, range)) {
+            if (const auto overlap = intersection(mapping.range, event_time_range)) {
                 resolved.push_back(ProviderMappingSegment{
                     mapping.instrument_id,
                     mapping.provider,

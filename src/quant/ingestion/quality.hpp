@@ -14,6 +14,7 @@ namespace quant::ingestion {
 enum class DataQualityKind {
     Complete,
     Degraded,
+    Pending,
     Missing,
     Corrupt,
     SequenceGap,
@@ -83,6 +84,8 @@ namespace detail {
     case DataQualityKind::Degraded:
     case DataQualityKind::SequenceGap:
         return DataState::Degraded;
+    case DataQualityKind::Pending:
+        return DataState::Unknown;
     case DataQualityKind::Missing:
         return DataState::Missing;
     case DataQualityKind::Corrupt:

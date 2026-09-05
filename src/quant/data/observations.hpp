@@ -15,11 +15,13 @@ struct EventHeader {
     InstrumentId instrument_id;
     VenueId venue_id;
     Timestamp event_time;
-    std::optional<Timestamp> receive_time;
+    std::optional<Timestamp> source_receive_time; // Provider/source receive time, not local arrival time.
     std::optional<std::uint64_t> sequence;
     std::optional<std::uint32_t> channel_id;
     std::uint64_t source_flags;
     SourceId source_id;
+
+    friend bool operator==(const EventHeader&, const EventHeader&) = default;
 };
 
 struct MboEvent {
@@ -68,6 +70,13 @@ struct MboClear {
     EventHeader header;
 };
 
+struct OrderExecution {
+    EventHeader header;
+    OrderId resting_order_id;
+    Quantity executed_quantity;
+    std::optional<Price> price;
+};
+
 struct MboStreamContext {
     InstrumentId instrument_id;
     VenueId venue_id;
@@ -77,7 +86,7 @@ struct MboStreamContext {
 // A record contains event-local data. Stream scope is stored once by MboBuffer.
 struct alignas(64) MboRecord {
     std::int64_t event_time;
-    std::int64_t receive_time;
+    std::int64_t source_receive_time;
     std::uint64_t sequence;
     std::uint64_t order_id;
     std::int64_t price;
@@ -90,7 +99,7 @@ struct alignas(64) MboRecord {
 static_assert(sizeof(MboRecord) == 64);
 static_assert(alignof(MboRecord) == 64);
 static_assert(offsetof(MboRecord, event_time) == 0);
-static_assert(offsetof(MboRecord, receive_time) == 8);
+static_assert(offsetof(MboRecord, source_receive_time) == 8);
 static_assert(offsetof(MboRecord, sequence) == 16);
 static_assert(offsetof(MboRecord, order_id) == 24);
 static_assert(offsetof(MboRecord, price) == 32);
@@ -102,7 +111,7 @@ static_assert(offsetof(MboRecord, control) == 60);
 namespace mbo_detail {
 
 inline constexpr std::uint32_t action_mask = 0x07U;
-inline constexpr std::uint32_t receive_time_present = 1U << 3U;
+inline constexpr std::uint32_t source_receive_time_present = 1U << 3U;
 inline constexpr std::uint32_t sequence_present = 1U << 4U;
 inline constexpr std::uint32_t channel_id_present = 1U << 5U;
 inline constexpr std::uint32_t order_id_present = 1U << 6U;
@@ -113,7 +122,7 @@ inline constexpr std::uint32_t sell_side = 1U << 10U;
 
 [[nodiscard]] inline std::uint32_t encode_control(
     const MboAction action,
-    const std::optional<Timestamp>& receive_time,
+    const std::optional<Timestamp>& source_receive_time,
     const std::optional<std::uint64_t>& sequence,
     const std::optional<std::uint32_t>& channel_id,
     const std::optional<OrderId>& order_id,
@@ -121,8 +130,8 @@ inline constexpr std::uint32_t sell_side = 1U << 10U;
     const std::optional<Price>& price,
     const std::optional<Quantity>& quantity) noexcept {
     auto control = static_cast<std::uint32_t>(action) & action_mask;
-    if (receive_time) {
-        control |= receive_time_present;
+    if (source_receive_time) {
+        control |= source_receive_time_present;
     }
     if (sequence) {
         control |= sequence_present;
@@ -168,7 +177,7 @@ public:
             context_->instrument_id,
             context_->venue_id,
             Timestamp::from_unix_nanos(record_->event_time),
-            receive_time(),
+            source_receive_time(),
             sequence(),
             channel_id(),
             record_->source_flags,
@@ -176,11 +185,11 @@ public:
         };
     }
 
-    [[nodiscard]] std::optional<Timestamp> receive_time() const noexcept {
-        if (!mbo_detail::has(record_->control, mbo_detail::receive_time_present)) {
+    [[nodiscard]] std::optional<Timestamp> source_receive_time() const noexcept {
+        if (!mbo_detail::has(record_->control, mbo_detail::source_receive_time_present)) {
             return std::nullopt;
         }
-        return Timestamp::from_unix_nanos(record_->receive_time);
+        return Timestamp::from_unix_nanos(record_->source_receive_time);
     }
 
     [[nodiscard]] std::optional<std::uint64_t> sequence() const noexcept {
@@ -441,7 +450,7 @@ private:
 
         records_.push_back(MboRecord{
             header.event_time.unix_nanos(),
-            header.receive_time ? header.receive_time->unix_nanos() : 0,
+            header.source_receive_time ? header.source_receive_time->unix_nanos() : 0,
             header.sequence.value_or(0),
             order_id ? order_id->value() : 0,
             price ? price->raw() : 0,
@@ -450,7 +459,7 @@ private:
             header.channel_id.value_or(0),
             mbo_detail::encode_control(
                 action,
-                header.receive_time,
+                header.source_receive_time,
                 header.sequence,
                 header.channel_id,
                 order_id,
@@ -473,6 +482,16 @@ struct Trade {
     Price price;
     Quantity quantity;
     std::optional<Side> aggressor_side;
+};
+
+// Provider-native identity and action evidence lives outside the fixed MBO record.
+struct ProviderRecordMetadata {
+    EventHeader header;
+    std::uint32_t provider_instrument_id;
+    std::uint16_t provider_publisher_id;
+    std::uint8_t provider_action;
+
+    friend bool operator==(const ProviderRecordMetadata&, const ProviderRecordMetadata&) = default;
 };
 
 struct Quote {
