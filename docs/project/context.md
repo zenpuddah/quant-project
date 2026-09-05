@@ -2,135 +2,177 @@
 
 ## Project objective
 
-- **Accepted:** Build a personal C++20/Python quant-development platform that teaches professional engineering, provides Quant Developer portfolio and interview evidence, and grows into a usable research and backtesting platform.
+- **Accepted:** Build a personal C++20/Python quant-development platform that teaches professional engineering, provides Quant Developer portfolio/interview evidence, and grows into a usable research and backtesting platform.
+- **Accepted:** Phase 1 is a small but complete research/backtesting system spanning data, research, features, strategies, orders, risk, execution/fills, portfolio/accounting, PnL, validation, and reproducibility.
+- **Accepted:** Phase 2 may evolve toward a more realistic exchange/execution environment with microstructure, order-book behavior, latency, matching, partial fills, and systems topics, but must not distort Phase 1 prematurely.
 
-## Accepted direction
+## Engineering rules
 
-- **Accepted:** Phase 1 is a small but complete research and backtesting system spanning data, features/indicators, strategy/signals, orders, risk, execution/fills, portfolio/accounting, PnL, and validation/reporting.
-- **Accepted:** Phase 1 includes dataset discovery and ingestion, validation and normalization, interactive Python research, experimentation, configuration and reproducibility, experiment tracking and artifacts, result validation, promotion of accepted research logic, and an explicitly designed C++/Python boundary.
-- **Accepted:** Phase 2 may evolve toward an Eurex-style exchange and execution environment with microstructure, limit-order-book behavior, matching and partial fills, latency, realistic execution, and relevant systems topics.
-- **Accepted:** Phase 2 must not prematurely overcomplicate or distort Phase 1.
+- **Accepted:** Architecture/design precede production implementation.
+- **Accepted:** Start with responsibilities, boundaries, data flow, and invariants; keep domain logic separate from infrastructure.
+- **Accepted:** Prefer correctness, clarity, testability, reproducibility, and simple/open solutions before performance complexity.
+- **Accepted:** Do not invent missing requirements or silently resolve significant trade-offs.
+- **Accepted:** The repository owner is engineering manager for architecture/product/major trade-offs; implementation agents execute accepted design and stop with one focused question when a boundary becomes ambiguous.
+- **Accepted:** Accepted architecture lives in `docs/architecture/`; reasoning/source checks live in `docs/project/engineering-book.md`.
+- **Accepted:** Repository docs stay technical and free of unrelated study/persona material.
+- **Accepted:** CLion is the intended IDE. Do not silently turn a local dependency need into a repo-wide build-system redesign.
 
-## Constraints
+## Canonical data architecture
 
-- **Accepted:** Architecture and design precede production implementation; user-requested research-data acquisition is allowed without creating production implementation.
-- **Accepted:** Start with responsibilities, boundaries, data flow, and invariants; separate domain logic from infrastructure.
-- **Accepted:** Prefer correctness, clarity, testability, reproducibility, and free/open-source options before performance complexity.
-- **Accepted:** Do not invent missing requirements or present proposals as decisions.
-- **Accepted:** CLion is the intended IDE; future tooling choices must remain compatible without assuming a build system yet.
-- **Accepted:** Implementation should be idiomatic, concise, human-maintainable, and free of AI markers, unnecessary boilerplate, or artificial attribution.
-- **Accepted:** Significant architectural trade-offs and changes must be presented for approval rather than silently decided.
-- **Accepted:** Accepted architecture decisions live in `docs/architecture/`; their problem/reasoning/source checks live in `docs/project/engineering-book.md`.
-- **Accepted:** Repository engineering/architecture documentation stays technical; do not include council/persona/fictional-character framing, motivational commentary, or unrelated study-session material.
-- **Accepted:** The repository owner acts as engineering manager for architecture/product/major trade-off decisions. Implementation agents execute accepted designs and must stop for a focused question rather than silently resolving a conflicting boundary.
-
-## Superseded ideas
-
-- **Accepted:** A standalone matching engine is not the project definition or the whole portfolio.
-- **Accepted:** "Vectorized Phase 1, event-driven Phase 2" is not a fixed architectural rule.
-- **Accepted:** Python research is a first-class workflow, not an afterthought.
-- **Accepted:** Concurrency, networking, and optimization are introduced only when a demonstrated problem justifies them.
-
-## Data architecture — accepted iteration 1
-
-- **Accepted:** Databento is the first serious Phase 1 data provider; Alpaca remains a later second adapter/provider-independence check.
-- **Accepted:** Phase 1 use is primarily stocks/equities, while canonical instrument identity remains extensible to later type-specific options/futures metadata.
-- **Accepted:** Provider-specific formats and terminology stop at adapters; the core uses provider-independent canonical semantics.
-- **Accepted:** Canonical market concepts include L3/MBO events, Trades, Quotes/L1, L2/price-level views, and Bars.
+- **Accepted:** Provider-specific formats/terminology stop at adapters; the core uses provider-independent canonical semantics.
+- **Accepted:** Canonical market concepts include L3/MBO, Trades, Quotes/L1, L2/price-level views, Bars, and now provider-neutral order-execution evidence where the source exposes it.
 - **Accepted:** High-information observations can be reduced/derived into lower-granularity views where source semantics allow it; reverse reconstruction is not assumed.
-- **Accepted:** Stable internal `InstrumentId` is canonical identity. Symbols/external identifiers live in time-aware reference/reconciliation data through `ReferenceHistory`.
-- **Accepted:** Source ordering evidence is preserved; C++ enforces provider-valid ordering/validation before persistence/use. Timestamp-only sorting is not sufficient.
-- **Accepted:** Observed canonical data lives conceptually in an original pool; derived data lives in a transformed pool and references ancestry through a lineage DAG.
-- **Accepted:** Venue/market state and data-quality state are separate histories reduced into `MarketState` and `DataState`.
-- **Accepted:** Corrections/revisions do not silently overwrite observed history. The revisioned-event mental model is nicknamed FGIT (Financial Git).
-- **Accepted:** Mutable/reconstructed state is derived through reducers from immutable history.
-- **Accepted:** `Price`, `Quantity`, and `Money` use exact decimal/fixed-point semantics rather than binary floating point.
-- **Accepted:** Snapshots are derived recovery checkpoints tied to a history position, not canonical historical truth.
-- **Accepted:** Canonical data is not an ML tensor or feature table; research/ML datasets are later derived views.
+- **Accepted:** Stable internal `InstrumentId` is canonical identity. Symbols/provider IDs remain time-aware mapping/reference evidence.
+- **Accepted:** The same canonical `InstrumentId` may span venue observations; `VenueId` distinguishes venue and `SourceId` distinguishes source/feed.
+- **Accepted:** Source ordering evidence is preserved. Timestamp-only sorting is insufficient for order-sensitive L3 reconstruction.
+- **Accepted:** Observed data and derived data remain conceptually distinct; derived data keeps lineage to original observations.
+- **Accepted:** `MarketState` and `DataState` are separate concepts.
+- **Accepted:** Corrections/revisions do not silently overwrite observed history; FGIT remains the revisioned-history mental model.
+- **Accepted:** `Price`, `Quantity`, and `Money` use exact fixed-scale integer semantics.
+- **Accepted:** Snapshots are recovery checkpoints, not canonical historical truth.
 
-See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/project/engineering-book.md` for the reasoning and source checks.
+See `docs/architecture/phase1-data-model.md` and `docs/project/engineering-book.md`.
 
-## Current repository state
+## Implemented repository state
 
-- **Implemented:** The executable C++20 data-model slice exists under `src/quant/data/`, with framework-free invariant tests in `tests/data_model_tests.cpp`.
-- **Implemented:** Iteration 2 uses binary point-in-time lookup, compact `uint32_t` venue/source IDs with separate metadata tables, fixed-scale integer `Price`/`Quantity`/`Money`, and a synchronous typed MBO writer/buffer/view path.
-- **Implemented:** `MboRecord` is a 64-byte, 64-byte-aligned fixed-stride record with presence bits and a shared instrument/venue/source stream context.
-- **Implemented:** The dependency-free synchronous ingestion skeleton exists under `src/quant/ingestion/`, covering canonical query/range resolution, cache/recovery ports, shared quality reduction, metadata/result envelopes, mapping/provider fakes, and L3 orchestration tests.
-- **Implemented:** The ingestion iteration-close maintenance is now implemented: `DataStateSegment` preserves scoped range-local state with sorted point/range lookup, evidence-free `Unknown` intervals remain unresolved, results own multiple single-scope `MboBuffer`s, recovery receives structured context and returns a plan, mapping scopes include optional `SourceId`, and artifact provenance is plural and range-aware. The existing aggregate `data_state` is derived from the preserved segments.
-- **Implemented:** The reviewed event-count quality correction is complete: event presence/absence without explicit quality or coverage evidence reduces to `Unknown`.
-- **Verified:** The data-model test and all six ingestion tests pass with C++20 warnings-as-errors and AddressSanitizer/UndefinedBehaviorSanitizer enabled.
-- **Measured:** The dependency-free benchmark in `benchmarks/data_model_benchmark.cpp` measured 32/40/48/64-byte candidates, padding, alignment, cache-line crossings, traversal, memory usage, and binary reference lookup on Apple clang 21 arm64. The 64-byte record is finalized for this boundary.
-- **Deferred:** No real provider adapter, storage, replay, lineage persistence, Python binding, or backtesting implementation has been created.
-- **Generated:** The living Mermaid data model has matching outputs at `diagrams/data-model.svg` and `diagrams/data-model.pdf`.
-- **Generated:** The current Phase 1 status summary is maintained in `docs/project/phase1-status-summary.md` and `docs/project/phase1-status-summary.mmd`, with the rendered PDF at `docs/project/phase1-status-summary.pdf`.
-- **Accepted:** A one-month Alpaca historical-data sample for `SPY`, `AAPL`, `MSFT`, and `AMZN` exists under Git-ignored `data/raw/alpaca/`, using `1Day`, `feed=iex`, and `adjustment=raw`; it does not define the canonical Phase 1 provider/model.
-- **Accepted:** The public repository is `https://github.com/zenpuddah/quant-project` on `main`.
-- **Accepted:** The current ingestion-iteration authority now includes `docs/architecture/phase1-ingestion-iteration-close.md` and `docs/project/opencode-review-2026-09-05.md`.
-- **Accepted:** The canonical market-data iteration was checked against current Databento documentation, current Nasdaq TotalView-ITCH specification references, and NautilusTrader order-book documentation before being recorded.
+- **Implemented:** Executable C++20 canonical data model under `src/quant/data/` with framework-free tests.
+- **Implemented:** Binary point-in-time `ReferenceHistory` lookup, compact `uint32_t` venue/source IDs with separate reference tables, and fixed-scale `Price`/`Quantity`/`Money`.
+- **Implemented:** `MboRecord` is a finalized 64-byte, 64-byte-aligned fixed-stride physical record. Do not enlarge it for provider-specific metadata without explicit architecture review.
+- **Implemented:** `MboBuffer` is single stream-scope (`InstrumentId`, `VenueId`, `SourceId`) and a logical ingestion result may hold multiple such buffers.
+- **Implemented:** Dependency-free synchronous ingestion skeleton under `src/quant/ingestion/` with canonical query/range resolution, `NoopCache`, provider/mapping fakes, quality reduction, structured recovery context/plan seam, metadata/provenance, and L3 orchestration tests.
+- **Implemented:** `DataStateSegment` preserves scoped range-local state with sorted point/range lookup; one worst aggregate state is only a derived summary.
+- **Implemented:** Evidence-free intervals remain `Unknown` and unresolved; event count alone is not quality/coverage evidence.
+- **Implemented:** Source artifact provenance is plural and range-aware.
+- **Implemented:** Mapping scope can include optional `SourceId`; same instrument can legitimately produce overlapping venue/source streams.
+- **Verified:** Data-model and ingestion tests were reported passing with C++20 warnings-as-errors plus ASan/UBSan in the latest maintenance pass.
+- **Deferred:** No real provider adapter, XML parser, persistent cache, storage/replay, Python binding, lineage persistence, or backtesting implementation yet.
+- **Accepted:** A small Alpaca raw sample exists only as prior research data and does not define the canonical provider architecture.
 
-## Historical ingestion architecture — accepted 2026-09-03
+## Historical ingestion architecture
 
-See `docs/architecture/phase1-historical-ingestion.md` for the original synchronous-slice direction and `docs/architecture/phase1-ingestion-iteration-close.md` for the current iteration-close decisions.
+See:
 
-- **Accepted:** Databento is the only real provider target for the first historical-ingestion slice. Alpaca remains a ghost/provider-independence check and is not implemented now.
-- **Accepted:** The first provider path is L3/MBO. Direct Databento MBP-10/L2 and MBP-1/L1 support is deferred.
-- **Accepted:** `MarketDataQuery` expresses canonical intent (`InstrumentId`, optional venue constraint, L1/L2/L3 intent, half-open time range). Databento dataset/schema/symbology request details stay behind the provider boundary.
-- **Accepted:** Synchronous ingestion is implemented first. Async/multithreading must later reuse the same domain/query/planning semantics rather than create a second ingestion model.
-- **Accepted:** Batch processing is the ingestion primitive; a single record is a batch of one. For the current synchronous slice, one provider request producing one batch is accepted. Finer bounded batches can be introduced later without changing the producer/consumer architecture if real request sizes justify it.
-- **Accepted:** Caching is abstracted by `CachePort`; the first implementation is a `NoopCache` that always misses. No file/memory/database cache is implemented yet.
-- **Accepted:** Cache identity/coverage is canonical-query based, not Databento-request based. Future cache coverage is segmented and patchable over `[start, end)` intervals.
-- **Accepted:** Ingestion generates independent metadata for actual coverage, quality/provenance, artifact/version identity, and reproducibility. The cache does not create this metadata.
-- **Accepted:** Canonical/provider identity bootstrap uses a human-maintained XML mapping registry. Provider ID is optional; mapping intervals are time-aware so historical symbol/provider-ID changes can split one canonical query into several provider segments.
-- **Accepted:** AI/heuristics may later suggest or validate ambiguous mappings, but deterministic human-approved mapping is the ingestion authority. Automated reconciliation is deferred.
-- **Accepted:** Provider/ingestion data-quality evidence feeds the same canonical quality mechanism. Do not duplicate a separate quality model inside cache/ingestion or bloat every `MboRecord` with quality state.
-- **Accepted:** Recovery is an injected policy seam. Retry/backoff/repair execution is deferred.
-- **Accepted:** Future overlapping concurrent jobs use range resolution/coordinator logic to join active work and fetch uncovered intervals. The synchronous slice has no active-job concurrency.
-- **Accepted:** Future parallel normalization may use a map/reduce-like ordering stage; the synchronous slice preserves provider-valid order within each stream and does not add threading infrastructure.
-- **Accepted:** Partial query success is represented by segmented state/coverage rather than one destructive global worst state.
-- **Accepted:** Metadata keeps version identity sufficient for future regeneration/migration. No migration framework/scripts are built now.
-- **Accepted:** Storage/access/replay remain intentionally deferred unless the current ingestion slice exposes a concrete incompatibility.
+- `docs/architecture/phase1-historical-ingestion.md`
+- `docs/architecture/phase1-ingestion-iteration-close.md`
+- `docs/project/opencode-review-2026-09-05.md`
 
-## Ingestion iteration-close decisions — accepted 2026-09-05
+Accepted baseline:
 
-See `docs/architecture/phase1-ingestion-iteration-close.md` and `docs/project/opencode-review-2026-09-05.md`.
+- Databento is the first real provider; Alpaca is only a later provider-independence check.
+- First real path is L3/MBO; direct L2/L1 provider ingestion remains deferred.
+- `MarketDataQuery` expresses canonical intent; provider request fields stay behind adapters.
+- Synchronous execution is first, but async/concurrent execution must later reuse the same query/domain/batch/quality semantics.
+- Producer -> batch -> consumer is the ingestion primitive.
+- Current first-slice behavior of one provider request -> one `ProviderBatch` is accepted; finer bounded batching is deferred until the real path works.
+- Cache remains a `NoopCache`; persistent cache/storage/replay are deferred.
+- Recovery is injected policy; retry/backoff/repair execution remains deferred.
+- Range-local quality/state remains scoped and non-destructive.
 
-- **Accepted:** `Unknown` means insufficient evidence, not missing data. Evidence-free `Unknown` intervals remain in `unresolved_ranges` because they are not proven resolved.
-- **Accepted:** Preserve multiple normalized range-local states. Do not collapse the logical result into one authoritative worst `DataState`; an aggregate may exist only as a derived summary.
-- **Accepted:** The same canonical `InstrumentId` can appear across multiple venues. `VenueId` distinguishes venue and `SourceId` distinguishes source/feed.
-- **Accepted:** Keep `MboBuffer` single-scope and keep the 64-byte `MboRecord` unchanged. A logical `IngestionResult` may contain multiple `MboBuffer`s, one per distinct `MboStreamContext`.
-- **Accepted:** Preserve provider-valid ordering within each stream; do not invent a global ordering across independent venue/source streams.
-- **Accepted:** Recovery remains abstract and injected. Replace the current boolean recovery input with structured context and a structured plan/action seam; keep only `NoopRecoveryPolicy` concrete in this maintenance pass.
-- **Accepted:** Source artifact provenance is plural and range-aware rather than one optional identity for the entire logical result.
-- **Accepted:** Keep producer -> batch -> consumer. Current one-request/one-batch behavior is accepted and is not part of this maintenance correction.
-- **Guardrail:** Range/state metadata must retain enough scope to avoid collapsing different venue/source states that overlap in time. If the existing canonical types cannot express this without a new scope type, implementation must stop and ask one focused engineering-manager question rather than inventing it.
+## Databento first real integration — accepted 2026-09-05
 
-## Open questions
+See `docs/architecture/phase1-databento-first-integration.md`.
 
-- Exact scope key needed by the segmented range-state index if multi-venue/source states overlap in time and existing types are insufficient.
-- Exact Databento C++ client/dependency integration. Do not add a dependency before engineering-manager review.
-- Exact XML parsing library/dependency. Do not add a dependency before engineering-manager review.
-- Storage/database/file format, physical layout, query/replay API, snapshots, and schema evolution implementation.
-- C++/Python responsibility split and research-logic promotion.
-- Minimum execution/fill/cost/slippage/risk fidelity.
-- Experiment reproducibility/artifact requirements beyond the ingestion metadata baseline.
-- Paper/live execution boundary.
-- CLion-compatible compiler/build/test/debug workflow.
-- ML feature/label temporal correctness when the research-dataset builder is designed.
+### Provider/dependency direction
+
+- **Accepted:** Use the official `databento-cpp` historical client behind `ProviderPort`.
+- **Accepted:** First real target is a deliberately small `XNAS.ITCH` MBO request, roughly one to two trading days, so the whole existing path can be tested before production batching.
+- **Guardrail:** Databento docs recommend CMake `FetchContent` and require CMake 3.24+, OpenSSL 3+, libcrypto, and zstd. Keep dependency/build integration minimal; do not silently redesign the whole repository build.
+
+### Dual query time semantics
+
+- **Accepted:** Canonical query semantics must preserve both exchange-event time and provider-receive time.
+- **Accepted:** `MarketDataQuery` evolves from one generic range to optional `event_time_range` and optional `receive_time_range`; at least one is required.
+- **Accepted:** Event time is the default/primary semantic for ordinary canonical queries.
+- **Accepted:** If only event time is supplied and a provider such as Databento MBO filters on receive time, the adapter may derive a receive-time fetch range when the query selects derivation policy.
+- **Accepted:** The query can carry before/after safety margin for that derived provider range.
+- **Accepted:** A strict policy can require the provider-native time range explicitly and fail before the request if it is absent.
+- **Accepted:** If both ranges are supplied, returned canonical records must satisfy both.
+- **Accepted:** Preserve both timestamps on canonical observations whenever the provider supplies both.
+
+### Databento MBO action interpretation
+
+- **Accepted:** Do not blindly map every Databento MBO action 1:1 into `MboAction`.
+- **Source fact:** On XNAS, Databento normalizes an Order Executed as `Trade -> Fill -> Cancel`; the `Cancel` is the displayed-book quantity mutation.
+- **Accepted:** A provider-specific interpreter may produce separate canonical semantics from one provider event group:
+
+```text
+provider event group
+      ├── Trade observation
+      ├── OrderExecution observation
+      └── MBO book mutation
+```
+
+- **Accepted:** Prefer provider-supplied semantics; synthesize only canonical information that is missing; never double-apply a book mutation that the provider already supplied.
+- **Accepted:** Add a provider-neutral first-class `OrderExecution` observation for resting-order execution/fill evidence where available. Do not expose a Databento-specific `Fill` type in the core.
+- **Guardrail:** Exact `OrderExecution` fields should be the minimal set justified by real Databento records and existing canonical types; do not predesign fields for hypothetical providers.
+
+### Identity mapping
+
+- **Accepted:** For the first integration, continue using deterministic manual/in-memory mappings.
+- **Accepted:** Databento `instrument_id` maps to canonical `InstrumentId`; Databento publisher/dataset identity maps to canonical `VenueId` + `SourceId`.
+- **Accepted:** Provider-native IDs remain evidence and never become canonical identity.
+- **Deferred:** XML-backed mapping waits until the real Databento path works.
+
+### Quality mapping
+
+- **Accepted:** Databento quality uses provider dataset condition + record/channel evidence + our validation.
+- **Accepted initial interpretation:**
+  - `available` + successful request + validation passes + no known bad-book evidence -> `Complete`;
+  - `degraded` -> `Degraded`;
+  - `pending` -> `Unknown`;
+  - `missing` -> `Missing`;
+  - structurally/unusably invalid canonical input -> `Corrupt`.
+- **Accepted:** `last_modified_date` is provenance/version evidence, not quality state by itself.
+- **Accepted:** Bad-book/gap evidence may degrade affected data. Receive-timestamp-quality evidence affects receive-time quality and must not automatically mean the book is corrupt.
+- **Accepted:** Never infer `Complete` from event count.
+
+### API/infrastructure failure semantics
+
+- **Accepted:** Provider/API failures belong to the ingestion operation, not canonical market-data knowledge.
+- **Accepted:** Timeout, rate limit, auth, entitlement, or server failure must not become `Missing` or `Unknown` in stored `DataState` merely because ingestion failed.
+- **Accepted:** Failed ingestion must not be committed as authoritative knowledge. Already-fetched data can remain staged/temporary until the operation is accepted.
+- **Accepted direction:** Recovery/retry policy handles operation failure separately from canonical quality state. Exact partial-result/failure-envelope mechanics may be refined when the first real SDK failure path is encountered.
+
+### Field normalization and provider metadata
+
+- **Accepted:** Existing canonical MBO representation is sufficient for primary Databento fields (`ts_event`, `ts_recv`, sequence, channel, flags, price, size, order id); normalization is adapter work unless real data exposes a mismatch.
+- **Accepted:** Do not widen the 64-byte `MboRecord` for Databento-only control/native metadata.
+- **Accepted:** Preserve provider-specific metadata through a sidecar/component/reference outside the hot record; store stream/batch metadata once when possible.
+- **Guardrail:** Do not build a generalized provider-metadata framework until concrete Databento fields justify the exact shape.
+
+### Batching and execution mode
+
+- **Accepted:** First integration remains `1 Databento request -> 1 ProviderBatch -> existing SynchronousIngestor`.
+- **Accepted:** Restrict the first real test to about one to two trading days.
+- **Accepted future direction:** Databento supports incremental pull/callback consumption; later one request can emit multiple bounded `ProviderBatch` chunks without changing producer -> batch -> consumer semantics.
+- **Accepted:** The first adapter may use the simplest synchronous/pull SDK path internally, but sync/pull must remain an execution choice hidden behind the provider boundary. Future async/callback/concurrent execution reuses the same canonical semantics.
+
+## Current open questions
+
+Only questions that should block implementation when actually encountered:
+
+- Minimal project/build integration needed for `databento-cpp` without silently introducing an unwanted repo-wide build-system redesign.
+- Exact minimal `OrderExecution` field set after inspecting the concrete C++ MBO record API.
+- Exact Databento provider-metadata sidecar shape after identifying which native fields are not already canonical and are worth preserving.
+- Exact ingestion-operation failure/partial-result envelope once a real SDK failure path exposes the necessary information.
+- XML parsing library/dependency — intentionally deferred until Databento vertical slice works.
+- Storage/replay/cache persistence, C++/Python boundary, execution realism, ML dataset correctness, and other later Phase 1 concerns remain deferred.
 
 ## Current architecture task
 
-- **Accepted:** The Phase 1 system context is established at a useful first level.
-- **Accepted:** Canonical market-data model Iteration 1 is complete enough to stop adding abstract concepts.
-- **Implemented:** Iteration 2 exercises canonical integer values, compact reference IDs, binary reference lookup, typed MBO writes, fixed-stride round trips, and structural invariants.
-- **Implemented:** Historical-ingestion Tasks 1–6 are complete with deterministic fakes/no-op policies and no external dependencies, provider SDK, XML parser, storage, replay, retry, or concurrency infrastructure.
-- **Implemented:** The event-count quality-inference correction is complete.
-- **Implemented:** The 2026-09-05 iteration-close corrections are complete without changing the provider dependency boundary or introducing a new canonical scope type.
+- **Implemented:** Canonical data model and generic synchronous ingestion skeleton are stable enough for the first real provider slice.
+- **Accepted:** Databento first-integration semantics above are now the active design.
+- **Do not add:** XML parser, persistent storage/cache, replay, retry loops, async/concurrency, L1/L2 provider support, or broad build/tooling refactors during this slice.
 
 ## Next action
 
-1. **Dependency review:** Choose the Databento C++ integration approach and XML parser before adding either dependency.
-2. **Then:** Connect the reviewed skeleton to real Databento historical MBO and the XML-backed mapping registry.
-3. **Guardrail:** Keep storage, replay, retry execution, async/concurrency, and other deferred infrastructure out until separately accepted.
+1. Pull latest `main` and read the current architecture/context.
+2. Implement the smallest real Databento historical `XNAS.ITCH` MBO vertical slice using the official C++ client.
+3. First update the canonical types/tests required by accepted design: dual query time semantics and provider-neutral `OrderExecution`.
+4. Add the Databento adapter/interpreter and manual/in-memory mapping needed for one small real query.
+5. Integrate Databento daily dataset-condition evidence into existing quality observations without treating API failures as canonical data state.
+6. Keep one request -> one batch for the first test.
+7. Run existing tests plus focused adapter/integration tests, then stop for engineering-manager review before XML or multi-batch work.
 
 ## Last updated
 
