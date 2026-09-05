@@ -75,7 +75,10 @@ Current Databento slice status:
 - **Implemented:** `src/quant/ingestion/databento_provider.hpp` translates XNAS MBO actions into canonical MBO, Trade, and OrderExecution observations, preserves provider metadata sidecars, maps dataset conditions, and rejects source-receive-time-only mapping requests.
 - **Implemented:** `integration/databento/` provides a minimal isolated CMake build using the pinned official SDK checkout or `FetchContent` tag `v0.67.0`.
 - **Verified:** All direct C++20 warnings-as-errors tests, ASan/UBSan tests, and the deterministic Databento translation CTest pass.
-- **Pending:** Credentialed historical smoke execution; the current environment has no `DATABENTO_API_KEY`.
+- **Verified:** One credentialed, cost-gated AAPL `XNAS.ITCH` MBO request ran for `[2024-01-02T14:30:00Z, 2024-01-02T14:35:00Z)` at an estimated cost of `$0.022502`; it returned 234,144 provider records, 212,218 MBO records, 12,213 Trades, and 9,713 OrderExecutions.
+- **Verified:** The result reduced to one `Complete` state segment with zero corrupt quality observations; `source_receive_time` was present on all provider records, sequence/channel evidence was present on all records, channel `0` was observed, and raw flags `0`, `128`, and `130` were preserved.
+- **Observed:** The provider condition response included `available` evidence for both 2024-01-02 and 2024-01-03 while the returned data interval ended at 2024-01-02 14:35 UTC; both conditions were healthy, but the date-range boundary should be reviewed before treating condition evidence as day-local.
+- **Implemented:** The smoke harness calls `MetadataGetCost` before `TimeseriesGetRange`, refuses estimates above the `$0.25` target or `$1.00` hard ceiling, and reports canonical counts, timestamps, ordering evidence, quality, state, and provider conditions.
 
 ## Databento first real integration — accepted 2026-09-05
 
@@ -176,11 +179,12 @@ Only questions that should block implementation when actually encountered:
 
 ## Next action
 
-1. Run the credentialed one-to-two-day Databento smoke query when `DATABENTO_API_KEY` is available.
-2. Review the first real adapter vertical slice and its provider-condition/record-quality evidence.
+1. Review the first real adapter vertical slice and its provider-condition/record-quality evidence.
+2. Resolve the observed dataset-condition date-range detail if later validation confirms the extra condition date is not intended by the provider API.
 3. Stop for engineering-manager review before XML, persistent cache/storage, live ingestion, or multi-batch work.
 
 ## Last updated
 
 - **Accepted:** 2026-09-05.
 - **Implemented:** 2026-09-05 Databento first-slice worktree update.
+- **Verified:** 2026-09-05 first credentialed Databento smoke request.
