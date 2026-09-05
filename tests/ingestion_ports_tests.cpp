@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -34,8 +35,24 @@ void test_noop_cache() {
 
 void test_noop_recovery() {
     const NoopRecoveryPolicy policy;
-    require(policy.decide(false) == RecoveryAction::NoAction, "NoopRecoveryPolicy must do nothing without unresolved ranges");
-    require(policy.decide(true) == RecoveryAction::NoAction, "NoopRecoveryPolicy must do nothing with unresolved ranges");
+    const MarketDataQuery query{
+        InstrumentId{42},
+        std::nullopt,
+        MarketDataLevel::L3,
+        TimeRange{time(10), time(20)},
+    };
+    const std::vector<DataStateSegment> state_segments{
+        DataStateSegment{query.range, DataState::Unknown},
+    };
+    const RecoveryContext context{
+        query,
+        state_segments,
+        state_segments,
+        DataState::Unknown,
+    };
+    const auto plan = policy.decide(context);
+    require(plan.action == RecoveryAction::NoAction, "NoopRecoveryPolicy must always do nothing");
+    require(plan.ranges.empty(), "NoopRecoveryPolicy must not schedule recovery ranges");
 }
 
 } // namespace

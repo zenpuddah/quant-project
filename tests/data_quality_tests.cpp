@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -29,7 +30,7 @@ TimeRange range(const std::int64_t start, const std::int64_t end) {
 DataState reduce(
     const TimeRange requested,
     const std::vector<DataQualityObservation>& observations) {
-    return DataStateReducer::reduce(requested, observations);
+    return summarize_data_state(DataStateReducer::reduce(requested, observations));
 }
 
 void test_quality_reduction() {
@@ -57,17 +58,68 @@ void test_unknown_and_coverage() {
     require(
         reduce(requested, {}) == DataState::Unknown,
         "no evidence must reduce to an explicit unknown state");
+    const auto partial = DataStateReducer::reduce(requested, {{range(10, 15), DataQualityKind::Complete}});
     require(
-        reduce(requested, {{range(10, 15), DataQualityKind::Complete}}) == DataState::Unknown,
+        summarize_data_state(partial) == DataState::Unknown,
         "partial evidence must not pretend the uncovered range is complete");
     require(
-        reduce(requested, {{range(10, 15), DataQualityKind::Complete}, {range(15, 20), DataQualityKind::Missing}}) ==
-            DataState::Missing,
+        partial == std::vector<DataStateSegment>{
+            DataStateSegment{range(10, 15), DataState::Complete},
+            DataStateSegment{range(15, 20), DataState::Unknown},
+        },
+        "partial evidence must preserve the complete and unknown intervals");
+
+    const auto adjacent = DataStateReducer::reduce(
+        requested,
+        {{range(10, 15), DataQualityKind::Complete}, {range(15, 20), DataQualityKind::Missing}});
+    require(
+        summarize_data_state(adjacent) == DataState::Missing,
         "adjacent quality evidence must cover the requested range honestly");
+    require(
+        adjacent == std::vector<DataStateSegment>{
+            DataStateSegment{range(10, 15), DataState::Complete},
+            DataStateSegment{range(15, 20), DataState::Missing},
+        },
+        "adjacent quality evidence must remain range-local");
+
     require(
         reduce(requested, {{range(0, 10), DataQualityKind::Complete}, {range(20, 30), DataQualityKind::Complete}}) ==
             DataState::Unknown,
         "endpoint-adjacent evidence must not cover a half-open request");
+}
+
+void test_scoped_segments_and_lookup() {
+    const auto requested = range(10, 20);
+    const auto first_scope = std::optional<MboStreamContext>{MboStreamContext{InstrumentId{42}, VenueId{1}, SourceId{9}}};
+    const auto second_scope = std::optional<MboStreamContext>{MboStreamContext{InstrumentId{42}, VenueId{2}, SourceId{9}}};
+    const std::vector<std::optional<MboStreamContext>> expected_scopes{first_scope, second_scope};
+    const auto segments = DataStateReducer::reduce(
+        requested,
+        {
+            DataQualityObservation{requested, DataQualityKind::Complete, first_scope},
+            DataQualityObservation{range(10, 15), DataQualityKind::Complete, second_scope},
+        },
+        expected_scopes);
+
+    require(segments.size() == 3, "overlapping stream scopes must remain separate state segments");
+    const auto* first_state = lookup_data_state(segments, first_scope, time(17));
+    require(first_state && first_state->state == DataState::Complete, "point lookup must select the first stream state");
+    const auto* second_state = lookup_data_state(segments, second_scope, time(17));
+    require(second_state && second_state->state == DataState::Unknown, "point lookup must retain the second stream gap");
+
+    const auto second_range = lookup_data_state(segments, second_scope, range(12, 18));
+    require(
+        second_range == std::vector<DataStateSegment>{
+            DataStateSegment{range(12, 15), DataState::Complete, second_scope},
+            DataStateSegment{range(15, 18), DataState::Unknown, second_scope},
+        },
+        "range lookup must clip and preserve scoped state segments");
+
+    const auto merged = DataStateReducer::reduce(
+        requested,
+        {{range(10, 15), DataQualityKind::Complete}, {range(15, 20), DataQualityKind::Complete}});
+    require(merged.size() == 1 && merged[0].range == requested && merged[0].state == DataState::Complete,
+            "adjacent equivalent segments must merge");
 }
 
 } // namespace
@@ -76,6 +128,7 @@ int main() {
     try {
         test_quality_reduction();
         test_unknown_and_coverage();
+        test_scoped_segments_and_lookup();
         std::cout << "data_quality_tests: passed\n";
     } catch (const std::exception& error) {
         std::cerr << "data_quality_tests: failed: " << error.what() << '\n';

@@ -20,6 +20,17 @@ void require(const bool condition, const std::string_view message) {
     }
 }
 
+template <typename Function>
+void require_throws(Function&& function, const std::string_view message) {
+    bool threw = false;
+    try {
+        function();
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    require(threw, message);
+}
+
 Timestamp time(const std::int64_t nanos) {
     return Timestamp::from_unix_nanos(nanos);
 }
@@ -64,6 +75,53 @@ void test_mapping_segments() {
             "second segment must retain its optional provider id");
 }
 
+void test_mapping_scope_overlap() {
+    InMemoryInstrumentMappingRegistry registry;
+    registry.add(ProviderMappingSegment{
+        InstrumentId{42},
+        "test-provider",
+        std::string{"VENUE-1"},
+        VenueId{7},
+        std::nullopt,
+        range(0, 10),
+        SourceId{9},
+    });
+    registry.add(ProviderMappingSegment{
+        InstrumentId{42},
+        "test-provider",
+        std::string{"VENUE-1-SOURCE-2"},
+        VenueId{7},
+        std::nullopt,
+        range(0, 10),
+        SourceId{10},
+    });
+    registry.add(ProviderMappingSegment{
+        InstrumentId{42},
+        "test-provider",
+        std::string{"VENUE-2"},
+        VenueId{8},
+        std::nullopt,
+        range(0, 10),
+        SourceId{9},
+    });
+
+    require_throws(
+        [&] {
+            registry.add(ProviderMappingSegment{
+                InstrumentId{42},
+                "test-provider",
+                std::string{"CONFLICT"},
+                VenueId{7},
+                std::nullopt,
+                range(5, 6),
+                SourceId{9},
+            });
+        },
+        "overlapping mappings in one stream scope must be rejected");
+    require(registry.resolve(InstrumentId{42}, "test-provider", range(0, 10)).size() == 3,
+            "different venue/source scopes must coexist in the mapping registry");
+}
+
 EventHeader header() {
     return EventHeader{
         InstrumentId{42},
@@ -91,7 +149,7 @@ void test_provider_returns_canonical_batch() {
         {event},
         {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
         {SourceId{9}},
-        std::nullopt,
+        {},
     });
 
     const auto requested_segment = mapping(0, 10, "OLD", std::nullopt);
@@ -112,6 +170,7 @@ void test_provider_returns_canonical_batch() {
 int main() {
     try {
         test_mapping_segments();
+        test_mapping_scope_overlap();
         test_provider_returns_canonical_batch();
         std::cout << "ingestion_provider_tests: passed\n";
     } catch (const std::exception& error) {

@@ -6,11 +6,13 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
 using namespace quant::data;
 using namespace quant::ingestion;
+namespace data = quant::data;
 
 void require(const bool condition, const std::string_view message) {
     if (!condition) {
@@ -40,33 +42,45 @@ TimeRange range(const std::int64_t start, const std::int64_t end) {
 ProviderMappingSegment mapping(
     const std::int64_t start,
     const std::int64_t end,
-    const std::string_view symbol) {
+    const std::string_view symbol,
+    const std::optional<data::SourceId> source_id = std::nullopt,
+    const data::VenueId venue_id = data::VenueId{7}) {
     return ProviderMappingSegment{
         InstrumentId{42},
         "test-provider",
         std::string{symbol},
-        VenueId{7},
+        venue_id,
         std::nullopt,
         range(start, end),
+        source_id,
     };
 }
 
-EventHeader header(const std::int64_t event_time, const std::uint64_t sequence = 1) {
+EventHeader header(
+    const std::int64_t event_time,
+    const std::uint64_t sequence = 1,
+    const data::VenueId venue_id = data::VenueId{7},
+    const data::SourceId source_id = data::SourceId{9}) {
     return EventHeader{
         InstrumentId{42},
-        VenueId{7},
+        venue_id,
         time(event_time),
         time(event_time + 1),
         sequence,
         std::uint32_t{2},
         std::uint64_t{11},
-        SourceId{9},
+        source_id,
     };
 }
 
-MboEvent add_event(const std::int64_t event_time, const std::uint64_t order_id, const std::uint64_t sequence = 1) {
+MboEvent add_event(
+    const std::int64_t event_time,
+    const std::uint64_t order_id,
+    const std::uint64_t sequence = 1,
+    const data::VenueId venue_id = data::VenueId{7},
+    const data::SourceId source_id = data::SourceId{9}) {
     return MboEvent{
-        header(event_time, sequence),
+        header(event_time, sequence, venue_id, source_id),
         MboAction::Add,
         OrderId{order_id},
         Side::Buy,
@@ -74,6 +88,30 @@ MboEvent add_event(const std::int64_t event_time, const std::uint64_t order_id, 
         Quantity::from_integer(2),
     };
 }
+
+std::optional<MboStreamContext> scope(
+    const data::VenueId venue_id = data::VenueId{7},
+    const data::SourceId source_id = data::SourceId{9}) {
+    return MboStreamContext{InstrumentId{42}, venue_id, source_id};
+}
+
+class RecordingRecoveryPolicy final : public RecoveryPolicy {
+public:
+    [[nodiscard]] RecoveryPlan decide(const RecoveryContext& context) const override {
+        called = true;
+        observed_query = context.query;
+        observed_state = context.data_state;
+        observed_segments.assign(context.state_segments.begin(), context.state_segments.end());
+        observed_unresolved.assign(context.unresolved_ranges.begin(), context.unresolved_ranges.end());
+        return RecoveryPlan{RecoveryAction::NoAction, {}};
+    }
+
+    mutable bool called = false;
+    mutable std::optional<MarketDataQuery> observed_query;
+    mutable DataState observed_state = DataState::Unknown;
+    mutable std::vector<DataStateSegment> observed_segments;
+    mutable std::vector<DataStateSegment> observed_unresolved;
+};
 
 void test_full_miss_produces_result() {
     NoopCache cache;
@@ -84,7 +122,7 @@ void test_full_miss_produces_result() {
         {add_event(3, 100)},
         {},
         {SourceId{9}},
-        std::nullopt,
+        {},
     });
     NoopRecoveryPolicy recovery;
     SynchronousIngestor ingestor{cache, mappings, provider, recovery};
@@ -98,10 +136,13 @@ void test_full_miss_produces_result() {
 
     require(provider.calls().size() == 1, "a full cache miss must produce one provider request");
     require(provider.calls()[0].range == range(0, 10), "provider request must use the canonical missing range");
-    require(result.mbo.has_value() && result.mbo->size() == 1, "valid provider output must enter the MBO buffer");
+    require(result.mbo_buffers.size() == 1 && result.mbo_buffers[0].size() == 1,
+            "valid provider output must enter one scoped MBO buffer");
     require(result.metadata.actual_coverage.empty(),
-            "valid provider output without coverage evidence must not claim full actual coverage");
-    require(result.metadata.unresolved_ranges.empty(), "complete provider output must have no unresolved ranges");
+            "valid provider output without coverage evidence must not claim actual coverage");
+    require(result.metadata.unresolved_ranges ==
+                std::vector<DataStateSegment>{DataStateSegment{range(0, 10), DataState::Unknown, scope()}},
+            "evidence-free unknown output must remain unresolved");
     require(result.metadata.data_state == DataState::Unknown,
             "valid provider output without quality evidence must reduce to unknown state");
     require(result.metadata.provider == "test-provider", "result metadata must retain provider identity");
@@ -119,8 +160,8 @@ void test_mapping_boundary_is_one_logical_result() {
     mappings.add(mapping(0, 10, "OLD"));
     mappings.add(mapping(10, 20, "NEW"));
     FakeProvider provider{"test-provider"};
-    provider.enqueue_response(ProviderBatch{{add_event(9, 100, 1)}, {}, {SourceId{9}}, std::nullopt});
-    provider.enqueue_response(ProviderBatch{{add_event(10, 101, 2)}, {}, {SourceId{9}}, std::nullopt});
+    provider.enqueue_response(ProviderBatch{{add_event(9, 100, 1)}, {}, {SourceId{9}}, {}});
+    provider.enqueue_response(ProviderBatch{{add_event(10, 101, 2)}, {}, {SourceId{9}}, {}});
     NoopRecoveryPolicy recovery;
     SynchronousIngestor ingestor{cache, mappings, provider, recovery};
 
@@ -131,13 +172,17 @@ void test_mapping_boundary_is_one_logical_result() {
     require(provider.calls().size() == 2, "a mapping boundary must produce two provider calls");
     require(provider.calls()[0].range == range(5, 10), "first provider call must use the first half-open segment");
     require(provider.calls()[1].range == range(10, 15), "second provider call must use the second half-open segment");
-    require(result.mbo.has_value() && result.mbo->size() == 2, "mapping segments must share one logical MBO result");
-    require(result.mbo->at(0).order_id()->value() == 100, "first provider event must remain first");
-    require(result.mbo->at(1).order_id()->value() == 101, "second provider event must remain second");
-    require(result.mbo->at(0).header().instrument_id == InstrumentId{42},
+    require(result.mbo_buffers.size() == 1 && result.mbo_buffers[0].size() == 2,
+            "mapping segments must share one logical scoped MBO result");
+    require(result.mbo_buffers[0].at(0).order_id()->value() == 100, "first provider event must remain first");
+    require(result.mbo_buffers[0].at(1).order_id()->value() == 101, "second provider event must remain second");
+    require(result.mbo_buffers[0].at(0).header().instrument_id == InstrumentId{42},
             "normalized events must retain canonical instrument identity");
     require(result.metadata.data_state == DataState::Unknown,
             "mapping segments with events but no quality evidence must reduce to unknown state");
+    require(result.metadata.unresolved_ranges ==
+                std::vector<DataStateSegment>{DataStateSegment{range(5, 15), DataState::Unknown, scope()}},
+            "mapping segments without evidence must remain unresolved as one merged state range");
 }
 
 void test_provider_quality_and_validation() {
@@ -150,7 +195,7 @@ void test_provider_quality_and_validation() {
             {add_event(2, 100)},
             {DataQualityObservation{range(0, 10), DataQualityKind::Degraded}},
             {SourceId{9}},
-            std::nullopt,
+            {},
         });
         NoopRecoveryPolicy recovery;
         SynchronousIngestor ingestor{cache, mappings, provider, recovery};
@@ -158,7 +203,8 @@ void test_provider_quality_and_validation() {
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(3));
         require(result.metadata.data_state == DataState::Degraded,
                 "degraded provider evidence must reduce to degraded state");
-        require(result.metadata.unresolved_ranges == std::vector<TimeRange>{range(0, 10)},
+        require(result.metadata.unresolved_ranges ==
+                    std::vector<DataStateSegment>{DataStateSegment{range(0, 10), DataState::Degraded, scope()}},
                 "degraded provider evidence must remain unresolved for recovery policy input");
     }
 
@@ -167,14 +213,17 @@ void test_provider_quality_and_validation() {
         InMemoryInstrumentMappingRegistry mappings;
         mappings.add(mapping(0, 10, "TEST"));
         FakeProvider provider{"test-provider"};
-        provider.enqueue_response(ProviderBatch{{}, {}, {}, std::nullopt});
+        provider.enqueue_response(ProviderBatch{{}, {}, {}, {}});
         NoopRecoveryPolicy recovery;
         SynchronousIngestor ingestor{cache, mappings, provider, recovery};
         const auto result = ingestor.ingest(
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(3));
         require(result.metadata.data_state == DataState::Unknown,
                 "zero provider events without quality evidence must reduce to unknown state");
-        require(!result.mbo.has_value(), "zero provider events must not create an MBO buffer");
+        require(result.metadata.unresolved_ranges ==
+                    std::vector<DataStateSegment>{DataStateSegment{range(0, 10), DataState::Unknown}},
+                "zero provider events without quality evidence must remain unresolved");
+        require(result.mbo_buffers.empty(), "zero provider events must not create an MBO buffer");
     }
 
     {
@@ -186,7 +235,7 @@ void test_provider_quality_and_validation() {
             {},
             {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
             {},
-            std::nullopt,
+            {},
         });
         NoopRecoveryPolicy recovery;
         SynchronousIngestor ingestor{cache, mappings, provider, recovery};
@@ -194,9 +243,11 @@ void test_provider_quality_and_validation() {
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(3));
         require(result.metadata.data_state == DataState::Complete,
                 "explicit complete evidence must reduce to complete state without events");
-        require(result.metadata.actual_coverage == std::vector<TimeRange>{range(0, 10)},
+        require(result.metadata.actual_coverage ==
+                    std::vector<DataStateSegment>{DataStateSegment{range(0, 10), DataState::Complete}},
                 "explicit complete evidence must produce actual coverage without events");
-        require(!result.mbo.has_value(), "explicit complete evidence without events must not create an MBO buffer");
+        require(result.metadata.unresolved_ranges.empty(), "explicit complete evidence must be resolved");
+        require(result.mbo_buffers.empty(), "explicit complete evidence without events must not create an MBO buffer");
     }
 
     {
@@ -208,7 +259,7 @@ void test_provider_quality_and_validation() {
             {},
             {DataQualityObservation{range(0, 10), DataQualityKind::Missing}},
             {},
-            std::nullopt,
+            {},
         });
         NoopRecoveryPolicy recovery;
         SynchronousIngestor ingestor{cache, mappings, provider, recovery};
@@ -216,7 +267,7 @@ void test_provider_quality_and_validation() {
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(4));
         require(result.metadata.data_state == DataState::Missing,
                 "missing provider evidence must reduce to missing state");
-        require(!result.mbo.has_value(), "missing provider data must not create an MBO buffer");
+        require(result.mbo_buffers.empty(), "missing provider data must not create an MBO buffer");
     }
 
     {
@@ -228,7 +279,7 @@ void test_provider_quality_and_validation() {
             {MboEvent{header(2), MboAction::Add, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
             {},
             {},
-            std::nullopt,
+            {},
         });
         NoopRecoveryPolicy recovery;
         SynchronousIngestor ingestor{cache, mappings, provider, recovery};
@@ -236,10 +287,93 @@ void test_provider_quality_and_validation() {
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(5));
         require(result.metadata.data_state == DataState::Corrupt,
                 "validation failure must become corrupt quality evidence");
-        require(!result.mbo.has_value(), "invalid MBO events must not enter the valid buffer");
-        require(result.metadata.unresolved_ranges == std::vector<TimeRange>{range(0, 10)},
+        require(result.mbo_buffers.empty(), "invalid MBO events must not enter the valid buffer");
+        require(result.metadata.unresolved_ranges ==
+                    std::vector<DataStateSegment>{DataStateSegment{range(0, 10), DataState::Corrupt, scope()}},
                 "validation failure must leave its segment unresolved");
     }
+}
+
+void test_multiple_stream_scopes() {
+    NoopCache cache;
+    InMemoryInstrumentMappingRegistry mappings;
+    mappings.add(mapping(0, 10, "VENUE-1", SourceId{9}, VenueId{7}));
+    mappings.add(mapping(0, 10, "VENUE-2", SourceId{10}, VenueId{8}));
+    FakeProvider provider{"test-provider"};
+    provider.enqueue_response(ProviderBatch{
+        {add_event(2, 100, 1, VenueId{7}, SourceId{9}), add_event(4, 101, 2, VenueId{7}, SourceId{9})},
+        {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
+        {SourceId{9}},
+        {},
+    });
+    provider.enqueue_response(ProviderBatch{
+        {add_event(3, 200, 1, VenueId{8}, SourceId{10}), add_event(5, 201, 2, VenueId{8}, SourceId{10})},
+        {DataQualityObservation{range(0, 10), DataQualityKind::Complete}},
+        {SourceId{10}},
+        {},
+    });
+    NoopRecoveryPolicy recovery;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+
+    const auto result = ingestor.ingest(
+        MarketDataQuery{InstrumentId{42}, std::nullopt, MarketDataLevel::L3, range(0, 10)}, time(6));
+
+    require(result.mbo_buffers.size() == 2, "one logical result must preserve one MBO buffer per stream scope");
+    require(result.mbo_buffers[0].context().instrument_id == InstrumentId{42} &&
+                result.mbo_buffers[0].context().venue_id == VenueId{7} &&
+                result.mbo_buffers[0].context().source_id == SourceId{9},
+            "first stream buffer must retain its venue/source context");
+    require(result.mbo_buffers[1].context().instrument_id == InstrumentId{42} &&
+                result.mbo_buffers[1].context().venue_id == VenueId{8} &&
+                result.mbo_buffers[1].context().source_id == SourceId{10},
+            "second stream buffer must retain its venue/source context");
+    require(result.mbo_buffers[0].at(0).order_id()->value() == 100 &&
+                result.mbo_buffers[0].at(1).order_id()->value() == 101,
+            "provider order must be preserved within the first stream");
+    require(result.mbo_buffers[1].at(0).order_id()->value() == 200 &&
+                result.mbo_buffers[1].at(1).order_id()->value() == 201,
+            "provider order must be preserved within the second stream");
+    require(result.metadata.data_state == DataState::Complete,
+            "complete evidence for all stream scopes must derive a complete summary");
+    require(result.metadata.unresolved_ranges.empty(), "complete stream evidence must leave no unresolved ranges");
+    require(result.metadata.data_state_segments.size() == 2,
+            "overlapping stream scopes must retain independent state segments");
+}
+
+void test_artifact_provenance_and_recovery_context() {
+    NoopCache cache;
+    InMemoryInstrumentMappingRegistry mappings;
+    mappings.add(mapping(0, 10, "TEST", SourceId{9}));
+    FakeProvider provider{"test-provider"};
+    provider.enqueue_response(ProviderBatch{
+        {add_event(2, 100)},
+        {},
+        {SourceId{9}},
+        {
+            SourceArtifactProvenance{"artifact-a", range(0, 4)},
+            SourceArtifactProvenance{"artifact-b", range(4, 10)},
+        },
+    });
+    RecordingRecoveryPolicy recovery;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+
+    const auto result = ingestor.ingest(
+        MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(7));
+
+    require(result.metadata.source_artifacts == std::vector<SourceArtifactProvenance>{
+                                                      SourceArtifactProvenance{"artifact-a", range(0, 4)},
+                                                      SourceArtifactProvenance{"artifact-b", range(4, 10)},
+                                                  },
+            "result metadata must retain plural range-aware artifact provenance");
+    require(recovery.called, "ingestion must consult the injected recovery policy");
+    require(recovery.observed_query && recovery.observed_query->range == range(0, 10),
+            "recovery context must retain the requested query");
+    require(recovery.observed_state == DataState::Unknown,
+            "recovery context must retain the derived data state");
+    require(recovery.observed_segments == result.metadata.data_state_segments,
+            "recovery context must expose segmented state");
+    require(recovery.observed_unresolved == result.metadata.unresolved_ranges,
+            "recovery context must expose scoped unresolved ranges");
 }
 
 void test_explicit_unsupported_levels() {
@@ -271,6 +405,8 @@ int main() {
         test_full_miss_produces_result();
         test_mapping_boundary_is_one_logical_result();
         test_provider_quality_and_validation();
+        test_multiple_stream_scopes();
+        test_artifact_provenance_and_recovery_context();
         test_explicit_unsupported_levels();
         std::cout << "synchronous_ingestor_tests: passed\n";
     } catch (const std::exception& error) {

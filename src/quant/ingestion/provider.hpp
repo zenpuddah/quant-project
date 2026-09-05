@@ -2,7 +2,7 @@
 
 #include "quant/data/observations.hpp"
 #include "quant/ingestion/instrument_mapping.hpp"
-#include "quant/ingestion/quality.hpp"
+#include "quant/ingestion/result.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -18,7 +18,7 @@ struct ProviderBatch {
     std::vector<data::MboEvent> mbo_events;
     std::vector<DataQualityObservation> quality_observations;
     std::vector<data::SourceId> source_ids;
-    std::optional<std::string> source_artifact_identity;
+    std::vector<SourceArtifactProvenance> source_artifacts;
 };
 
 class ProviderPort {

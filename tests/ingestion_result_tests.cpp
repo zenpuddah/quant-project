@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -46,32 +47,42 @@ void test_result_keeps_intent_and_outcome_distinct() {
 
     const IngestionMetadata metadata{
         query,
-        {range(10, 15)},
-        {range(15, 20)},
+        {DataStateSegment{range(10, 15), DataState::Complete}},
+        {DataStateSegment{range(15, 20), DataState::Missing}},
         {
             DataQualityObservation{range(10, 15), DataQualityKind::Complete},
             DataQualityObservation{range(15, 20), DataQualityKind::Missing},
         },
+        {
+            DataStateSegment{range(10, 15), DataState::Complete},
+            DataStateSegment{range(15, 20), DataState::Missing},
+        },
         DataState::Missing,
         "fake-provider",
         {SourceId{5}},
-        std::nullopt,
+        {},
         time(1000),
         "fake-adapter-v1",
         "canonical-mbo-v1",
         "mapping-config-v1",
     };
-    const IngestionResult result{std::move(buffer), metadata};
+    std::vector<MboBuffer> buffers;
+    buffers.push_back(std::move(buffer));
+    const IngestionResult result{std::move(buffers), metadata};
 
     require(result.metadata.query.range == range(10, 20), "metadata must retain the requested range");
-    require(result.metadata.actual_coverage == std::vector<TimeRange>{range(10, 15)},
+    require(result.metadata.actual_coverage ==
+                std::vector<DataStateSegment>{DataStateSegment{range(10, 15), DataState::Complete}},
             "metadata must retain actual coverage separately from the request");
-    require(result.metadata.unresolved_ranges == std::vector<TimeRange>{range(15, 20)},
+    require(result.metadata.unresolved_ranges ==
+                std::vector<DataStateSegment>{DataStateSegment{range(15, 20), DataState::Missing}},
             "metadata must retain unresolved ranges for partial results");
+    require(result.metadata.data_state_segments.size() == 2,
+            "metadata must retain range-local state segments");
     require(result.metadata.data_state == DataState::Missing, "metadata must retain reduced data state");
-    require(result.mbo.has_value(), "result must expose the canonical MBO buffer when data is valid");
-    require(result.mbo->size() == 1, "result MBO output must reuse the existing buffer representation");
-    require(result.mbo->at(0).header().instrument_id == InstrumentId{42},
+    require(result.mbo_buffers.size() == 1, "result must expose the canonical MBO buffer when data is valid");
+    require(result.mbo_buffers[0].size() == 1, "result MBO output must reuse the existing buffer representation");
+    require(result.mbo_buffers[0].at(0).header().instrument_id == InstrumentId{42},
             "result MBO output must retain canonical identity");
 }
 
@@ -80,20 +91,22 @@ void test_metadata_versions_and_optional_artifact() {
     const IngestionMetadata metadata{
         query,
         {},
-        {range(0, 1)},
+        {DataStateSegment{range(0, 1), DataState::Missing}},
         {DataQualityObservation{range(0, 1), DataQualityKind::Missing}},
+        {DataStateSegment{range(0, 1), DataState::Missing}},
         DataState::Missing,
         "provider",
         {},
-        std::string{"artifact-checksum"},
+        {SourceArtifactProvenance{"artifact-checksum", range(0, 1)}},
         time(2),
         "adapter-2",
         "schema-3",
         "mapping-4",
     };
 
-    require(metadata.source_artifact_identity == std::optional<std::string>{"artifact-checksum"},
-            "source artifact identity must remain optional metadata");
+    require(metadata.source_artifacts ==
+                std::vector<SourceArtifactProvenance>{{"artifact-checksum", range(0, 1)}},
+            "source artifact provenance must retain identity and range metadata");
     require(metadata.adapter_version == "adapter-2", "adapter version must round-trip");
     require(metadata.canonical_schema_version == "schema-3", "canonical schema version must round-trip");
     require(metadata.mapping_version == "mapping-4", "mapping version must round-trip");

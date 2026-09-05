@@ -19,6 +19,7 @@ struct ProviderMappingSegment {
     std::optional<data::VenueId> venue_id;
     std::optional<std::string> provider_id;
     TimeRange range;
+    std::optional<data::SourceId> source_id = std::nullopt;
 };
 
 inline void validate(const ProviderMappingSegment& segment) {
@@ -49,8 +50,7 @@ public:
     void add(ProviderMappingSegment mapping) {
         validate(mapping);
         for (const auto& existing : mappings_) {
-            if (existing.instrument_id == mapping.instrument_id && existing.provider == mapping.provider &&
-                existing.venue_id == mapping.venue_id && overlaps(existing.range, mapping.range)) {
+            if (same_scope(existing, mapping) && overlaps(existing.range, mapping.range)) {
                 throw std::invalid_argument("provider mapping intervals must not overlap");
             }
         }
@@ -83,6 +83,7 @@ public:
                     mapping.venue_id,
                     mapping.provider_id,
                     *overlap,
+                    mapping.source_id,
                 });
             }
         }
@@ -97,12 +98,22 @@ public:
             if (lhs.venue_id != rhs.venue_id) {
                 return lhs.venue_id < rhs.venue_id;
             }
+            if (lhs.source_id != rhs.source_id) {
+                return lhs.source_id < rhs.source_id;
+            }
             return lhs.provider_id < rhs.provider_id;
         });
         return resolved;
     }
 
 private:
+    [[nodiscard]] static bool same_scope(
+        const ProviderMappingSegment& lhs,
+        const ProviderMappingSegment& rhs) noexcept {
+        return lhs.instrument_id == rhs.instrument_id && lhs.provider == rhs.provider &&
+               lhs.venue_id == rhs.venue_id && lhs.source_id == rhs.source_id;
+    }
+
     std::vector<ProviderMappingSegment> mappings_;
 };
 

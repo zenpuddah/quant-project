@@ -9,15 +9,23 @@
 
 namespace quant::ingestion {
 
+struct SourceArtifactProvenance {
+    std::string artifact_identity;
+    TimeRange range;
+
+    friend bool operator==(const SourceArtifactProvenance&, const SourceArtifactProvenance&) = default;
+};
+
 struct IngestionMetadata {
     MarketDataQuery query;
-    std::vector<TimeRange> actual_coverage;
-    std::vector<TimeRange> unresolved_ranges;
+    std::vector<DataStateSegment> actual_coverage;
+    std::vector<DataStateSegment> unresolved_ranges;
     std::vector<DataQualityObservation> quality_observations;
+    std::vector<DataStateSegment> data_state_segments;
     DataState data_state;
     std::string provider;
     std::vector<data::SourceId> source_ids;
-    std::optional<std::string> source_artifact_identity;
+    std::vector<SourceArtifactProvenance> source_artifacts;
     data::Timestamp ingestion_time;
     std::string adapter_version;
     std::string canonical_schema_version;
@@ -25,7 +33,7 @@ struct IngestionMetadata {
 };
 
 struct IngestionResult {
-    std::optional<data::MboBuffer> mbo;
+    std::vector<data::MboBuffer> mbo_buffers;
     IngestionMetadata metadata;
 };
 

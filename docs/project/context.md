@@ -56,9 +56,9 @@ See `docs/architecture/phase1-data-model.md` for the accepted model and `docs/pr
 - **Implemented:** Iteration 2 uses binary point-in-time lookup, compact `uint32_t` venue/source IDs with separate metadata tables, fixed-scale integer `Price`/`Quantity`/`Money`, and a synchronous typed MBO writer/buffer/view path.
 - **Implemented:** `MboRecord` is a 64-byte, 64-byte-aligned fixed-stride record with presence bits and a shared instrument/venue/source stream context.
 - **Implemented:** The dependency-free synchronous ingestion skeleton exists under `src/quant/ingestion/`, covering canonical query/range resolution, cache/recovery ports, shared quality reduction, metadata/result envelopes, mapping/provider fakes, and L3 orchestration tests.
-- **Implemented:** The current result still owns one optional `MboBuffer`, the recovery seam still receives a boolean, metadata still has one aggregate `DataState` and one optional source artifact identity, and evidence-free `Unknown` ranges can still be left out of `unresolved_ranges`. These are the maintenance targets for the current iteration close.
+- **Implemented:** The ingestion iteration-close maintenance is now implemented: `DataStateSegment` preserves scoped range-local state with sorted point/range lookup, evidence-free `Unknown` intervals remain unresolved, results own multiple single-scope `MboBuffer`s, recovery receives structured context and returns a plan, mapping scopes include optional `SourceId`, and artifact provenance is plural and range-aware. The existing aggregate `data_state` is derived from the preserved segments.
 - **Implemented:** The reviewed event-count quality correction is complete: event presence/absence without explicit quality or coverage evidence reduces to `Unknown`.
-- **Verified:** The existing data-model test and all six ingestion tests passed with C++20 warnings-as-errors at the last implementation checkpoint.
+- **Verified:** The data-model test and all six ingestion tests pass with C++20 warnings-as-errors and AddressSanitizer/UndefinedBehaviorSanitizer enabled.
 - **Measured:** The dependency-free benchmark in `benchmarks/data_model_benchmark.cpp` measured 32/40/48/64-byte candidates, padding, alignment, cache-line crossings, traversal, memory usage, and binary reference lookup on Apple clang 21 arm64. The 64-byte record is finalized for this boundary.
 - **Deferred:** No real provider adapter, storage, replay, lineage persistence, Python binding, or backtesting implementation has been created.
 - **Generated:** The living Mermaid data model has matching outputs at `diagrams/data-model.svg` and `diagrams/data-model.pdf`.
@@ -124,15 +124,13 @@ See `docs/architecture/phase1-ingestion-iteration-close.md` and `docs/project/op
 - **Implemented:** Iteration 2 exercises canonical integer values, compact reference IDs, binary reference lookup, typed MBO writes, fixed-stride round trips, and structural invariants.
 - **Implemented:** Historical-ingestion Tasks 1–6 are complete with deterministic fakes/no-op policies and no external dependencies, provider SDK, XML parser, storage, replay, retry, or concurrency infrastructure.
 - **Implemented:** The event-count quality-inference correction is complete.
-- **Accepted for next maintenance pass:** Close the remaining result/state/recovery/provenance mismatches described in the 2026-09-05 iteration-close architecture without changing the provider dependency boundary.
+- **Implemented:** The 2026-09-05 iteration-close corrections are complete without changing the provider dependency boundary or introducing a new canonical scope type.
 
 ## Next action
 
-1. **Maintenance implementation:** Evidence-free `Unknown` ranges stay unresolved; result supports multiple single-scope `MboBuffer`s; range-local states are preserved; recovery receives structured context/plan; artifact provenance becomes plural/range-aware.
-2. **Guardrail:** If range-state scoping requires a new canonical scope identity/type, stop and ask the engineering manager before adding it.
-3. **Verification:** Run all data-model and ingestion tests with C++20 warnings-as-errors and update the current documentation state.
-4. **Then dependency review:** Choose the Databento C++ integration approach and XML parser.
-5. **Then:** Connect the reviewed skeleton to real Databento historical MBO and the XML-backed mapping registry.
+1. **Dependency review:** Choose the Databento C++ integration approach and XML parser before adding either dependency.
+2. **Then:** Connect the reviewed skeleton to real Databento historical MBO and the XML-backed mapping registry.
+3. **Guardrail:** Keep storage, replay, retry execution, async/concurrency, and other deferred infrastructure out until separately accepted.
 
 ## Last updated
 
