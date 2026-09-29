@@ -873,3 +873,130 @@ The first Databento adapter preserved `ts_recv` under the generic name `receive_
 ## What remains open
 
 Live ingestion wiring and any future receive-time-based mapping model remain out of scope for the first Databento historical slice.
+
+---
+
+# 2026-09-06 — Shared query planning and data usability
+
+## Problem
+
+The synchronous ingestor resolved cache misses, mapping intervals, provider queries, and post-fetch filtering inline. That made the actual provider-call decisions difficult to inspect and allowed consumer coverage choices to be confused with factual `DataState`.
+
+## Observation / mechanism
+
+The existing flow already had the required mechanisms: half-open canonical ranges, event-time mapping validity, optional source-receive-time filtering, provider fetch derivation policy, and segmented `DataState`. The missing boundary was a reusable description of the decisions before provider execution.
+
+## Decision
+
+- Introduce `QueryPlanner` and `QueryPlan` as a small diagnostic/planning layer.
+- Keep each planned segment tied to one event-time mapping interval and a mapping-clipped canonical provider query.
+- Represent the provider fetch range with canonical `TimeBasis` and `TimeRange`; keep Databento request translation in the adapter.
+- Route both `SynchronousIngestor::explain()` and `SynchronousIngestor::ingest()` through the same planner.
+- Introduce injectable `DataUsabilityPolicy`. The initial policy treats `Complete` and `Degraded` as usable and all other factual states as unusable.
+
+## What it solves
+
+- Explain output cannot silently diverge from the mapping segments used for execution.
+- Mapping-boundary and dual-time behavior can be tested without a real provider request.
+- Consumers can choose usability without rewriting or collapsing factual data quality state.
+- Future policies can distinguish a usable degraded range from a range that must be repaired without changing canonical state semantics.
+
+## Trade-offs
+
+- The first planner shares the existing `NoopCache` full-miss limitation; partial cache execution remains deferred.
+- Provider fetch derivation is represented with canonical source-receive semantics because the accepted first real provider path requires it. Provider-specific date/schema/request translation remains adapter-owned.
+- `explain()` is exposed on the synchronous ingestor for the supported L3 path; it is not a general query execution or serialization framework.
+
+## Source check
+
+No new external provider fact was introduced in this pass. The planner relies on the already accepted dual-time and event-time mapping decisions recorded in `phase1-databento-first-integration.md` and the 2026-09-05 provider receive-time entry above. The new policy and plan structures are project-created boundaries, not vendor concepts.
+
+## What remains open
+
+Partial-cache planning, bounded provider batch streaming, asynchronous execution, and provider-specific explain extensions remain deferred until a concrete requirement justifies them.
+
+---
+
+# 2026-09-26 — Storage and replay foundations
+
+## Problem
+
+The canonical in-memory model now needs a persistence boundary that serves both columnar analytical consumers and future event-by-event replay. Choosing a file format as the consumer interface would couple replay and strategy code to archive details, while persisting only replay fields would discard useful canonical evidence.
+
+## Decision
+
+- Use Arrow record batches as the in-memory columnar interchange layer.
+- Use Parquet as the first persisted analytical/archive format.
+- Introduce a small `DataFragment` identity containing data kind, canonical stream identity, half-open time range, schema version, and storage locator.
+- Keep dataset-local metadata with the persisted artifact and keep static/reference metadata external.
+- Expose `read_batches` and sequential canonical `stream_events` through a storage-independent reader boundary. The Parquet implementation owns Parquet APIs and replay column selection.
+- Persist MBO, Trades, and OrderExecution first. Keep Bars, Features, and Fills possible later without adding a generalized catalog now.
+- Defer a fixed-stride binary replay backend until measurements show that Parquet-to-Arrow sequential replay is insufficient.
+- Keep Arrow/Parquet integration in an isolated CMake target using an environment-provided installation. Do not redesign the root build system.
+
+## Reasoning
+
+Arrow provides one batch-oriented interchange representation for C++ analytical access and the Parquet adapter. Parquet provides portable columnar archival storage without making it the domain model. A reader boundary lets research request batches and replay request ordered events through the same storage implementation while keeping future backends possible.
+
+MBO persistence uses the already-finalized physical fields, including the `control` word, so optional values, action, side, and ordering/provenance presence remain recoverable without changing the 64-byte record. Stream identity and dataset context are stored once as fragment metadata rather than repeated in every event row.
+
+## Trade-offs
+
+- The initial Parquet path is simpler and more portable than a custom replay format, but replay performance is intentionally unoptimized until measured.
+- The root remains dependency-free, so storage integration requires a separately provisioned Apache Arrow C++ installation and cannot be verified by the existing standalone test commands alone.
+- Parquet key-value metadata is sufficient for the first dataset-local metadata set; a sidecar manifest or catalog remains available if concrete metadata needs exceed this mechanism.
+- The first replay projection is canonical-data-kind-specific rather than a generalized query/catalog language.
+
+## Source check
+
+Apache Arrow C++ documentation describes `RecordBatch` as the columnar batch abstraction and documents the Parquet Arrow adapter's iterative `FileWriter`/`FileReader` interfaces and CMake package targets. These are implementation mechanisms, not canonical market-data semantics. The Arrow/Parquet role split, `DataFragment`, metadata split, and deferred binary backend are project architecture decisions.
+
+Sources checked:
+
+- `https://arrow.apache.org/docs/cpp/`
+- `https://arrow.apache.org/docs/cpp/parquet.html`
+- `https://arrow.apache.org/docs/cpp/build_system.html`
+
+## What remains open
+
+Binary replay backend measurements, catalog/discovery requirements, sidecar-manifest requirements, schema migration machinery, and the C++/Python consumer boundary remain deferred.
+
+---
+
+# 2026-09-29 — Interview-oriented research and trading scope
+
+## Problem
+
+The full Phase 1 objective spans research, features, strategies, orders, risk, execution, portfolio accounting, PnL, validation, and reproducibility. Treating every layer as a production-grade system would expand scope before the project demonstrates the domain reasoning it is intended to communicate.
+
+## Decision
+
+Prioritize a small, explainable vertical slice that shows how canonical market data becomes a research hypothesis, signal, simulated order, fill, position, portfolio value, and performance report. Prefer transparent baseline models and explicit assumptions over cutting-edge performance or infrastructure.
+
+The study and implementation order is:
+
+```text
+research workflow
+      ↓
+backtest mechanics
+      ↓
+trading-domain state
+      ↓
+validation and performance attribution
+      ↓
+minimal end-to-end implementation
+```
+
+## Reasoning
+
+Interview discussion is stronger when every result can be explained: which information was available at decision time, how an order became a fill, how fees and slippage affected PnL, and why a result may not generalize. This requires domain-correct boundaries, but not an exchange simulator, low-latency engine, distributed data platform, or ML research stack.
+
+## Trade-offs
+
+- The project will demonstrate breadth and correctness rather than production-scale performance.
+- Simple execution and cost models are acceptable when their assumptions and limitations are explicit.
+- More realistic microstructure, portfolio optimization, ML, and live execution remain available later but are not prerequisites for the interview slice.
+
+## What remains open
+
+The exact first strategy, research dataset interface, event/bar backtest loop, fill model, and minimal order/position/portfolio types should be selected after the corresponding domain concepts are studied and reviewed.

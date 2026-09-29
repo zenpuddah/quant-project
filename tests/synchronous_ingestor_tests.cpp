@@ -113,6 +113,13 @@ public:
     mutable std::vector<DataStateSegment> observed_unresolved;
 };
 
+class CompleteOnlyUsabilityPolicy final : public DataUsabilityPolicy {
+public:
+    [[nodiscard]] bool is_usable(const MarketDataQuery&, const DataStateSegment& segment) const override {
+        return segment.state == DataState::Complete;
+    }
+};
+
 void test_full_miss_produces_result() {
     NoopCache cache;
     InMemoryInstrumentMappingRegistry mappings;
@@ -129,7 +136,8 @@ void test_full_miss_produces_result() {
         {},
     });
     NoopRecoveryPolicy recovery;
-    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+    DefaultDataUsabilityPolicy usability;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
 
     const auto result = ingestor.ingest(
         MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)},
@@ -176,7 +184,8 @@ void test_event_mapping_and_source_receive_filter() {
         {},
     });
     NoopRecoveryPolicy recovery;
-    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+    DefaultDataUsabilityPolicy usability;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
 
     const MarketDataQuery query{
         InstrumentId{42},
@@ -226,7 +235,8 @@ void test_out_of_scope_records_are_ignored_without_corruption() {
         {},
     });
     NoopRecoveryPolicy recovery;
-    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+    DefaultDataUsabilityPolicy usability;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
 
     const auto result = ingestor.ingest(
         MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(1002));
@@ -252,7 +262,8 @@ void test_trade_and_execution_observations() {
         {},
     });
     NoopRecoveryPolicy recovery;
-    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+    DefaultDataUsabilityPolicy usability;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
 
     const auto result = ingestor.ingest(
         MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(1500));
@@ -278,7 +289,8 @@ void test_mapping_boundary_is_one_logical_result() {
     provider.enqueue_response(ProviderBatch{{add_event(9, 100, 1)}, {}, {SourceId{9}}, {}, {}, {}, {}, {}});
     provider.enqueue_response(ProviderBatch{{add_event(10, 101, 2)}, {}, {SourceId{9}}, {}, {}, {}, {}, {}});
     NoopRecoveryPolicy recovery;
-    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+    DefaultDataUsabilityPolicy usability;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
 
     const auto result = ingestor.ingest(
         MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(5, 15)},
@@ -317,14 +329,17 @@ void test_provider_quality_and_validation() {
             {},
         });
         NoopRecoveryPolicy recovery;
-        SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+        DefaultDataUsabilityPolicy usability;
+        SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
         const auto result = ingestor.ingest(
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(3));
         require(result.metadata.data_state == DataState::Degraded,
                 "degraded provider evidence must reduce to degraded state");
-        require(result.metadata.unresolved_ranges ==
+        require(result.metadata.actual_coverage ==
                     std::vector<DataStateSegment>{DataStateSegment{range(0, 10), DataState::Degraded, scope()}},
-                "degraded provider evidence must remain unresolved for recovery policy input");
+                "the default usability policy must treat degraded data as usable coverage");
+        require(result.metadata.unresolved_ranges.empty(),
+                "the default usability policy must not mark degraded data unresolved");
     }
 
     {
@@ -334,7 +349,8 @@ void test_provider_quality_and_validation() {
         FakeProvider provider{"test-provider"};
         provider.enqueue_response(ProviderBatch{{}, {}, {}, {}, {}, {}, {}, {}});
         NoopRecoveryPolicy recovery;
-        SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+        DefaultDataUsabilityPolicy usability;
+        SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
         const auto result = ingestor.ingest(
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(3));
         require(result.metadata.data_state == DataState::Unknown,
@@ -361,7 +377,8 @@ void test_provider_quality_and_validation() {
             {},
         });
         NoopRecoveryPolicy recovery;
-        SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+        DefaultDataUsabilityPolicy usability;
+        SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
         const auto result = ingestor.ingest(
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(3));
         require(result.metadata.data_state == DataState::Complete,
@@ -389,7 +406,8 @@ void test_provider_quality_and_validation() {
             {},
         });
         NoopRecoveryPolicy recovery;
-        SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+        DefaultDataUsabilityPolicy usability;
+        SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
         const auto result = ingestor.ingest(
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(4));
         require(result.metadata.data_state == DataState::Missing,
@@ -413,7 +431,8 @@ void test_provider_quality_and_validation() {
             {},
         });
         NoopRecoveryPolicy recovery;
-        SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+        DefaultDataUsabilityPolicy usability;
+        SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
         const auto result = ingestor.ingest(
             MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(5));
         require(result.metadata.data_state == DataState::Corrupt,
@@ -423,6 +442,36 @@ void test_provider_quality_and_validation() {
                     std::vector<DataStateSegment>{DataStateSegment{range(0, 10), DataState::Corrupt, scope()}},
                 "validation failure must leave its segment unresolved");
     }
+}
+
+void test_injected_usability_policy_does_not_change_data_state() {
+    NoopCache cache;
+    InMemoryInstrumentMappingRegistry mappings;
+    mappings.add(mapping(0, 10, "TEST"));
+    FakeProvider provider{"test-provider"};
+    provider.enqueue_response(ProviderBatch{
+        {},
+        {DataQualityObservation{range(0, 10), DataQualityKind::Degraded}},
+        {SourceId{9}},
+        {},
+        {},
+        {},
+        {},
+        {},
+    });
+    NoopRecoveryPolicy recovery;
+    CompleteOnlyUsabilityPolicy usability;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
+
+    const auto result = ingestor.ingest(
+        MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(8));
+    require(result.metadata.data_state == DataState::Degraded,
+            "a usability policy must not change the factual data state");
+    require(result.metadata.actual_coverage.empty(),
+            "an injected complete-only policy must reject degraded coverage");
+    require(result.metadata.unresolved_ranges ==
+                std::vector<DataStateSegment>{DataStateSegment{range(0, 10), DataState::Degraded, scope()}},
+            "an injected usability policy must control unresolved consumer ranges");
 }
 
 void test_multiple_stream_scopes() {
@@ -452,7 +501,8 @@ void test_multiple_stream_scopes() {
         {},
     });
     NoopRecoveryPolicy recovery;
-    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+    DefaultDataUsabilityPolicy usability;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
 
     const auto result = ingestor.ingest(
         MarketDataQuery{InstrumentId{42}, std::nullopt, MarketDataLevel::L3, range(0, 10)}, time(6));
@@ -498,7 +548,8 @@ void test_artifact_provenance_and_recovery_context() {
         {},
     });
     RecordingRecoveryPolicy recovery;
-    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+    DefaultDataUsabilityPolicy usability;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
 
     const auto result = ingestor.ingest(
         MarketDataQuery{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(0, 10)}, time(7));
@@ -524,7 +575,8 @@ void test_explicit_unsupported_levels() {
     InMemoryInstrumentMappingRegistry mappings;
     FakeProvider provider{"test-provider"};
     NoopRecoveryPolicy recovery;
-    SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+    DefaultDataUsabilityPolicy usability;
+    SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
 
     require_throws(
         [&] {
@@ -551,6 +603,7 @@ int main() {
         test_trade_and_execution_observations();
         test_mapping_boundary_is_one_logical_result();
         test_provider_quality_and_validation();
+        test_injected_usability_policy_does_not_change_data_state();
         test_multiple_stream_scopes();
         test_artifact_provenance_and_recovery_context();
         test_explicit_unsupported_levels();

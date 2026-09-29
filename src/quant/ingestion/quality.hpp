@@ -40,6 +40,23 @@ struct DataStateSegment {
     std::optional<data::MboStreamContext> scope = std::nullopt;
 };
 
+class DataUsabilityPolicy {
+public:
+    virtual ~DataUsabilityPolicy() = default;
+    [[nodiscard]] virtual bool is_usable(
+        const MarketDataQuery& query,
+        const DataStateSegment& segment) const = 0;
+};
+
+class DefaultDataUsabilityPolicy final : public DataUsabilityPolicy {
+public:
+    [[nodiscard]] bool is_usable(
+        const MarketDataQuery&,
+        const DataStateSegment& segment) const override {
+        return segment.state == DataState::Complete || segment.state == DataState::Degraded;
+    }
+};
+
 [[nodiscard]] inline bool same_stream_scope(
     const std::optional<data::MboStreamContext>& lhs,
     const std::optional<data::MboStreamContext>& rhs) noexcept {

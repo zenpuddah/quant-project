@@ -3,6 +3,7 @@
 #include "quant/data/validation.hpp"
 #include "quant/ingestion/cache.hpp"
 #include "quant/ingestion/provider.hpp"
+#include "quant/ingestion/query_plan.hpp"
 #include "quant/ingestion/recovery.hpp"
 #include "quant/ingestion/result.hpp"
 
@@ -24,13 +25,6 @@ namespace detail {
     const data::MboStreamContext& rhs) noexcept {
     return lhs.instrument_id == rhs.instrument_id && lhs.venue_id == rhs.venue_id &&
            lhs.source_id == rhs.source_id;
-}
-
-[[nodiscard]] inline bool same_mapping_scope(
-    const ProviderMappingSegment& lhs,
-    const ProviderMappingSegment& rhs) noexcept {
-    return lhs.instrument_id == rhs.instrument_id && lhs.provider == rhs.provider &&
-           lhs.venue_id == rhs.venue_id && lhs.source_id == rhs.source_id;
 }
 
 inline void add_unique_scope(
@@ -78,19 +72,24 @@ inline void append_event(std::vector<data::MboBuffer>& buffers, const data::MboE
 [[nodiscard]] inline bool header_matches_request(
     const data::EventHeader& header,
     const MarketDataQuery& query,
-    const ProviderMappingSegment& segment) noexcept {
+    const QueryPlanSegment& plan_segment) noexcept {
+    const auto& segment = plan_segment.mapping;
+    const auto& filters = plan_segment.post_fetch_filters;
     return header.instrument_id == query.instrument_id &&
            (!query.venue_id || header.venue_id == *query.venue_id) &&
            (!segment.venue_id || header.venue_id == *segment.venue_id) &&
            (!segment.source_id || header.source_id == *segment.source_id) &&
-           matches_time(query, header.event_time, header.source_receive_time) &&
-           contains(segment.range, header.event_time);
+           (!filters.event_time_range || contains(*filters.event_time_range, header.event_time)) &&
+           (!filters.source_receive_time_range ||
+            (header.source_receive_time &&
+             contains(*filters.source_receive_time_range, *header.source_receive_time)));
 }
 
 [[nodiscard]] inline bool quality_scope_matches(
     const data::MboStreamContext& scope,
     const MarketDataQuery& query,
-    const ProviderMappingSegment& segment) noexcept {
+    const QueryPlanSegment& plan_segment) noexcept {
+    const auto& segment = plan_segment.mapping;
     return scope.instrument_id == query.instrument_id &&
            (!query.venue_id || scope.venue_id == *query.venue_id) &&
            (!segment.venue_id || scope.venue_id == *segment.venue_id) &&
@@ -105,8 +104,20 @@ public:
         CachePort& cache,
         InstrumentMappingRegistry& mappings,
         ProviderPort& provider,
-        RecoveryPolicy& recovery) noexcept
-        : cache_(cache), mappings_(mappings), provider_(provider), recovery_(recovery) {}
+        RecoveryPolicy& recovery,
+        DataUsabilityPolicy& usability_policy)
+        : provider_(provider),
+          recovery_(recovery),
+          usability_policy_(usability_policy),
+          planner_(cache, mappings, std::string{provider.provider_name()}) {}
+
+    [[nodiscard]] QueryPlan explain(const MarketDataQuery& query) {
+        validate(query);
+        if (query.level != MarketDataLevel::L3) {
+            throw std::invalid_argument("synchronous ingestion currently supports only L3/MBO queries");
+        }
+        return planner_.plan(query);
+    }
 
     [[nodiscard]] IngestionResult ingest(
         const MarketDataQuery& query,
@@ -127,11 +138,7 @@ public:
             throw std::invalid_argument("provider port name must not be empty");
         }
 
-        const auto cache_lookup = cache_.lookup(query);
-        if (cache_lookup.status != CacheStatus::Miss || !cache_lookup.covered.empty() ||
-            cache_lookup.missing != std::vector<TimeRange>{*query.event_time_range}) {
-            throw std::logic_error("synchronous ingestion currently requires a full NoopCache miss");
-        }
+        const auto query_plan = planner_.plan(query);
 
         std::vector<DataQualityObservation> quality_observations;
         std::vector<data::SourceId> source_ids;
@@ -143,80 +150,20 @@ public:
         std::vector<data::ProviderRecordMetadata> provider_records;
         std::vector<ProviderBatchMetadata> provider_batches;
 
-        for (const auto& missing_range : cache_lookup.missing) {
-            validate(missing_range);
-            auto mapping_segments = mappings_.resolve(
-                query.instrument_id,
-                provider_name,
-                missing_range,
-                query.venue_id);
+        for (const auto& unmapped : query_plan.unmapped_ranges) {
+            quality_observations.push_back(DataQualityObservation{unmapped, DataQualityKind::Missing, std::nullopt});
+        }
 
-            std::vector<ProviderMappingSegment> resolved_segments;
-            resolved_segments.reserve(mapping_segments.size());
-            std::vector<TimeRange> mapped_ranges;
-            mapped_ranges.reserve(mapping_segments.size());
-            for (const auto& mapping_segment : mapping_segments) {
-                validate(mapping_segment);
-                if (mapping_segment.instrument_id != query.instrument_id ||
-                    mapping_segment.provider != provider_name) {
-                    throw std::invalid_argument("mapping segment does not match the ingestion request");
-                }
-                if (query.venue_id && mapping_segment.venue_id != query.venue_id) {
-                    throw std::invalid_argument("mapping segment does not match the requested venue");
-                }
-
-                const auto clipped = intersection(missing_range, mapping_segment.range);
-                if (!clipped) {
-                    continue;
-                }
-                auto resolved_segment = mapping_segment;
-                resolved_segment.range = *clipped;
-                resolved_segments.push_back(std::move(resolved_segment));
-                mapped_ranges.push_back(*clipped);
+        for (const auto& plan_segment : query_plan.segments) {
+            const auto& mapping_segment = plan_segment.mapping;
+            if (const auto scope = detail::known_mapping_scope(mapping_segment)) {
+                detail::add_unique_scope(expected_scopes, scope);
             }
-            mapping_segments = std::move(resolved_segments);
-
-            std::sort(
-                mapping_segments.begin(),
-                mapping_segments.end(),
-                [](const ProviderMappingSegment& lhs, const ProviderMappingSegment& rhs) {
-                    if (lhs.range.start != rhs.range.start) {
-                        return lhs.range.start < rhs.range.start;
-                    }
-                    if (lhs.range.end != rhs.range.end) {
-                        return lhs.range.end < rhs.range.end;
-                    }
-                    if (lhs.venue_id != rhs.venue_id) {
-                        return lhs.venue_id < rhs.venue_id;
-                    }
-                    if (lhs.source_id != rhs.source_id) {
-                        return lhs.source_id < rhs.source_id;
-                    }
-                    return lhs.provider_id < rhs.provider_id;
-                });
-
-            for (std::size_t first = 0; first < mapping_segments.size(); ++first) {
-                for (std::size_t second = first + 1; second < mapping_segments.size(); ++second) {
-                    if (detail::same_mapping_scope(mapping_segments[first], mapping_segments[second]) &&
-                        overlaps(mapping_segments[first].range, mapping_segments[second].range)) {
-                        throw std::logic_error("mapping resolution returned overlapping provider ranges");
-                    }
-                }
+            if (mapping_segment.source_id) {
+                detail::add_unique_source(source_ids, *mapping_segment.source_id);
             }
 
-            for (const auto& unmapped : subtract(missing_range, mapped_ranges)) {
-                quality_observations.push_back(DataQualityObservation{unmapped, DataQualityKind::Missing, std::nullopt});
-            }
-
-            for (const auto& mapping_segment : mapping_segments) {
-                if (const auto scope = detail::known_mapping_scope(mapping_segment)) {
-                    detail::add_unique_scope(expected_scopes, scope);
-                }
-                if (mapping_segment.source_id) {
-                    detail::add_unique_source(source_ids, *mapping_segment.source_id);
-                }
-
-                ProviderBatch response = provider_.fetch(query, mapping_segment);
+            ProviderBatch response = provider_.fetch(plan_segment.provider_query, mapping_segment);
                 for (const auto& batch_metadata : response.batch_metadata) {
                     if (batch_metadata.dataset.empty() || batch_metadata.schema.empty()) {
                         throw std::invalid_argument("provider batch metadata must identify its dataset and schema");
@@ -248,7 +195,7 @@ public:
                 std::vector<std::optional<data::MboStreamContext>> invalid_event_scopes;
                 bool validation_failed = false;
                 for (const auto& record : response.provider_records) {
-                    if (!detail::header_matches_request(record.header, query, mapping_segment)) {
+                    if (!detail::header_matches_request(record.header, query, plan_segment)) {
                         continue;
                     }
                     detail::add_unique_source(source_ids, record.header.source_id);
@@ -263,7 +210,7 @@ public:
                 }
 
                 for (const auto& event : response.mbo_events) {
-                    const bool in_requested_scope = detail::header_matches_request(event.header, query, mapping_segment);
+                    const bool in_requested_scope = detail::header_matches_request(event.header, query, plan_segment);
                     if (!in_requested_scope) {
                         continue;
                     }
@@ -288,7 +235,7 @@ public:
                 }
 
                 for (const auto& trade : response.trades) {
-                    const bool in_requested_scope = detail::header_matches_request(trade.header, query, mapping_segment);
+                    const bool in_requested_scope = detail::header_matches_request(trade.header, query, plan_segment);
                     if (!in_requested_scope) {
                         continue;
                     }
@@ -313,7 +260,7 @@ public:
 
                 for (const auto& execution : response.order_executions) {
                     const bool in_requested_scope =
-                        detail::header_matches_request(execution.header, query, mapping_segment);
+                        detail::header_matches_request(execution.header, query, plan_segment);
                     if (!in_requested_scope) {
                         continue;
                     }
@@ -361,7 +308,7 @@ public:
 
                     std::vector<std::optional<data::MboStreamContext>> scopes;
                     if (observation.scope) {
-                        if (!detail::quality_scope_matches(*observation.scope, query, mapping_segment)) {
+                        if (!detail::quality_scope_matches(*observation.scope, query, plan_segment)) {
                             throw std::invalid_argument("provider quality evidence scope does not match its request");
                         }
                         scopes.push_back(observation.scope);
@@ -392,7 +339,6 @@ public:
                             DataQualityObservation{mapping_segment.range, DataQualityKind::Corrupt, scope});
                     }
                 }
-            }
         }
 
         const auto data_state_segments = DataStateReducer::reduce(
@@ -403,10 +349,9 @@ public:
         std::vector<DataStateSegment> actual_coverage;
         std::vector<DataStateSegment> unresolved_ranges;
         for (const auto& segment : data_state_segments) {
-            if (segment.state == DataState::Complete || segment.state == DataState::Degraded) {
+            if (usability_policy_.is_usable(query, segment)) {
                 actual_coverage.push_back(segment);
-            }
-            if (segment.state != DataState::Complete) {
+            } else {
                 unresolved_ranges.push_back(segment);
             }
         }
@@ -446,10 +391,10 @@ public:
     }
 
 private:
-    CachePort& cache_;
-    InstrumentMappingRegistry& mappings_;
     ProviderPort& provider_;
     RecoveryPolicy& recovery_;
+    DataUsabilityPolicy& usability_policy_;
+    QueryPlanner planner_;
 };
 
 } // namespace quant::ingestion

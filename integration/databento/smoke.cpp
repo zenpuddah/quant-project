@@ -164,7 +164,8 @@ int main(int argc, char** argv) {
         DatabentoProvider provider{client};
         NoopCache cache;
         NoopRecoveryPolicy recovery;
-        SynchronousIngestor ingestor{cache, mappings, provider, recovery};
+        DefaultDataUsabilityPolicy usability;
+        SynchronousIngestor ingestor{cache, mappings, provider, recovery, usability};
         const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(
                              std::chrono::system_clock::now().time_since_epoch())
                              .count();

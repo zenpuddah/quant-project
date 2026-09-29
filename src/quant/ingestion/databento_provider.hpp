@@ -1,6 +1,7 @@
 #pragma once
 
 #include "quant/ingestion/provider.hpp"
+#include "quant/ingestion/query_plan.hpp"
 
 #include <databento/constants.hpp>
 #include <databento/historical.hpp>
@@ -233,20 +234,7 @@ inline void mark_corrupt(ProviderBatch& batch, const ProviderMappingSegment& seg
 }
 
 [[nodiscard]] inline TimeRange fetch_time_range(const MarketDataQuery& query) {
-    validate(query);
-    if (!query.event_time_range) {
-        throw std::invalid_argument("Databento ingestion requires an event-time mapping range");
-    }
-    if (query.source_receive_time_range) {
-        return *query.source_receive_time_range;
-    }
-    if (query.fetch_policy == FetchPolicy::RequireExplicitRange) {
-        throw std::invalid_argument(
-            "Databento requires an explicit source receive-time range under strict fetch policy");
-    }
-    return expand(
-        *query.event_time_range,
-        query.derivation_margin.value_or(TimeMargin{0, 0}));
+    return resolve_provider_fetch_range(query).range;
 }
 
 [[nodiscard]] inline ::databento::DateTimeRange<::databento::UnixNanos> provider_range(

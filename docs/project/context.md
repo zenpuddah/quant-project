@@ -47,7 +47,7 @@ See `docs/architecture/phase1-data-model.md` and `docs/project/engineering-book.
 - **Verified:** Data-model and ingestion tests were reported passing with C++20 warnings-as-errors plus ASan/UBSan in the latest maintenance pass.
 - **Implemented:** Official Databento `XNAS.ITCH` historical adapter/interpreter is isolated behind `ProviderPort`; deterministic translation tests and an opt-in standalone CMake smoke target are present.
 - **Implemented:** Canonical observations preserve provider-side `source_receive_time`; mapping resolution is event-time-only; result metadata carries `AcquisitionMode`.
-- **Deferred:** XML parser, persistent cache, storage/replay, Python binding, lineage persistence, live ingestion, and backtesting implementation remain deferred.
+- **Deferred:** XML parser, persistent cache, Python binding, lineage persistence, live ingestion, and backtesting implementation remain deferred; storage/replay foundations are recorded below.
 - **Accepted:** A small Alpaca raw sample exists only as prior research data and does not define the canonical provider architecture.
 
 ## Historical ingestion architecture
@@ -66,7 +66,7 @@ Accepted baseline:
 - Synchronous execution is first, but async/concurrent execution must later reuse the same query/domain/batch/quality semantics.
 - Producer -> batch -> consumer is the ingestion primitive.
 - Current first-slice behavior of one provider request -> one `ProviderBatch` is accepted; finer bounded batching is deferred until the real path works.
-- Cache remains a `NoopCache`; persistent cache/storage/replay are deferred.
+- Cache remains a `NoopCache`; persistent cache remains deferred. Storage/replay now has a separate accepted foundation and must not be folded into ingestion.
 - Recovery is injected policy; retry/backoff/repair execution remains deferred.
 - Range-local quality/state remains scoped and non-destructive.
 
@@ -79,6 +79,40 @@ Current Databento slice status:
 - **Verified:** The result reduced to one `Complete` state segment with zero corrupt quality observations; `source_receive_time` was present on all provider records, sequence/channel evidence was present on all records, channel `0` was observed, and raw flags `0`, `128`, and `130` were preserved.
 - **Observed:** The provider condition response included `available` evidence for both 2024-01-02 and 2024-01-03 while the returned data interval ended at 2024-01-02 14:35 UTC; both conditions were healthy, but the date-range boundary should be reviewed before treating condition evidence as day-local.
 - **Implemented:** The smoke harness calls `MetadataGetCost` before `TimeseriesGetRange`, refuses estimates above the `$0.25` target or `$1.00` hard ceiling, and reports canonical counts, timestamps, ordering evidence, quality, state, and provider conditions.
+
+## Query planning and data usability — implemented 2026-09-06
+
+See `docs/architecture/phase1-query-planning-and-usability.md`.
+
+- **Implemented:** `QueryPlanner` produces a provider-independent `QueryPlan` containing the original query, cache-missing ranges, event-time mapping segments, canonical provider queries, provider fetch ranges, and post-fetch filters.
+- **Implemented:** `SynchronousIngestor::explain()` and `SynchronousIngestor::ingest()` share the same planner; provider execution receives mapping-clipped canonical queries in deterministic plan order.
+- **Implemented:** `DataUsabilityPolicy` is injected separately from factual `DataState`; the initial policy treats `Complete` and `Degraded` as usable and `Unknown`, `Missing`, and `Corrupt` as unusable.
+- **Verified:** New planner, policy, and plan-vs-`FakeProvider` tests pass with C++20 warnings-as-errors.
+
+## Storage and replay foundations — accepted 2026-09-26
+
+See `docs/architecture/phase1-storage-replay.md`.
+
+- **Accepted:** Arrow is the in-memory columnar interchange layer; Parquet is the primary persisted analytical/archive format.
+- **Accepted:** The initial persisted data kinds are MBO, Trades, and OrderExecution.
+- **Accepted:** `MarketDataReader` is the storage-agnostic access path for Arrow batches and sequential canonical-event replay; replay code must not call Parquet APIs directly.
+- **Accepted:** Dataset-local metadata stays with the persisted artifact; static/reference metadata remains external structured metadata.
+- **Accepted:** The local layout uses `data/mbo/`, `data/trades/`, and `data/order_executions/` without a database-backed catalog.
+- **Accepted:** Arrow/Parquet C++ integration is isolated behind an environment-provided `find_package` CMake target; no root build-system migration is authorized.
+- **Implemented:** `src/quant/storage/` provides `DataFragment`, dataset-local metadata, Arrow codecs for MBO/Trades/OrderExecution, `MarketDataReader`/`StorageBackend`, and a concrete Parquet backend with replay projection.
+- **Implemented:** `integration/storage/` contains the isolated CMake target and focused round-trip, metadata, projection, ordering, and replay-boundary tests.
+- **Verified:** Storage tests compile and pass with strict warnings and ASan/UBSan against the locally installed PyArrow 21 C++ bundle; the isolated CMake target also configures, builds, and passes CTest through a temporary package shim over those libraries. Native `find_package` remains unconfigurable on this machine because no Apache Arrow CMake package is installed.
+- **Deferred:** A custom binary replay backend is performance-justified only; SQLite, graph storage, async/concurrency, live execution, and strategy/backtesting logic remain out of scope.
+
+## Interview-oriented research and trading scope — accepted 2026-09-29
+
+See `docs/project/research-backtesting-trading-scope.md`.
+
+- **Accepted:** The near-term objective is an interview-grade demonstration of correct quantitative-finance and trading-domain reasoning, not a cutting-edge production trading platform.
+- **Accepted:** Research/backtesting/trading work prioritizes explicit data flow, point-in-time correctness, costs/fills, state transitions, risk, PnL, validation, and reproducibility.
+- **Accepted:** Start with transparent baselines: a small research loop, an explainable backtest, simple execution/cost assumptions, and one or two interpretable strategies.
+- **Deferred:** Low-latency optimization, exchange matching simulation, distributed infrastructure, ML-heavy research, complex portfolio optimization, and live trading remain deferred until a concrete requirement justifies them.
+- **Study direction:** Research workflow -> backtest mechanics -> trading domain -> validation/metrics -> minimal end-to-end implementation.
 
 ## Databento first real integration — accepted 2026-09-05
 
@@ -168,23 +202,28 @@ Only questions that should block implementation when actually encountered:
 - Future `OrderExecution` or provider-sidecar fields should be added only when another concrete source justifies them; the first Databento shape is implemented.
 - Exact ingestion-operation failure/partial-result envelope once a real SDK failure path exposes the necessary information.
 - XML parsing library/dependency — intentionally deferred until Databento vertical slice works.
-- Storage/replay/cache persistence, C++/Python boundary, execution realism, ML dataset correctness, and other later Phase 1 concerns remain deferred.
+- C++/Python boundary, execution realism, ML dataset correctness, and other later Phase 1 concerns remain deferred; the accepted storage/replay foundation is recorded in `phase1-storage-replay.md`.
 
 ## Current architecture task
 
 - **Implemented:** Canonical data model and generic synchronous ingestion skeleton are stable enough for the first real provider slice.
 - **Accepted:** Databento first-integration semantics above are now the active design.
 - **Implemented:** The first Databento historical adapter/translation slice is verified without committing to root build integration or live ingestion.
-- **Do not add:** XML parser, persistent storage/cache, replay, retry loops, async/concurrency, L1/L2 provider support, or broad build/tooling refactors during this slice.
+- **Implemented:** Shared query planning and injectable data usability are verified without changing the canonical record layout or provider port shape.
+- **Implemented:** Storage/replay foundations use Arrow batches, a storage-independent reader, and an isolated Parquet backend without changing ingestion or the canonical data model.
+- **Do not add:** XML parser, persistent cache, retry loops, async/concurrency, L1/L2 provider support, custom binary storage, SQLite/catalog infrastructure, live execution, strategy/backtesting logic, or broad build/tooling refactors.
 
 ## Next action
 
-1. Review the first real adapter vertical slice and its provider-condition/record-quality evidence.
+1. Review the implemented storage/replay foundation and its environment-provided Arrow/Parquet CMake target.
 2. Resolve the observed dataset-condition date-range detail if later validation confirms the extra condition date is not intended by the provider API.
-3. Stop for engineering-manager review before XML, persistent cache/storage, live ingestion, or multi-batch work.
+3. Stop for engineering-manager review before XML, persistent cache, live ingestion, multi-batch work, or a future binary replay optimization.
 
 ## Last updated
 
 - **Accepted:** 2026-09-05.
 - **Implemented:** 2026-09-05 Databento first-slice worktree update.
 - **Verified:** 2026-09-05 first credentialed Databento smoke request.
+- **Implemented/verified:** 2026-09-06 shared query planning and injectable data usability.
+- **Accepted/implemented:** 2026-09-26 storage and replay foundations; implementation is isolated from the root build and canonical model.
+- **Verified:** 2026-09-26 Arrow/Parquet storage and replay tests through the local PyArrow C++ probe; standard package-backed CMake verification remains environment-dependent.

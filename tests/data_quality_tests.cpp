@@ -125,6 +125,33 @@ void test_scoped_segments_and_lookup() {
             "adjacent equivalent segments must merge");
 }
 
+class CompleteOnlyUsabilityPolicy final : public DataUsabilityPolicy {
+public:
+    [[nodiscard]] bool is_usable(const MarketDataQuery&, const DataStateSegment& segment) const override {
+        return segment.state == DataState::Complete;
+    }
+};
+
+void test_usability_policy_is_consumer_choice() {
+    const MarketDataQuery query{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(10, 20)};
+    const DataStateSegment complete{range(10, 15), DataState::Complete};
+    const DataStateSegment degraded{range(15, 20), DataState::Degraded};
+    const DataStateSegment unknown{range(10, 20), DataState::Unknown};
+    const DataStateSegment missing{range(10, 20), DataState::Missing};
+    const DataStateSegment corrupt{range(10, 20), DataState::Corrupt};
+
+    DefaultDataUsabilityPolicy default_policy;
+    require(default_policy.is_usable(query, complete), "complete data must be usable by the default policy");
+    require(default_policy.is_usable(query, degraded), "degraded data must be usable by the default policy");
+    require(!default_policy.is_usable(query, unknown), "unknown data must be unusable by the default policy");
+    require(!default_policy.is_usable(query, missing), "missing data must be unusable by the default policy");
+    require(!default_policy.is_usable(query, corrupt), "corrupt data must be unusable by the default policy");
+
+    CompleteOnlyUsabilityPolicy conservative_policy;
+    require(!conservative_policy.is_usable(query, degraded), "consumer policy must be able to reject degraded data");
+    require(degraded.state == DataState::Degraded, "usability decisions must not change factual data state");
+}
+
 } // namespace
 
 int main() {
@@ -132,6 +159,7 @@ int main() {
         test_quality_reduction();
         test_unknown_and_coverage();
         test_scoped_segments_and_lookup();
+        test_usability_policy_is_consumer_choice();
         std::cout << "data_quality_tests: passed\n";
     } catch (const std::exception& error) {
         std::cerr << "data_quality_tests: failed: " << error.what() << '\n';
