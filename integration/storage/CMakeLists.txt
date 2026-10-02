@@ -44,3 +44,10 @@ target_compile_options(quant_storage_replay_boundary_tests PRIVATE -Wall -Wextra
 target_include_directories(quant_storage_replay_boundary_tests PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../src")
 target_link_libraries(quant_storage_replay_boundary_tests PRIVATE "${QUANT_ARROW_TARGET}")
 add_test(NAME quant_storage_replay_boundary_tests COMMAND quant_storage_replay_boundary_tests)
+
+# Run explicitly with an output root; retain the artifact for manual inspection.
+add_executable(quant_storage_manual_round_trip manual_round_trip.cpp)
+target_compile_features(quant_storage_manual_round_trip PRIVATE cxx_std_20)
+target_compile_options(quant_storage_manual_round_trip PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_include_directories(quant_storage_manual_round_trip PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../src")
+target_link_libraries(quant_storage_manual_round_trip PRIVATE "${QUANT_ARROW_TARGET}" "${QUANT_PARQUET_TARGET}")

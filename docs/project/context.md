@@ -102,6 +102,7 @@ See `docs/architecture/phase1-storage-replay.md`.
 - **Implemented:** `src/quant/storage/` provides `DataFragment`, dataset-local metadata, Arrow codecs for MBO/Trades/OrderExecution, `MarketDataReader`/`StorageBackend`, and a concrete Parquet backend with replay projection.
 - **Implemented:** `integration/storage/` contains the isolated CMake target and focused round-trip, metadata, projection, ordering, and replay-boundary tests.
 - **Verified:** Storage tests compile and pass with strict warnings and ASan/UBSan against the locally installed PyArrow 21 C++ bundle; the isolated CMake target also configures, builds, and passes CTest through a temporary package shim over those libraries. Native `find_package` remains unconfigurable on this machine because no Apache Arrow CMake package is installed.
+- **Owner validation:** `docs/project/storage-testing-guide.md` documents unit/boundary checks, integration assertions, exact local build commands, and a retained three-event manual MBO -> Arrow -> Parquet -> Arrow -> replay example with independent Python file/metadata inspection.
 - **Deferred:** A custom binary replay backend is performance-justified only; SQLite, graph storage, async/concurrency, live execution, and strategy/backtesting logic remain out of scope.
 
 ## Interview-oriented research and trading scope — accepted 2026-09-29
@@ -204,6 +205,16 @@ Only questions that should block implementation when actually encountered:
 - XML parsing library/dependency — intentionally deferred until Databento vertical slice works.
 - C++/Python boundary, execution realism, ML dataset correctness, and other later Phase 1 concerns remain deferred; the accepted storage/replay foundation is recorded in `phase1-storage-replay.md`.
 
+## Design decision coverage review — 2026-10-01
+
+See `docs/project/design-decision-review-2026-10-01.md` for implementation/test evidence and open decisions.
+
+- **Reviewed:** Most first-slice decisions for canonical data, ingestion, query planning and basic Arrow/Parquet replay are represented in code. Research/backtesting implementation remains a proposal, not an accepted type/execution design.
+- **Reproduced gaps:** Same-identity Parquet writes overwrite existing artifacts; stream/range metadata can disagree with source rows; mixed-stream Trade encoding loses identity; zero-quantity Trades can persist/replay; arbitrary schema-version labels are decoded using current codecs.
+- **Partial:** Provider-valid ordering enforcement and ingestion-evidence persistence are not established by the synthetic round-trip tests. Native Arrow CMake package verification remains pending.
+- **Proposed, not accepted:** Immutable publication, explicit row/scope/range validation ownership, and supported-version rejection behavior. Resolve these before treating persisted datasets as authoritative research inputs.
+- **Agent guidance:** `AGENTS.md` now points to storage validation and the decision review and clarifies that later accepted ingestion supplements govern subsequent slices.
+
 ## Current architecture task
 
 - **Implemented:** Canonical data model and generic synchronous ingestion skeleton are stable enough for the first real provider slice.
@@ -215,9 +226,10 @@ Only questions that should block implementation when actually encountered:
 
 ## Next action
 
-1. Review the implemented storage/replay foundation and its environment-provided Arrow/Parquet CMake target.
-2. Resolve the observed dataset-condition date-range detail if later validation confirms the extra condition date is not intended by the provider API.
-3. Stop for engineering-manager review before XML, persistent cache, live ingestion, multi-batch work, or a future binary replay optimization.
+1. Owner architecture discussion: review `docs/project/design-decision-review-2026-10-01.md` and the research/backtesting scope using business-domain examples and explicit trade-offs. Start with artifact immutability/repeated-write behavior; record accepted closure decisions before production changes. The audit recommendations remain proposals.
+2. Continue owner validation using `docs/project/storage-testing-guide.md`; native Arrow/Parquet CMake package verification remains pending. Study the research/backtesting scope before accepting its implementation design.
+3. Resolve the observed dataset-condition date-range detail if later validation confirms the extra condition date is not intended by the provider API.
+4. Stop for engineering-manager review before XML, persistent cache, live ingestion, multi-batch work, or a future binary replay optimization.
 
 ## Last updated
 
@@ -227,3 +239,6 @@ Only questions that should block implementation when actually encountered:
 - **Implemented/verified:** 2026-09-06 shared query planning and injectable data usability.
 - **Accepted/implemented:** 2026-09-26 storage and replay foundations; implementation is isolated from the root build and canonical model.
 - **Verified:** 2026-09-26 Arrow/Parquet storage and replay tests through the local PyArrow C++ probe; standard package-backed CMake verification remains environment-dependent.
+- **Implemented/verified:** 2026-10-01 owner testing guide, retained manual round-trip executable, and independent PyArrow inspection; direct strict compilation and both CTest targets pass using PyArrow 21 (temporary package shim for CMake). Manual output and physical `control` values were checked against the guide.
+- **Reviewed/verified:** 2026-10-01 decision-coverage audit, eight standalone tests and two storage CTest targets passed; scratch probes reproduced storage invariant gaps. Updated agent guidance; closure recommendations remain proposals pending owner acceptance.
+- **Handoff:** 2026-10-02 testing guide, retained example/inspection tools, decision review and agent guidance prepared for repository-backed owner architecture discussion. Artifact, validation and version-policy decisions remain open.

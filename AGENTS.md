@@ -19,10 +19,12 @@
 17. Treat the repository owner as the engineering manager for architecture, product, and major trade-off decisions. Implementation agents execute accepted designs; they do not silently redesign them.
 18. If implementation exposes an ambiguity, contradiction, hidden provider requirement, significant performance/ownership trade-off, or need for a new external dependency, stop and ask one focused engineering-manager question before continuing.
 19. Do not implement a component marked ghost/deferred merely because doing so is convenient for the current task.
-20. For the current ingestion work, read `docs/architecture/phase1-historical-ingestion.md` and `docs/project/opencode-handoff.md` before writing code. OpenCode's role is implementation and verification of that accepted slice; architecture changes must be surfaced for review.
+20. For ingestion work, read `docs/architecture/phase1-historical-ingestion.md` and `docs/project/opencode-handoff.md`, then the accepted iteration-close, Databento, and query-planning supplements relevant to the task. The handoff describes the original skeleton; later accepted documents govern subsequent slices. OpenCode implements and verifies accepted designs; architecture changes must be surfaced for review.
 21. For research, backtesting, and trading-domain work, read `docs/project/research-backtesting-trading-scope.md`; distinguish its accepted scope from its proposed implementation target before writing code.
 22. Optimize the near-term project for explainable, interview-grade quantitative-finance domain correctness, not cutting-edge production performance or infrastructure.
 23. Keep the first research/backtesting slice transparent: explicit point-in-time data, execution/cost assumptions, order/fill state, portfolio/PnL accounting, validation, and reproducibility.
+24. For storage work, read `docs/architecture/phase1-storage-replay.md` and `docs/project/storage-testing-guide.md`; distinguish tested serialization behavior from artifact immutability, metadata/row consistency, and provider-valid ordering guarantees.
+25. Read `docs/project/design-decision-review-2026-10-01.md` when touching the reviewed boundaries. Its findings describe current gaps; its proposed fixes require acceptance before production implementation.
 
 CLion is the intended IDE. Keep future tooling and project guidance compatible with CLion, but do not assume a build system, compiler configuration, library, or project layout before it is accepted.
 

@@ -1000,3 +1000,38 @@ Interview discussion is stronger when every result can be explained: which infor
 ## What remains open
 
 The exact first strategy, research dataset interface, event/bar backtest loop, fill model, and minimal order/position/portfolio types should be selected after the corresponding domain concepts are studied and reviewed.
+
+---
+
+# 2026-10-01 — Decision coverage and storage closure review
+
+## Problem
+
+The owner requested a design-decision audit before the next architecture slice. Successful synthetic Arrow/Parquet round trips establish conversion behavior, but do not by themselves demonstrate every canonical-history invariant or a reproducible ingestion-to-research path.
+
+## Observation / mechanism
+
+Most first-slice responsibilities are represented: canonical identity and exact values, event-time mapping, dual-time filters, scoped quality, injected usability/recovery, isolated provider dependencies, Arrow schemas, Parquet persistence and sequential readers.
+
+Temporary C++ probes reproduced gaps at the persistence boundary: a repeated write changes what an existing fragment reads; an out-of-range event can be stored under an unrelated interval; mismatched or mixed stream identity is not rejected; a zero-quantity Trade can bypass canonical validation; and an arbitrary version label is accepted by current codecs. The eight standalone tests and both storage CTest targets still pass because their intended inputs do not exercise these contracts.
+
+## Review outcome — no closure policy accepted yet
+
+Recorded evidence, priorities and proposed remedies in `docs/project/design-decision-review-2026-10-01.md`. Updated agent guidance to read later accepted ingestion supplements, the storage testing guide and the review. No production behavior was changed or new storage ownership/version/publication contract silently selected.
+
+## Reasoning and trade-offs
+
+- Immutable publication supports reproducibility without requiring a revision-management framework; overwrite rejection versus content-verified idempotency still needs owner acceptance.
+- Binding scope before codecs discard identity is necessary if the system is to reject mislabeled batches; the generic writer cannot validate source identity after it has been removed.
+- Explicit canonical row validation adds work, whereas caller-only validation requires a trustworthy, documented precondition. Responsibility and enforcement must be accepted rather than assumed.
+- Unknown-version rejection can stay small and separate from deferred schema migration machinery.
+- Provider-valid ordering requires source-specific semantics, not timestamp sorting or a universal consecutive-sequence rule.
+- Persisting all ingestion evidence and joining independent data kinds are separate future integration decisions. Neither should be implemented as convenience infrastructure during this audit.
+
+## Source check
+
+Compared accepted repository architecture/engineering entries against current code and assertions; reproduced the storage behaviors against the installed PyArrow 21 C++ libraries. No live provider request or new exchange/provider assumption was introduced. The findings are current implementation evidence; the proposed remedies are project choices pending acceptance.
+
+## What remains open
+
+First accept the artifact immutability/repeated-write contract, then scope/range/row validation ownership and supported-version behavior. Continue studying the minimal research/backtest slice without presenting its proposed types, clock, fills or accounting rules as accepted implementation decisions.

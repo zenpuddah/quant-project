@@ -8,6 +8,7 @@
 - **Accepted:** The first persisted data kinds are MBO, Trades, and OrderExecution.
 - **Implemented:** The first Arrow codecs, Parquet backend, storage-independent reader, replay projection, and focused integration tests are present.
 - **Verified:** The focused tests pass against a locally installed PyArrow C++ bundle; the isolated CMake target configures and passes CTest through a temporary package shim over that bundle, while native package discovery remains dependent on an Apache Arrow C++ development installation.
+- **Review finding:** Basic serialization/replay is verified, but artifact immutability and row/metadata consistency are not enforced. See `docs/project/design-decision-review-2026-10-01.md`; its proposed closure policies require acceptance before implementation.
 - **Deferred:** A custom binary replay store, `BinaryReplayBackend`, SQLite/catalog storage, graph storage, live execution, and strategy/backtesting logic.
 
 ## Goal
