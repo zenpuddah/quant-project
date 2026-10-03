@@ -239,12 +239,14 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 
 ## Next action
 
-1. Follow `docs/project/opencode-data-integrity-handoff-2026-10-03.md`: create the bounded implementation specification and focused plan from the accepted recap, then implement when explicitly tasked. The 2026-10-01 audit remains the failure/evidence baseline; later accepted contracts govern closure. Do not reset to the audit commit or recreate the historical skeleton.
+1. Explicit implementation is now authorized on `implementation/data-integrity-2026-10-03`, based on `95993a8`. Specification: `docs/architecture/phase1-data-integrity-implementation.md`; plan: `docs/project/data-integrity-implementation-plan.md`. Execute reviewable slices and verify accepted contracts. Implementation publishing/merging requires a later owner instruction.
 2. Use `docs/project/storage-testing-guide.md` for existing serialization behavior, and add regression/failure tests for the newly accepted invariants during implementation. Native Arrow/Parquet CMake package verification remains pending.
 3. Correct the dataset-condition inclusive-date request/scoping contract and verify day-local quality interpretation before extending it to longer ranges. Source semantics are now checked; the implementation fix remains pending.
 4. Keep the first research/backtesting consumer design separate. Stop for engineering-manager review before XML, generalized persistent cache, live ingestion, production multi-batch work, or a future binary replay optimization.
 
 ## Last updated
+
+- **Implementation specification:** 2026-10-03 bounded formats/ownership/identity/ordinal/publication/eligibility specification and plan recorded before production changes. Implementation and regression verification pending.
 
 - **Accepted/reviewed:** 2026-10-03 data-integrity decisions and three final closure contracts recorded; context, AGENTS.md, historical cross-references, and the current OpenCode handoff updated for the owner-requested GitHub publication. Documentation-only changes; no new production implementation or implementation-test claims.
 
