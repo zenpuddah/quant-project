@@ -10,6 +10,20 @@
 
 namespace quant::data {
 
+class StreamId {
+public:
+    explicit StreamId(const std::uint64_t value) : value_(value) {
+        if (value == 0) {
+            throw std::invalid_argument("StreamId must be non-zero");
+        }
+    }
+    [[nodiscard]] constexpr std::uint64_t value() const noexcept { return value_; }
+    friend constexpr bool operator==(const StreamId&, const StreamId&) = default;
+    friend constexpr auto operator<=>(const StreamId&, const StreamId&) = default;
+private:
+    std::uint64_t value_;
+};
+
 class InstrumentId {
 public:
     explicit InstrumentId(const std::uint64_t value) : value_(value) {

@@ -244,6 +244,10 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 3. Correct the dataset-condition inclusive-date request/scoping contract and verify day-local quality interpretation before extending it to longer ranges. Source semantics are now checked; the implementation fix remains pending.
 4. Keep the first research/backtesting consumer design separate. Stop for engineering-manager review before XML, generalized persistent cache, live ingestion, production multi-batch work, or a future binary replay optimization.
 
+## Integrity implementation progress
+
+- **Implemented/verified, domain slice:** Nonzero uint64 StreamId, immutable tuple catalog/reference snapshot checks, raw acquisition/ordinal/failure types, canonical preparation, source-order/group/snapshot checks and a separate eligibility gate. `data_integrity_tests` passes strict C++20 and ASan/UBSan; the eight existing standalone tests still pass. Full persisted publication/retention and provider acquisition integration remain in progress.
+
 ## Last updated
 
 - **Implementation specification:** 2026-10-03 bounded formats/ownership/identity/ordinal/publication/eligibility specification and plan recorded before production changes. Implementation and regression verification pending.

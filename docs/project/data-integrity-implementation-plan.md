@@ -24,4 +24,4 @@ Update context/engineering status at each checkpoint. Commit only intended files
 
 ## Status
 
-- Specification recorded; implementation pending. Requirements not yet verified are not marked complete.
+- Specification checkpoint committed. Domain/catalog/reference/preparation/eligibility slice implemented and strict/sanitizer-tested; eight existing standalone tests pass. Provider durable capture and persisted publication/reader closure are still pending. Requirements not yet verified are not marked complete.
