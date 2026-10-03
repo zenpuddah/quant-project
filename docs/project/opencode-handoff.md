@@ -1,5 +1,9 @@
 # OpenCode Handoff — Phase 1 Synchronous Ingestion Skeleton
 
+## Historical scope
+
+This handoff describes the original skeleton, which has since been implemented and supplemented by accepted Databento, query-planning, and storage slices. Its iteration-local restrictions and stop points are historical; they do not revoke those later accepted decisions. For the current task, read `docs/project/opencode-data-integrity-handoff-2026-10-03.md` and the accepted `docs/architecture/phase1-data-integrity-session-2026-10-03.md`. Do not recreate the skeleton or reset to its earlier query/result contracts.
+
 ## Goal
 
 Implement the smallest testable synchronous ingestion skeleton that proves the accepted boundaries in `docs/architecture/phase1-historical-ingestion.md` without adding Databento/XML dependencies or real cache/storage/retry/concurrency infrastructure.

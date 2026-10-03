@@ -1,5 +1,7 @@
 # Storage / Arrow / Parquet Testing Guide
 
+**Baseline guide:** These commands and expected outputs describe the implementation reviewed at `590fd34`. The accepted closure contracts in `docs/architecture/phase1-data-integrity-session-2026-10-03.md` are not yet enforced by these checks. The current implementation handoff requires new negative/failure tests and updates to this guide when the encoding and publication paths change.
+
 Run commands from the repository root, in the same terminal. No provider credentials or market-data downloads are needed. Fixtures are synthetic.
 
 ## 1. Build

@@ -1035,3 +1035,37 @@ Compared accepted repository architecture/engineering entries against current co
 ## What remains open
 
 First accept the artifact immutability/repeated-write contract, then scope/range/row validation ownership and supported-version behavior. Continue studying the minimal research/backtest slice without presenting its proposed types, clock, fills or accounting rules as accepted implementation decisions.
+
+---
+
+# 2026-10-03 — Data-integrity architecture session and readiness review
+
+## Problem
+
+The owner reviewed the reproduced storage gaps one at a time and requested a complete recap before implementation. The discussion expanded preservation into separately persisted provider, canonical, and consumer stages. The implementation handoff must distinguish accepted principles from unspecified contracts.
+
+## Accepted decisions
+
+Recorded Decision / Reason / Invariant / Trade-offs / Implementation scope / Required tests in `docs/architecture/phase1-data-integrity-session-2026-10-03.md`: compact row StreamId with catalog resolution, one stream per canonical file, conversion-time identity checks, post-filter query/range checks, staged row-level failures and explicit recovery, immutable publication with exact input versions, known-version reader contracts, source-specific ordering checks and a separate pre-split ordinal, and separately retained stage outputs with lineage.
+
+## Reasoning and remaining trade-offs
+
+The row ID preserves identity but still depends on immutable/available reference meaning. Staging retains evidence without authorizing research consumption. An ordinal proves our preservation relative to its input association rather than exchange correctness; filtered gaps, normalization groups, and snapshots need source semantics. Separate stages permit regeneration, but complete publication must retain required evidence and operation/version identities.
+
+Three contracts were initially presented as proposals and subsequently accepted in the owner acceptance below: catalog stability/reference snapshot persistence; minimum evidence plus complete/non-replacing publication and explicit retry identity; and consumer eligibility/initialization. Existing DefaultDataUsabilityPolicy accepts Degraded, including SequenceGap, so it cannot silently serve as the new unresolved-order gate. Full strategy/research/accounting design remains separate.
+
+## Source check
+
+Checked official Databento common fields/flags, XNAS normalization, snapshots, dataset conditions, engineering guidance, and Nasdaq MoldUDP64 session/message numbering. Dataset-condition start/end dates are inclusive; current rounding to the next date explains the previous extra-day evidence. Day-local clipping still requires implementation and regression verification. Source URLs and repository observations are in the recap.
+
+## Verification and implementation boundary
+
+Reviewed the pinned commit and relevant implementation; no production code changed and no implementation tests or paid provider requests were run. The accepted principles alone are not a complete implementation specification. Following the owner acceptance below, write the bounded specification and focused plan with invariant and failure tests.
+
+## Owner acceptance after recap
+
+The owner accepted the three final points: stable catalog identity with retained exact reference definitions; complete publication of data and reproducibility evidence; explicit eligibility gating and starting state for order-dependent consumers. The session recap now records these as accepted with reasons, invariants, trade-offs, scope, and required tests. The design contracts for the reviewed ingestion/storage gaps are settled; implementation mechanisms and the focused execution plan are next. This acceptance does not mean the new guarantees are implemented or that the deferred research/backtesting design is complete.
+
+## Repository guidance and OpenCode handoff
+
+The owner requested publication of the accepted context and agent guidance to GitHub, followed by an OpenCode prompt. Updated AGENTS.md, context, and historical review/storage/handoff cross-references, and added `docs/project/opencode-data-integrity-handoff-2026-10-03.md`. The handoff requires a bounded specification and plan before implementation, uses the recap rather than unaccepted audit proposals as authority, and names the required negative and publication-failure regressions. Documentation publication does not imply that production code has changed or that these regressions have passed.

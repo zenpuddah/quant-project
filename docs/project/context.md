@@ -47,7 +47,7 @@ See `docs/architecture/phase1-data-model.md` and `docs/project/engineering-book.
 - **Verified:** Data-model and ingestion tests were reported passing with C++20 warnings-as-errors plus ASan/UBSan in the latest maintenance pass.
 - **Implemented:** Official Databento `XNAS.ITCH` historical adapter/interpreter is isolated behind `ProviderPort`; deterministic translation tests and an opt-in standalone CMake smoke target are present.
 - **Implemented:** Canonical observations preserve provider-side `source_receive_time`; mapping resolution is event-time-only; result metadata carries `AcquisitionMode`.
-- **Deferred:** XML parser, persistent cache, Python binding, lineage persistence, live ingestion, and backtesting implementation remain deferred; storage/replay foundations are recorded below.
+- **Deferred:** XML parser, generalized persistent cache, Python binding, live ingestion, and backtesting implementation remain deferred. Bounded stage/evidence persistence and lineage are now accepted but not implemented under the 2026-10-03 integrity supplement below; they do not authorize a general cache or orchestration framework.
 - **Accepted:** A small Alpaca raw sample exists only as prior research data and does not define the canonical provider architecture.
 
 ## Historical ingestion architecture
@@ -86,7 +86,7 @@ See `docs/architecture/phase1-query-planning-and-usability.md`.
 
 - **Implemented:** `QueryPlanner` produces a provider-independent `QueryPlan` containing the original query, cache-missing ranges, event-time mapping segments, canonical provider queries, provider fetch ranges, and post-fetch filters.
 - **Implemented:** `SynchronousIngestor::explain()` and `SynchronousIngestor::ingest()` share the same planner; provider execution receives mapping-clipped canonical queries in deterministic plan order.
-- **Implemented:** `DataUsabilityPolicy` is injected separately from factual `DataState`; the initial policy treats `Complete` and `Degraded` as usable and `Unknown`, `Missing`, and `Corrupt` as unusable.
+- **Implemented:** `DataUsabilityPolicy` is injected separately from factual `DataState`; the initial policy treats `Complete` and `Degraded` as usable and `Unknown`, `Missing`, and `Corrupt` as unusable. This existing default is not sufficient for the newly accepted order-sensitive eligibility contract below.
 - **Verified:** New planner, policy, and plan-vs-`FakeProvider` tests pass with C++20 warnings-as-errors.
 
 ## Storage and replay foundations — accepted 2026-09-26
@@ -222,16 +222,33 @@ See `docs/project/design-decision-review-2026-10-01.md` for implementation/test 
 - **Implemented:** The first Databento historical adapter/translation slice is verified without committing to root build integration or live ingestion.
 - **Implemented:** Shared query planning and injectable data usability are verified without changing the canonical record layout or provider port shape.
 - **Implemented:** Storage/replay foundations use Arrow batches, a storage-independent reader, and an isolated Parquet backend without changing ingestion or the canonical data model.
-- **Do not add:** XML parser, persistent cache, retry loops, async/concurrency, L1/L2 provider support, custom binary storage, SQLite/catalog infrastructure, live execution, strategy/backtesting logic, or broad build/tooling refactors.
+- **Do not add:** XML parser, generalized persistent cache, automatic retry/repair loops, async/concurrency, L1/L2 provider support, custom binary storage, SQLite/database-backed catalog infrastructure, live execution, strategy/backtesting logic, or broad build/tooling refactors. The bounded stage/evidence persistence and compact identity catalog accepted below are a separate integrity slice.
+
+## Ingestion/storage integrity closure — accepted 2026-10-03
+
+See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the authoritative Decision / Reason / Invariant / Trade-offs / Implementation scope / Required tests records. The reviewed design contracts are settled; the guarantees below are **accepted, not implemented**.
+
+- **Identity:** Persist row StreamId, resolve it to the instrument/venue/source tuple, check original identity during conversion, and keep one stream per canonical file. StreamId never changes meaning. Retain the exact reference definitions/mapping snapshot needed by each published version.
+- **Validation and staging:** Apply canonical row and query/range checks after legitimate provider overfetch filtering. Retain original evidence and row-level failures; unresolved affected segments cannot enter research/replay. Recovery is explicit and revalidated; retaining good segments does not imply complete requested coverage.
+- **Versions and compatibility:** Published versions are immutable. Corrections create new versions, and consumers pin exact versions. Unknown encodings are rejected before row delivery; supported labels must match real schema/meaning contracts.
+- **Order:** Preserve provider-returned succession and applicable provider rules. Use a separate uint64 ordinal assigned before filtering and cross-kind splitting, shared within a named acquisition scope. Independent acquisition ordinals are not comparable. Keep ordering evidence outside the 64-byte MboRecord.
+- **Stages and evidence:** Separately retain provider representation, canonical preparation, and the consumer representations actually produced, with exact parent and transformation links. Complete publication requires all required data/reference/validation evidence; distinguish retry from new acquisition. Concrete formats and publication/retry mechanisms still need specification.
+- **Eligibility:** Factual DataState and consumer eligibility stay separate. Degraded acceptance must not bypass unresolved required ordering, incomplete required event groups, or insufficient initial book state. Partial consumption is explicit and depends on the consumer's requirements.
+- **Source clarification:** Databento dataset-condition date endpoints are inclusive. The extra date in the earlier smoke is consistent with the API; adapting condition requests and clipping day-local evidence remain unimplemented verification work.
+- **Scope:** Assess integrity on engineering grounds. XML, automated repair/recovery, generalized catalogs/caches, revision-management frameworks, live ingestion, and binary replay remain deferred. Bounded staging persistence is not a general persistent cache.
 
 ## Next action
 
-1. Owner architecture discussion: review `docs/project/design-decision-review-2026-10-01.md` and the research/backtesting scope using business-domain examples and explicit trade-offs. Start with artifact immutability/repeated-write behavior; record accepted closure decisions before production changes. The audit recommendations remain proposals.
-2. Continue owner validation using `docs/project/storage-testing-guide.md`; native Arrow/Parquet CMake package verification remains pending. Study the research/backtesting scope before accepting its implementation design.
-3. Resolve the observed dataset-condition date-range detail if later validation confirms the extra condition date is not intended by the provider API.
-4. Stop for engineering-manager review before XML, persistent cache, live ingestion, multi-batch work, or a future binary replay optimization.
+1. Follow `docs/project/opencode-data-integrity-handoff-2026-10-03.md`: create the bounded implementation specification and focused plan from the accepted recap, then implement when explicitly tasked. The 2026-10-01 audit remains the failure/evidence baseline; later accepted contracts govern closure. Do not reset to the audit commit or recreate the historical skeleton.
+2. Use `docs/project/storage-testing-guide.md` for existing serialization behavior, and add regression/failure tests for the newly accepted invariants during implementation. Native Arrow/Parquet CMake package verification remains pending.
+3. Correct the dataset-condition inclusive-date request/scoping contract and verify day-local quality interpretation before extending it to longer ranges. Source semantics are now checked; the implementation fix remains pending.
+4. Keep the first research/backtesting consumer design separate. Stop for engineering-manager review before XML, generalized persistent cache, live ingestion, production multi-batch work, or a future binary replay optimization.
 
 ## Last updated
+
+- **Accepted/reviewed:** 2026-10-03 data-integrity decisions and three final closure contracts recorded; context, AGENTS.md, historical cross-references, and the current OpenCode handoff updated for the owner-requested GitHub publication. Documentation-only changes; no new production implementation or implementation-test claims.
+
+Earlier dated entries retain the status at that time; the accepted closure above supersedes their open-decision status.
 
 - **Accepted:** 2026-09-05.
 - **Implemented:** 2026-09-05 Databento first-slice worktree update.

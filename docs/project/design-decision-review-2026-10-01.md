@@ -7,6 +7,7 @@
 - **Finding:** Happy-path round trips work, but artifact immutability and the row-to-metadata validation contract are not closed. Passing the present tests is not proof of all accepted invariants.
 - **Proposal:** Resolve the focused storage closure issues below before treating persisted datasets as authoritative inputs to a research/backtest slice.
 - **Boundary:** Recommendations in this review are not accepted designs and do not authorize production changes. Learning and architecture discussion can continue while these questions are resolved.
+- **Accepted follow-up — 2026-10-03:** The owner settled the reviewed ingestion/storage design contracts in `docs/architecture/phase1-data-integrity-session-2026-10-03.md`. That later document governs the closure design; this review retains the original reproduced behavior and proposals. The new guarantees still need implementation and regression verification. The current task is described in `docs/project/opencode-data-integrity-handoff-2026-10-03.md`.
 
 ## Decision coverage
 
