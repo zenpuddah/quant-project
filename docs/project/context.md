@@ -234,7 +234,7 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 - **Order:** Preserve provider-returned succession and applicable provider rules. Use a separate uint64 ordinal assigned before filtering and cross-kind splitting, shared within a named acquisition scope. Independent acquisition ordinals are not comparable. Keep ordering evidence outside the 64-byte MboRecord.
 - **Stages and evidence:** Separately retain provider representation, canonical preparation, and the consumer representations actually produced, with exact parent and transformation links. Complete publication requires all required data/reference/validation evidence; distinguish retry from new acquisition. Concrete formats and publication/retry mechanisms still need specification.
 - **Eligibility:** Factual DataState and consumer eligibility stay separate. Degraded acceptance must not bypass unresolved required ordering, incomplete required event groups, or insufficient initial book state. Partial consumption is explicit and depends on the consumer's requirements.
-- **Source clarification:** Databento dataset-condition date endpoints are inclusive. The extra date in the earlier smoke is consistent with the API; adapting condition requests and clipping day-local evidence remain unimplemented verification work.
+- **Source clarification/implemented:** Databento dataset-condition date endpoints are inclusive. Condition requests now use floor(start)/floor(end−1ns), and conditions are clipped to their intersecting UTC day. Deterministic intraday, midnight-exclusive, multi-day and extra-response-day tests pass.
 - **Scope:** Assess integrity on engineering grounds. XML, automated repair/recovery, generalized catalogs/caches, revision-management frameworks, live ingestion, and binary replay remain deferred. Bounded staging persistence is not a general persistent cache.
 
 ## Next action
@@ -247,6 +247,7 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 ## Integrity implementation progress
 
 - **Implemented/verified, domain slice:** Nonzero uint64 StreamId, immutable tuple catalog/reference snapshot checks, raw acquisition/ordinal/failure types, canonical preparation, source-order/group/snapshot checks and a separate eligibility gate. `data_integrity_tests` passes strict C++20 and ASan/UBSan; the eight existing standalone tests still pass. Full persisted publication/retention and provider acquisition integration remain in progress.
+- **Implemented/verified, provider slice:** Required acquisition-sink port, explicit per-request acquisition IDs through the synchronous planner, full SDK-normalized record capture before filtering/translation, retained operation outcomes, exact native mappings and provider metadata. SDK-byte decoder agreement and inclusive/day-local condition regressions pass in the isolated Databento CTest. Retention-port strict/sanitizer tests and existing standalone tests pass; durable sink/publication is the next slice.
 
 ## Last updated
 

@@ -119,6 +119,29 @@ public:
         return planner_.plan(query);
     }
 
+    // Persistence stays behind the sink. Each planned provider request is a named,
+    // independent acquisition; ordinals across those requests are not comparable.
+    [[nodiscard]] std::vector<integrity::Acquisition> acquire_retained(
+        const MarketDataQuery& query, const data::Timestamp acquired_at,
+        const std::string& operation_id, const std::string& acquisition_prefix,
+        const std::string& attempt_id, integrity::AcquisitionSink& sink) {
+        integrity::validate_token(operation_id);
+        integrity::validate_token(acquisition_prefix);
+        integrity::validate_token(attempt_id);
+        const auto plan = explain(query);
+        if (!plan.unmapped_ranges.empty()) { throw std::invalid_argument("retained acquisition has unresolved mappings"); }
+        std::vector<integrity::Acquisition> acquisitions;
+        for (std::size_t index = 0; index < plan.segments.size(); ++index) {
+            const auto& segment = plan.segments[index];
+            const auto acquisition_id = acquisition_prefix + "-" + std::to_string(index);
+            integrity::validate_token(acquisition_id);
+            integrity::Acquisition request{operation_id, acquisition_id, attempt_id, acquired_at,
+                segment.provider_query, segment.mapping, segment.provider_fetch_range};
+            acquisitions.push_back(provider_.acquire(std::move(request), sink));
+        }
+        return acquisitions;
+    }
+
     [[nodiscard]] IngestionResult ingest(
         const MarketDataQuery& query,
         const data::Timestamp ingestion_time,

@@ -3,6 +3,7 @@
 #include <databento/record.hpp>
 
 #include <chrono>
+#include <cstring>
 #include <cstdint>
 #include <iostream>
 #include <limits>
@@ -16,6 +17,7 @@ namespace {
 
 using namespace quant::data;
 using namespace quant::ingestion;
+namespace integrity = quant::integrity;
 
 void require(const bool condition, const std::string_view message) {
     if (!condition) {
@@ -255,6 +257,45 @@ void test_dataset_condition_mapping() {
             "missing dataset conditions must produce missing evidence");
 }
 
+void test_retained_normalized_bytes_and_dates() {
+    auto record = message(::databento::Action::Add);
+    integrity::RawRecord raw{0, std::vector<std::byte>(sizeof(record))};
+    std::memcpy(raw.bytes.data(), &record, sizeof(record));
+    const auto segment = mapping();
+    const MarketDataQuery query{InstrumentId{42}, VenueId{7}, MarketDataLevel::L3, range(100, 200)};
+    integrity::Acquisition acquisition{"operation-test", "acquisition-test", "attempt-test", time(300),
+        query, segment, resolve_provider_fetch_range(query)};
+    acquisition.native_bindings.push_back({9001, segment.range});
+    const auto decoded = decode_xnas_record(raw, acquisition);
+    const auto translated = databento_detail::translate_mbo(record, segment);
+    require(decoded.event && decoded.error.empty() &&
+                integrity::same_observation(*decoded.event, translated.mbo_events.front()),
+            "retained-byte decoder must agree with official SDK interpretation");
+    record.price = ::databento::kUndefPrice;
+    std::memcpy(raw.bytes.data(), &record, sizeof(record));
+    const auto invalid = decode_xnas_record(raw, acquisition);
+    require(invalid.event && !is_valid(validate(std::get<MboEvent>(*invalid.event))),
+            "invalid acquired record must stay representable as retained bytes/failure evidence");
+
+    const auto midnight = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        date::sys_days{date::year{2024}/1/3}.time_since_epoch()).count();
+    const auto intraday = databento_detail::date_range(range(midnight - 3600'000'000'000LL, midnight - 1800'000'000'000LL));
+    require(intraday.start == "2024-01-02" && intraday.end == "2024-01-02", "intraday condition request includes an extra date");
+    const auto exact_end = databento_detail::date_range(range(midnight - 60'000'000'000LL, midnight));
+    require(exact_end.end == "2024-01-02", "midnight-exclusive end includes next day's condition");
+    const auto spanning = databento_detail::date_range(range(midnight - 60'000'000'000LL, midnight + 60'000'000'000LL));
+    require(spanning.end == "2024-01-03", "multi-day condition endpoint is wrong");
+    auto day_mapping = segment;
+    day_mapping.range = range(midnight - 60'000'000'000LL, midnight + 60'000'000'000LL);
+    const auto scoped = databento_detail::day_conditions({
+        {"2024-01-02", ::databento::DatasetCondition::Available, std::nullopt},
+        {"2024-01-03", ::databento::DatasetCondition::Missing, std::nullopt},
+        {"2024-01-04", ::databento::DatasetCondition::Degraded, std::nullopt}}, day_mapping);
+    require(scoped.size() == 2 && scoped[0].range.end == time(midnight) && scoped[1].range.start == time(midnight) &&
+                scoped[0].kind == DataQualityKind::Complete && scoped[1].kind == DataQualityKind::Missing,
+            "daily conditions must affect only their intersecting UTC day");
+}
+
 } // namespace
 
 int main() {
@@ -265,6 +306,7 @@ int main() {
         test_undefined_source_receive_time_is_optional();
         test_provider_instrument_id_mapping();
         test_dataset_condition_mapping();
+        test_retained_normalized_bytes_and_dates();
         std::cout << "databento_translation_tests: passed\n";
     } catch (const std::exception& error) {
         std::cerr << "databento_translation_tests: failed: " << error.what() << '\n';

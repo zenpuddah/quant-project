@@ -24,4 +24,4 @@ Update context/engineering status at each checkpoint. Commit only intended files
 
 ## Status
 
-- Specification checkpoint committed. Domain/catalog/reference/preparation/eligibility slice implemented and strict/sanitizer-tested; eight existing standalone tests pass. Provider durable capture and persisted publication/reader closure are still pending. Requirements not yet verified are not marked complete.
+- Specification checkpoint committed. Domain/catalog/reference/preparation/eligibility and provider retained-acquisition/day-condition slices implemented. Strict/sanitizer standalone retention tests and isolated deterministic Databento CTest pass; eight existing standalone tests pass. Durable sink, bound Arrow and publication/reader closure remain pending. Requirements not yet verified are not marked complete.

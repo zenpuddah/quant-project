@@ -2,12 +2,15 @@
 
 #include "quant/ingestion/provider.hpp"
 #include "quant/ingestion/query_plan.hpp"
+#include "quant/ingestion/databento_integrity.hpp"
 
 #include <databento/constants.hpp>
 #include <databento/historical.hpp>
 #include <databento/record.hpp>
 
 #include <chrono>
+#include <cstring>
+#include <sstream>
 #include <cstdint>
 #include <date/date.h>
 #include <limits>
@@ -228,8 +231,7 @@ inline void mark_corrupt(ProviderBatch& batch, const ProviderMappingSegment& seg
     const auto start_time = date_time(range.start);
     const auto end_time = date_time(range.end);
     const auto start_day = date::floor<date::days>(start_time);
-    const auto end_day = date::floor<date::days>(end_time);
-    const auto end_date = end_time == end_day ? end_day : end_day + date::days{1};
+    const auto end_date = date::floor<date::days>(end_time - std::chrono::nanoseconds{1});
     return ::databento::DateRange{format_date(start_day), format_date(end_date)};
 }
 
@@ -288,6 +290,53 @@ inline void mark_corrupt(ProviderBatch& batch, const ProviderMappingSegment& seg
     return "unknown";
 }
 
+[[nodiscard]] inline std::vector<DataQualityObservation> day_conditions(
+    const std::vector<::databento::DatasetConditionDetail>& conditions,
+    const ProviderMappingSegment& segment) {
+    std::vector<DataQualityObservation> observations;
+    for (const auto& condition : conditions) {
+        date::year_month_day day;
+        std::istringstream input{condition.date};
+        input >> date::parse("%F", day);
+        if (input.fail() || !day.ok() || condition.date.size() != 10) {
+            throw std::invalid_argument("invalid provider condition UTC date");
+        }
+        const auto start = date::sys_days{day};
+        const TimeRange day_range{
+            data::Timestamp::from_unix_nanos(std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count()),
+            data::Timestamp::from_unix_nanos(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                (start + date::days{1}).time_since_epoch()).count()),
+        };
+        const auto clipped = intersection(segment.range, day_range);
+        if (!clipped) { continue; }
+        const auto kind = condition_kind({condition});
+        if (kind) { observations.push_back({*clipped, *kind, scope(segment)}); }
+    }
+    return observations;
+}
+
+[[nodiscard]] inline std::vector<integrity::NativeBinding> native_bindings(
+    const ::databento::Metadata& metadata, const ProviderMappingSegment& segment) {
+    if (const auto id = provider_instrument_id(segment)) { return {{*id, segment.range}}; }
+    std::vector<integrity::NativeBinding> bindings;
+    for (const auto& mapping : metadata.mappings) {
+        if (!segment.symbol || mapping.raw_symbol != *segment.symbol) { continue; }
+        for (const auto& interval : mapping.intervals) {
+            std::uint32_t id = 0;
+            const auto [end, error] = std::from_chars(interval.symbol.data(), interval.symbol.data() + interval.symbol.size(), id);
+            if (error != std::errc{} || end != interval.symbol.data() + interval.symbol.size() || id == 0) {
+                throw std::invalid_argument("provider symbology does not resolve a native instrument ID");
+            }
+            const auto start = date::sys_days{interval.start_date};
+            const auto finish = date::sys_days{interval.end_date};
+            bindings.push_back({id, TimeRange{
+                data::Timestamp::from_unix_nanos(std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count()),
+                data::Timestamp::from_unix_nanos(std::chrono::duration_cast<std::chrono::nanoseconds>(finish.time_since_epoch()).count())}});
+        }
+    }
+    return bindings;
+}
+
 inline void append_batch(ProviderBatch& destination, ProviderBatch source) {
     destination.mbo_events.insert(
         destination.mbo_events.end(), source.mbo_events.begin(), source.mbo_events.end());
@@ -328,6 +377,59 @@ public:
     [[nodiscard]] static ::databento::DateTimeRange<::databento::UnixNanos> resolve_provider_range(
         const MarketDataQuery& query) {
         return databento_detail::provider_range(query);
+    }
+
+    integrity::Acquisition acquire(integrity::Acquisition request, integrity::AcquisitionSink& sink) override {
+        integrity::validate_token(request.operation_id);
+        integrity::validate_token(request.acquisition_id);
+        integrity::validate_token(request.attempt_id);
+        sink.begin(request);
+        try {
+            validate(request.query);
+            validate(request.mapping);
+            if (request.mapping.provider != provider_name_ || !request.mapping.venue_id || !request.mapping.source_id) {
+                throw std::invalid_argument("retained Databento acquisition requires a matching full scope");
+            }
+            const auto id = databento_detail::provider_instrument_id(request.mapping);
+            if (!id && !request.mapping.symbol) { throw std::invalid_argument("missing provider symbol/ID"); }
+            request.provider_request = resolve_provider_fetch_range(request.query);
+            const auto conditions = client_.MetadataGetDatasetCondition(dataset_, databento_detail::date_range(request.provider_request.range));
+            auto store = client_.TimeseriesGetRange(dataset_, resolve_provider_range(request.query),
+                std::vector<std::string>{id ? *request.mapping.provider_id : *request.mapping.symbol},
+                ::databento::Schema::Mbo, id ? ::databento::SType::InstrumentId : ::databento::SType::RawSymbol,
+                ::databento::SType::InstrumentId, std::uint64_t{0});
+            const auto& metadata = store.GetMetadata();
+            request.provider_metadata = ::databento::ToString(metadata); // Complete SDK metadata fields and mappings.
+            request.native_bindings = databento_detail::native_bindings(metadata, request.mapping);
+            ProviderBatchMetadata batch{metadata.dataset, "mbo", ::databento::ToIso8601(metadata.start),
+                ::databento::ToIso8601(metadata.end), {}, metadata.partial, metadata.not_found};
+            for (const auto& condition : conditions) {
+                batch.conditions.push_back({condition.date, databento_detail::condition_name(condition.condition), condition.last_modified_date});
+            }
+            request.provider_batches.push_back(std::move(batch));
+            request.quality = databento_detail::day_conditions(conditions, request.mapping);
+            if (!metadata.not_found.empty()) { request.quality.push_back({request.mapping.range, DataQualityKind::Missing, databento_detail::scope(request.mapping)}); }
+            if (!metadata.partial.empty()) { request.quality.push_back({request.mapping.range, DataQualityKind::Degraded, databento_detail::scope(request.mapping)}); }
+            sink.metadata(request);
+            if (metadata.dataset != dataset_ || !metadata.schema || *metadata.schema != ::databento::Schema::Mbo || metadata.ts_out) {
+                throw std::runtime_error("unsupported retained Databento metadata/encoding");
+            }
+            std::uint64_t ordinal = 0;
+            while (const auto* record = store.NextRecord()) {
+                integrity::RawRecord raw{ordinal, std::vector<std::byte>(record->Size())};
+                std::memcpy(raw.bytes.data(), &record->Header(), raw.bytes.size());
+                sink.record(raw); // Durably retain original delivered bytes BEFORE filtering/translation.
+                request.records.push_back(std::move(raw));
+                if (ordinal == std::numeric_limits<std::uint64_t>::max()) { throw std::overflow_error("acquisition ordinal exhausted"); }
+                ++ordinal;
+            }
+            request.outcome = integrity::AcquisitionOutcome::Complete;
+        } catch (const std::exception& error) {
+            request.outcome = integrity::AcquisitionOutcome::Failed;
+            request.operation_failure = error.what();
+        }
+        sink.finish(request);
+        return request;
     }
 
     ProviderBatch fetch(const MarketDataQuery& query, const ProviderMappingSegment& segment) override {
@@ -415,9 +517,9 @@ public:
         } else if (!batch.batch_metadata.front().partial_symbols.empty()) {
             batch.quality_observations.push_back(
                 DataQualityObservation{segment.range, DataQualityKind::Degraded, databento_detail::scope(segment)});
-        } else if (const auto kind = databento_detail::condition_kind(conditions); kind) {
-            batch.quality_observations.push_back(
-                DataQualityObservation{segment.range, *kind, databento_detail::scope(segment)});
+        } else {
+            const auto scoped = databento_detail::day_conditions(conditions, segment);
+            batch.quality_observations.insert(batch.quality_observations.end(), scoped.begin(), scoped.end());
         }
         if (bad_book) {
             batch.quality_observations.push_back(
