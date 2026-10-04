@@ -8,8 +8,8 @@
 - **Accepted:** The first persisted data kinds are MBO, Trades, and OrderExecution.
 - **Implemented:** The first Arrow codecs, Parquet backend, storage-independent reader, replay projection, and focused integration tests are present.
 - **Verified:** The focused tests pass against a locally installed PyArrow C++ bundle; the isolated CMake target configures and passes CTest through a temporary package shim over that bundle, while native package discovery remains dependent on an Apache Arrow C++ development installation.
-- **Review finding:** Basic serialization/replay was verified in the baseline, but artifact immutability and row/metadata consistency are not enforced. See `docs/project/design-decision-review-2026-10-01.md` for the historical failure evidence.
-- **Accepted supplement — 2026-10-03:** `docs/architecture/phase1-data-integrity-session-2026-10-03.md` governs closure of the reviewed gaps, including row StreamId, ordinal scope, staged validation/evidence, immutable versions, compatibility, and eligibility. These new guarantees are not yet implemented. Use `docs/project/opencode-data-integrity-handoff-2026-10-03.md` for the current task.
+- **Historical review:** The baseline verified serialization but did not enforce immutability/row consistency. `docs/project/design-decision-review-2026-10-01.md` records those reproduced failures, not the current runtime status.
+- **Implemented/verified supplement — 2026-10-03:** The accepted recap is implemented for the bounded normalized-XNAS/local-POSIX slice: row StreamId/ordinal, retained raw/reference/validation evidence, immutable complete versions, known v2 compatibility, consumer eligibility and exact associations. Concrete mechanisms are in `phase1-data-integrity-implementation.md`; regression commands/limits are in the testing guide and verification report. Native Arrow CONFIG package verification is still pending locally.
 - **Deferred:** A custom binary replay store, `BinaryReplayBackend`, SQLite/catalog storage, graph storage, live execution, and strategy/backtesting logic.
 
 ## Goal
@@ -51,6 +51,8 @@ The future binary backend is permitted only after measurements demonstrate that 
 - Persisted data retains useful canonical/archive fields rather than only a strategy replay subset.
 
 For MBO, the baseline Arrow schema preserves the physical record fields: `event_time`, `source_receive_time`, `sequence`, `order_id`, `price`, `quantity`, `source_flags`, `channel_id`, and `control`. Stream identity is stored once in the fragment metadata. The baseline Trade and OrderExecution codecs persist observation and time/ordering fields, but omit per-row identity and reconstruct it from file metadata. The accepted 2026-10-03 supplement adds persisted row StreamId and a separate ordinal without enlarging MboRecord; it also requires identity checks before original context is discarded.
+
+Current `quant-observations-v2` persists the original canonical fields plus `stream_id` and `event_ordinal`. The archival consumer adds opaque `raw_evidence` tied to that source ordinal; Full keeps it, Replay excludes it. Original header/context and retained source associations are checked before publication and row delivery. Baseline v1 is explicitly unsupported for eligible internal consumption.
 
 ## Data fragments and metadata
 
@@ -96,6 +98,8 @@ data/
 ```
 
 Each persisted fragment is a Parquet artifact. A database-backed catalog and broad dataset discovery framework are not part of this slice.
+
+The implemented integrity layout nests independently persisted raw, canonical and consumer files under `versions/<version>/.attempt-<attempt>/`, with an immutable COMPLETE marker and required reference/acquisition/validation manifest. `staging/<operation>/<attempt>/<acquisition>/` retains capture and failed candidates. `catalog/` is a small create-only tuple/reference set, not a database-backed catalog. Current selection resolves to an exact pinned version before use. See the implementation specification for the concrete filenames and retry rules.
 
 ## Dependency boundary
 

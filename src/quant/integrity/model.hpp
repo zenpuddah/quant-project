@@ -278,7 +278,7 @@ struct PreparedSegment {
     ValidationReport validation;
     std::vector<BoundObservation> rows;
     std::string adapter_version = "xnas-canonical-v2";
-    std::string transform_version = "identity-consumer-v1";
+    std::string transform_version = "archival-consumer-v1";
     bool explicit_partial = false;
 };
 

@@ -146,12 +146,21 @@ private:
         }
         ++expected_ordinal;
         const auto decoded = decoder(raw, acquisition);
+        if (decoded.header && acquisition.query.event_time_range &&
+            ingestion::contains(*acquisition.query.event_time_range, decoded.header->event_time) &&
+            acquisition.query.source_receive_time_range && !decoded.header->source_receive_time) {
+            if (result.validation.structural == Check::Passed) { result.validation.structural = Check::Unresolved; }
+            result.validation.failures.push_back({raw.ordinal, "selection_timestamp", "required receive-time constraint cannot be evaluated"});
+            ordering.observe(decoded, raw.ordinal, false, result.validation);
+            continue;
+        }
         const bool selected = decoded.header && ingestion::matches_time(acquisition.query,
             decoded.header->event_time, decoded.header->source_receive_time) &&
             (!explicit_partial || ingestion::contains(range, decoded.header->event_time));
         ordering.observe(decoded, raw.ordinal, selected, result.validation);
         if (decoded.header && !selected) {
             result.validation.filtered_ordinals.push_back(raw.ordinal);
+            if (!decoded.error.empty()) { result.validation.failures.push_back({raw.ordinal, "excluded_decode_error", decoded.error}); }
             continue;
         }
         if (!decoded.error.empty() || !decoded.header) {
@@ -193,6 +202,12 @@ private:
     }
     for (auto& observation : quality) {
         if (!observation.scope) { observation.scope = scope; }
+        if (observation.kind == ingestion::DataQualityKind::SequenceGap &&
+            ingestion::same_stream_scope(observation.scope, std::optional<data::MboStreamContext>{scope}) &&
+            ingestion::intersection(range, observation.range) && result.validation.ordering == Check::Passed) {
+            result.validation.ordering = Check::Unresolved;
+            result.validation.failures.push_back({0, "scoped_sequence_gap", "retained scoped gap evidence has not been resolved by recovery"});
+        }
     }
     const std::array<std::optional<data::MboStreamContext>, 1> scopes{scope};
     result.validation.data_states = ingestion::DataStateReducer::reduce(range, quality, scopes);

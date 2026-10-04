@@ -46,6 +46,7 @@ void tests() {
     require(result.acquisition.records[2].bytes == input.records[2].bytes, "failed raw bytes discarded");
     require(result.rows.size() == 4, "otherwise valid staged rows discarded");
     input.records[2] = fixture::record(2, 'T', 103, 8, 0, 0, 1);
+    input.acquisition_id = "corrected-acquisition"; // Changed provider input is a NEW acquisition, not an in-place repair.
     input.attempt_id = "attempt-2";
     input.retry_of = "attempt-1";
     require(can_replay(prepare(input)), "explicit recovery was not revalidated");
@@ -74,6 +75,9 @@ void tests() {
     require(!can_replay(result), "Degraded acceptance bypassed unresolved channel ordering");
     input.records.back() = fixture::record(4, 'C', 103, 8, 136, 100, 1);
     require(can_replay(prepare(input)), "timestamp-quality flag declared book corruption");
+    input = fixture::acquisition();
+    input.quality.push_back({fixture::range(100, 200), ingestion::DataQualityKind::SequenceGap, std::nullopt});
+    require(!can_replay(prepare(input)), "scoped SequenceGap evidence bypassed unresolved-order gating without a raw gap flag");
 
     input = fixture::acquisition();
     input.records.back().ordinal = 3;
@@ -109,6 +113,8 @@ void tests() {
     require(!can_replay(result), "mislabeled fragment range accepted");
     input.query.source_receive_time_range = fixture::range(100, 104);
     require(prepare(input).validation.filtered_ordinals.size() == 4, "dual-time filtering not enforced");
+    fixture::put<std::uint64_t>(input.records[1].bytes, 40, std::numeric_limits<std::uint64_t>::max());
+    require(!can_replay(prepare(input)), "missing requested time evidence was silently treated as normal overfetch");
 
     input = fixture::acquisition();
     input.quality = {{fixture::range(100, 150), ingestion::DataQualityKind::Complete, std::nullopt},

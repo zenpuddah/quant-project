@@ -1,329 +1,252 @@
 #include "quant/storage/parquet_backend.hpp"
+#include "integrity_fixture.hpp"
 
-#include <arrow/api.h>
-
-#include <cstdint>
-#include <filesystem>
+#include <chrono>
 #include <iostream>
-#include <optional>
 #include <stdexcept>
-#include <string>
-#include <string_view>
-#include <system_error>
-#include <variant>
-#include <vector>
 
 namespace {
-
-using namespace quant::data;
-using namespace quant::ingestion;
+using namespace quant;
 using namespace quant::storage;
+void require(const bool condition, const char* message) { if (!condition) { throw std::runtime_error(message); } }
 
-void require(const bool condition, const std::string_view message) {
-    if (!condition) {
-        throw std::runtime_error(std::string(message));
+arrow::Status test_versions_and_replay(const std::filesystem::path& root) {
+    ParquetStorageBackend backend{root, ingestion::decode_xnas_record};
+    const auto prepared = fixture::prepared();
+    ARROW_ASSIGN_OR_RAISE(const auto first, backend.publish(prepared, "version-1"));
+    require(first.fragments.size() == 3, "cross-kind partition publication incomplete");
+    bool full_evidence = false;
+    bool replay_evidence = false;
+    ARROW_RETURN_NOT_OK(backend.read_batches(first.fragments.front(), BatchProjection::Full, [&](const ArrowBatch& batch) {
+        full_evidence = batch->GetColumnByName("raw_evidence") != nullptr; return arrow::Status::OK(); }));
+    ARROW_RETURN_NOT_OK(backend.read_batches(first.fragments.front(), BatchProjection::Replay, [&](const ArrowBatch& batch) {
+        replay_evidence = batch->GetColumnByName("raw_evidence") != nullptr; return arrow::Status::OK(); }));
+    require(full_evidence && !replay_evidence, "rich archive versus replay projection contract failed");
+    ARROW_RETURN_NOT_OK(backend.select_current("version-1"));
+    ARROW_ASSIGN_OR_RAISE(const auto selected, backend.current());
+    require(selected.version_id == "version-1", "current selection did not resolve an exact version");
+    require(!backend.publish(prepared, "version-1").ok(), "existing published destination was replaced");
+
+    auto corrected_acquisition = fixture::acquisition("acquisition-corrected");
+    fixture::put<std::int64_t>(corrected_acquisition.records[1].bytes, 24, 101'000'000'000);
+    const auto corrected = integrity::prepare(corrected_acquisition, fixture::references(), data::StreamId{1},
+        fixture::range(100, 200), ingestion::decode_xnas_record);
+    ARROW_ASSIGN_OR_RAISE(const auto second, backend.publish(corrected, "version-2"));
+    require(!backend.select_current("version-2", [] { throw std::runtime_error("selection interruption"); }).ok(),
+            "selection interruption not exercised");
+    ARROW_ASSIGN_OR_RAISE(const auto unchanged, backend.current());
+    require(unchanged.version_id == "version-1", "failed selection changed old run input");
+    ARROW_RETURN_NOT_OK(backend.select_current("version-2"));
+    ARROW_ASSIGN_OR_RAISE(const auto changed, backend.current());
+    require(changed.version_id == "version-2", "current correction not selected");
+
+    for (const auto* version : {&first, &second}) {
+        std::vector<integrity::BoundObservation> replay;
+        ARROW_RETURN_NOT_OK(backend.stream_ordered_events(version->fragments, integrity::ConsumerRequirements::ordered_replay(),
+            [&](const integrity::BoundObservation& row) { replay.push_back(row); return arrow::Status::OK(); }));
+        require(replay.size() == 5 && replay[2].event.index() == 1 && replay[3].event.index() == 2 && replay[4].event.index() == 0,
+                "Trade/Fill/Cancel association was lost after partitioning");
+        for (std::size_t index = 0; index < replay.size(); ++index) { require(replay[index].ordinal == index, "ordinal succession changed"); }
+        const auto expected_price = version == &first ? 100'000'000'000LL : 101'000'000'000LL;
+        require(std::get<data::MboEvent>(replay[1].event).price->raw() == expected_price, "old fragment changed after correction");
+        ARROW_ASSIGN_OR_RAISE(const auto metadata, backend.read_metadata(version->fragments.front()));
+        require(metadata.stream.instrument_id == data::InstrumentId{42} && metadata.schema_version == supported_encoding,
+                "stream/encoding metadata changed");
     }
-}
-
-Timestamp time(const std::int64_t nanos) {
-    return Timestamp::from_unix_nanos(nanos);
-}
-
-TimeRange range(const std::int64_t start, const std::int64_t end) {
-    return TimeRange{time(start), time(end)};
-}
-
-StreamIdentity stream() {
-    return StreamIdentity{InstrumentId{42}, VenueId{7}, SourceId{9}};
-}
-
-EventHeader header(
-    const std::int64_t event_time,
-    const std::optional<Timestamp> source_receive_time,
-    const std::optional<std::uint64_t> sequence,
-    const std::optional<std::uint32_t> channel_id,
-    const std::uint64_t source_flags) {
-    return EventHeader{
-        InstrumentId{42},
-        VenueId{7},
-        time(event_time),
-        source_receive_time,
-        sequence,
-        channel_id,
-        source_flags,
-        SourceId{9},
-    };
-}
-
-MboBuffer mbo_fixture() {
-    MboBuffer buffer{MboStreamContext{InstrumentId{42}, VenueId{7}, SourceId{9}}};
-    buffer.append(MboAdd{
-        header(100, time(101), std::uint64_t{7}, std::uint32_t{2}, 11),
-        OrderId{100},
-        Side::Buy,
-        Price::from_integer(100),
-        Quantity::from_integer(2),
-    });
-    buffer.append(MboModify{
-        header(102, time(103), std::uint64_t{0}, std::uint32_t{0}, 12),
-        OrderId{100},
-        Side::Sell,
-        std::nullopt,
-        std::nullopt,
-    });
-    buffer.append(MboClear{header(104, std::nullopt, std::nullopt, std::nullopt, 13)});
-    return buffer;
-}
-
-DatasetLocalMetadata metadata(
-    const DataKind kind,
-    const StreamIdentity identity,
-    const TimeRange time_range) {
-    return DatasetLocalMetadata{
-        kind,
-        identity,
-        time_range,
-         AcquisitionMode::Historical,
-         "canonical-v1",
-        "adapter-v1",
-        "mapping-v1",
-        {"quality:complete"},
-        {SourceArtifactProvenance{
-            "artifact:source-a",
-            range(time_range.start.unix_nanos(), time_range.end.unix_nanos()),
-        }},
-        std::string{"checksum-a"},
-    };
-}
-
-void require_same_record(const MboRecord& lhs, const MboRecord& rhs) {
-    require(lhs.event_time == rhs.event_time, "MBO event time must round-trip");
-    require(lhs.source_receive_time == rhs.source_receive_time, "MBO receive time must round-trip");
-    require(lhs.sequence == rhs.sequence, "MBO sequence must round-trip");
-    require(lhs.order_id == rhs.order_id, "MBO order id must round-trip");
-    require(lhs.price == rhs.price, "MBO price must round-trip");
-    require(lhs.quantity == rhs.quantity, "MBO quantity must round-trip");
-    require(lhs.source_flags == rhs.source_flags, "MBO source flags must round-trip");
-    require(lhs.channel_id == rhs.channel_id, "MBO channel id must round-trip");
-    require(lhs.control == rhs.control, "MBO control must round-trip");
-}
-
-arrow::Status test_metadata_and_schema_validation() {
-    const auto dataset_metadata = metadata(DataKind::Mbo, stream(), range(100, 105));
-
-    auto encoded = parquet_detail::encode_metadata(dataset_metadata);
-    ARROW_RETURN_NOT_OK(encoded->Set(std::string{parquet_detail::instrument_id_key}, "-1"));
-    require(!parquet_detail::decode_metadata(*encoded).ok(), "negative metadata ids must be rejected");
-
-    encoded = parquet_detail::encode_metadata(dataset_metadata);
-    ARROW_RETURN_NOT_OK(encoded->Set(std::string{parquet_detail::range_start_key}, " 100"));
-    require(!parquet_detail::decode_metadata(*encoded).ok(),
-            "whitespace-padded metadata integers must be rejected");
-
-    encoded = parquet_detail::encode_metadata(dataset_metadata);
-    ARROW_RETURN_NOT_OK(
-        encoded->Set(std::string{parquet_detail::source_artifact_prefix} + "0.end_ns", "100"));
-    require(!parquet_detail::decode_metadata(*encoded).ok(), "empty source artifact ranges must be rejected");
-
-    auto invalid_kind_metadata = dataset_metadata;
-    invalid_kind_metadata.data_kind = static_cast<DataKind>(99);
-    bool invalid_kind_rejected = false;
-    try {
-        validate(invalid_kind_metadata);
-    } catch (const std::invalid_argument&) {
-        invalid_kind_rejected = true;
-    }
-    require(invalid_kind_rejected, "unknown dataset data kinds must be rejected");
-
-    auto invalid_schema = arrow::schema({
-        arrow::field(std::string{column_names::event_time}, arrow::int64(), false),
-        arrow::field(std::string{column_names::source_receive_time}, arrow::int64(), false),
-        arrow::field(std::string{column_names::sequence}, arrow::uint64(), false),
-        arrow::field(std::string{column_names::order_id}, arrow::uint64(), false),
-        arrow::field(std::string{column_names::price}, arrow::int32(), false),
-        arrow::field(std::string{column_names::quantity}, arrow::int64(), false),
-        arrow::field(std::string{column_names::source_flags}, arrow::uint64(), false),
-        arrow::field(std::string{column_names::channel_id}, arrow::uint32(), false),
-        arrow::field(std::string{column_names::control}, arrow::uint32(), false),
-    });
-    require(!validate_batch_schema(*invalid_schema, DataKind::Mbo).ok(),
-            "canonical Arrow column types must be validated");
+    std::vector<DataFragment> mixed{first.fragments.front(), second.fragments[1]};
+    std::size_t delivered = 0;
+    require(!backend.stream_ordered_events(mixed, integrity::ConsumerRequirements::ordered_replay(),
+        [&](const auto&) { ++delivered; return arrow::Status::OK(); }).ok() && delivered == 0,
+            "independent acquisition ordinals were merged");
     return arrow::Status::OK();
 }
 
-arrow::Status test_mbo_round_trip_and_replay(ParquetStorageBackend& backend) {
-    const auto source = mbo_fixture();
-    ARROW_ASSIGN_OR_RAISE(const auto canonical_batch, to_arrow(source));
+arrow::Status test_invalid_candidates(const std::filesystem::path& root) {
+    ParquetStorageBackend backend{root, ingestion::decode_xnas_record};
+    auto invalid = fixture::acquisition("bad-quantity");
+    invalid.records[2] = fixture::record(2, 'T', 103, 8, 0, 0, 0);
+    const auto prepared = integrity::prepare(invalid, fixture::references(), data::StreamId{1}, fixture::range(100, 200), ingestion::decode_xnas_record);
+    require(!backend.publish(prepared, "bad-version").ok(), "invalid data published");
+    RetainedCapture capture{root};
+    const auto path = capture.path(invalid);
+    const auto retained = RetainedCapture::load(path);
+    require(retained.records == invalid.records, "failed candidate lost original provider bytes");
+    require(std::filesystem::exists(path / "validation.qvalidation") && std::filesystem::exists(path / "canonical/mbo.parquet"),
+            "failed candidate report/valid dependent rows not retained in staging");
+    require(!backend.open_version("bad-version").ok(), "unresolved candidate available to consumers");
 
-    arrow::Int32Builder archive_only_builder;
-    for (std::size_t index = 0; index < source.size(); ++index) {
-        ARROW_RETURN_NOT_OK(archive_only_builder.Append(static_cast<std::int32_t>(index + 1)));
-    }
-    std::shared_ptr<arrow::Array> archive_only_array;
-    ARROW_RETURN_NOT_OK(archive_only_builder.Finish(&archive_only_array));
-    ARROW_ASSIGN_OR_RAISE(
-        const auto archive_batch,
-        canonical_batch->AddColumn(canonical_batch->num_columns(), "archive_only", archive_only_array));
+    auto interrupted_capture = fixture::acquisition("interrupted-capture");
+    capture.begin(interrupted_capture); capture.metadata(interrupted_capture); capture.record(interrupted_capture.records.front());
+    const auto capture_path = capture.path(interrupted_capture);
+    files::write_bytes(capture_path / "raw.records", std::as_bytes(std::span{"tail", std::size_t{4}}), true);
+    const auto prefix = RetainedCapture::inspect_unfinished(capture_path);
+    require(prefix.records.size() == 1 && prefix.records.front() == interrupted_capture.records.front() &&
+            prefix.outcome == integrity::AcquisitionOutcome::Failed, "interrupted acquisition lost its acknowledged byte prefix");
+    const auto prefix_candidate = integrity::prepare(prefix, fixture::references(), data::StreamId{1}, fixture::range(100, 200), ingestion::decode_xnas_record);
+    require(!backend.publish(prefix_candidate, "unfinished-capture-version").ok(), "unfinished capture became eligible");
 
-    const auto dataset_metadata = metadata(DataKind::Mbo, stream(), range(100, 105));
-    const std::vector<ArrowBatch> batches{archive_batch};
-    ARROW_ASSIGN_OR_RAISE(const auto fragment, backend.write(dataset_metadata, batches));
+    auto decode_failure = fixture::acquisition("decode-failure");
+    fixture::put<std::uint64_t>(decode_failure.records[1].bytes, 8, std::numeric_limits<std::uint64_t>::max());
+    const auto failed_decode = integrity::prepare(decode_failure, fixture::references(), data::StreamId{1}, fixture::range(100, 200), ingestion::decode_xnas_record);
+    require(!backend.publish(failed_decode, "decode-failure-version").ok(), "unconstructible canonical timestamp published");
+    require(RetainedCapture::load(capture.path(decode_failure)).records == decode_failure.records,
+            "unconstructible primitive value was discarded instead of retained raw");
 
-    ARROW_ASSIGN_OR_RAISE(const auto restored_metadata, backend.read_metadata(fragment));
-    require(restored_metadata == dataset_metadata, "dataset-local metadata must round-trip");
-    require(fragment.time_range == range(100, 105), "fragment time range must remain half-open");
-    require(fragment.locator.find("data/mbo/") != std::string::npos,
-            "MBO fragments must use the portable MBO directory layout");
+    auto edited = fixture::prepared("misassociated");
+    edited.rows[1].ordinal = edited.rows[2].ordinal;
+    require(!backend.publish(edited, "wrong-association").ok(), "wrong ordinal/event association passed publication");
+    auto wrong_event = fixture::prepared("sorted-wrong-event");
+    wrong_event.rows[1].event = wrong_event.rows[4].event; // Ordinals stay unique/sorted; original events do not.
+    require(!backend.publish(wrong_event, "sorted-wrong-event-version").ok(), "sorted ordinals hid a wrong original event association");
+    edited = fixture::prepared("wrong-scope");
+    edited.binding.stream.instrument_id = data::InstrumentId{99};
+    require(!backend.publish(edited, "wrong-scope-version").ok(), "wrong file scope was silently corrected/published");
+    auto mislabeled = integrity::prepare(fixture::acquisition("wrong-range"), fixture::references(), data::StreamId{1},
+        fixture::range(300, 400), ingestion::decode_xnas_record);
+    require(!backend.publish(mislabeled, "wrong-range-version").ok(), "mislabeled event range published");
 
-    std::vector<ArrowBatch> full_batches;
-    ARROW_RETURN_NOT_OK(backend.read_batches(
-        fragment,
-        BatchProjection::Full,
-        [&full_batches](const ArrowBatch& batch) {
-            full_batches.push_back(batch);
-            return arrow::Status::OK();
-        }));
-    require(full_batches.size() == 1, "small MBO fixture should be read as one Arrow batch");
-    require(full_batches[0]->GetColumnByName("archive_only") != nullptr,
-            "full batch access must retain archive-only columns");
-    ARROW_ASSIGN_OR_RAISE(const auto restored, from_arrow(*full_batches[0], stream()));
-    require(restored.size() == source.size(), "MBO row count must round-trip");
-    for (std::size_t index = 0; index < source.size(); ++index) {
-        require_same_record(source.data()[index], restored.data()[index]);
-    }
-    require(restored.at(1).sequence() == std::optional<std::uint64_t>{0},
-            "MBO presence bits must preserve zero sequence values through Arrow and Parquet");
-    require(!restored.at(2).source_receive_time(),
-            "MBO presence bits must preserve absent receive times through Arrow and Parquet");
+    auto missing = fixture::prepared("missing-reference"); missing.references.sources.clear();
+    require(!backend.publish(missing, "missing-reference-version").ok(), "missing references bypassed publication");
+    auto detached = fixture::prepared("detached-report"); detached.validation.ordering = integrity::Check::Unresolved;
+    require(!backend.publish(detached, "detached-report-version").ok(), "detached caller validation was trusted");
 
-    std::vector<ArrowBatch> replay_batches;
-    ARROW_RETURN_NOT_OK(backend.read_batches(
-        fragment,
-        BatchProjection::Replay,
-        [&replay_batches](const ArrowBatch& batch) {
-            replay_batches.push_back(batch);
-            return arrow::Status::OK();
-        }));
-    require(replay_batches.size() == 1, "small replay fixture should be read as one Arrow batch");
-    require(replay_batches[0]->GetColumnByName("archive_only") == nullptr,
-            "replay projection must exclude archive-only columns");
-
-    std::vector<CanonicalEvent> events;
-    ARROW_RETURN_NOT_OK(backend.stream_events(
-        fragment,
-        [&events](const CanonicalEvent& event) {
-            events.push_back(event);
-            return arrow::Status::OK();
-        }));
-    require(events.size() == 3, "sequential replay must emit every persisted MBO event");
-    require(std::get<MboEvent>(events[0]).order_id->value() == 100,
-            "sequential replay must preserve the first event order");
-    require(std::get<MboEvent>(events[1]).header.event_time == time(102),
-            "sequential replay must preserve event-time order");
-    require(std::get<MboEvent>(events[2]).action == MboAction::Clear,
-            "sequential replay must preserve canonical action order");
+    const auto good = fixture::prepared("identity-stability");
+    ARROW_ASSIGN_OR_RAISE(const auto published, backend.publish(good, "stable-version"));
+    static_cast<void>(published);
+    auto changed = fixture::prepared("changed-source-definition"); changed.references.sources.front().dataset = "OTHER";
+    require(!backend.publish(changed, "changed-source-version").ok(), "catalog reference definition reassigned");
+    auto changed_input = fixture::prepared("identity-stability");
+    fixture::put<std::int64_t>(changed_input.acquisition.records[1].bytes, 24, 102'000'000'000);
+    changed_input.acquisition.attempt_id = "attempt-2";
+    require(!backend.publish(changed_input, "changed-input-version").ok(), "new acquisition reused old raw identity");
     return arrow::Status::OK();
 }
 
-arrow::Status test_trade_and_execution_round_trip(ParquetStorageBackend& backend) {
-    const auto trade_header = header(200, time(201), std::uint64_t{10}, std::uint32_t{3}, 21);
-    const std::vector<Trade> trades{
-        Trade{trade_header, Price::from_integer(101), Quantity::from_integer(4), Side::Buy},
-    };
-    ARROW_ASSIGN_OR_RAISE(const auto trade_batch, to_arrow(std::span<const Trade>{trades}));
-    arrow::Int8Builder invalid_side_builder;
-    ARROW_RETURN_NOT_OK(invalid_side_builder.Append(2));
-    std::shared_ptr<arrow::Array> invalid_side_array;
-    ARROW_RETURN_NOT_OK(invalid_side_builder.Finish(&invalid_side_array));
-    ARROW_ASSIGN_OR_RAISE(
-        const auto invalid_trade_batch,
-        trade_batch->SetColumn(
-            trade_batch->schema()->GetFieldIndex(column_names::aggressor_side),
-            arrow::field(std::string{column_names::aggressor_side}, arrow::int8()),
-            invalid_side_array));
-    require(!trades_from_arrow(*invalid_trade_batch, stream()).ok(),
-            "trade aggressor side values outside the canonical encoding must be rejected");
+arrow::Status test_self_consistent_but_wrong_witness(const std::filesystem::path& root) {
+    ParquetStorageBackend backend{root, ingestion::decode_xnas_record};
+    const auto prepared = fixture::prepared();
+    ARROW_ASSIGN_OR_RAISE(const auto published, backend.publish(prepared, "witness-version"));
+    const auto attempt = std::filesystem::path{published.package_locator} / ".attempt-attempt-1";
+    const auto file = attempt / "consumer/mbo.parquet";
+    ARROW_ASSIGN_OR_RAISE(const auto batches, publication_detail::read_arrow(file));
+    arrow::BinaryBuilder altered;
+    for (const auto ordinal : {std::uint64_t{0}, std::uint64_t{4}, std::uint64_t{4}}) {
+        const auto& bytes = prepared.acquisition.records[ordinal].bytes;
+        ARROW_RETURN_NOT_OK(altered.Append(reinterpret_cast<const std::uint8_t*>(bytes.data()), static_cast<std::int32_t>(bytes.size())));
+    }
+    std::shared_ptr<arrow::Array> witness; ARROW_RETURN_NOT_OK(altered.Finish(&witness));
+    ARROW_ASSIGN_OR_RAISE(const auto wrong, batches.front()->SetColumn(batches.front()->schema()->GetFieldIndex("raw_evidence"),
+        arrow::field("raw_evidence", arrow::binary(), false), witness));
+    // Test-only mutation of our temporary fixture: make file/manifest checksums internally
+    // consistent so the regression specifically exercises original event association.
+    const auto metadata = batches.front()->schema()->metadata()->Copy();
+    std::filesystem::remove(file);
+    ARROW_RETURN_NOT_OK(publication_detail::write_arrow(file, wrong, metadata));
+    auto manifest = publication_detail::decode_manifest(files::read(attempt / "manifest.qmanifest"));
+    for (auto& entry : manifest.files) { if (entry.path == "consumer/mbo.parquet") { entry.digest = files::sha256(files::read(file)); } }
+    const auto text = publication_detail::encode_manifest(manifest);
+    std::filesystem::remove(attempt / "manifest.qmanifest"); files::write_text(attempt / "manifest.qmanifest", text);
+    std::filesystem::remove(std::filesystem::path{published.package_locator} / "COMPLETE");
+    evidence::Writer marker; marker.text("quant-complete-v1"); marker.text("witness-version"); marker.text("attempt-1"); marker.text(files::sha256(text));
+    files::write_text(std::filesystem::path{published.package_locator} / "COMPLETE", marker.str());
+    std::size_t delivered = 0;
+    auto fragment = published.fragments.front(); fragment.evidence_digest = files::sha256(text);
+    require(!backend.stream_events(fragment, [&](const auto&) { ++delivered; return arrow::Status::OK(); }).ok() && delivered == 0,
+            "compatible columns and consistent hashes hid wrong raw/event association");
+    return arrow::Status::OK();
+}
 
-    const auto trade_metadata = metadata(DataKind::Trades, stream(), range(200, 201));
-    const std::vector<ArrowBatch> trade_batches{trade_batch};
-    ARROW_ASSIGN_OR_RAISE(const auto trade_fragment, backend.write(trade_metadata, trade_batches));
-    std::vector<ArrowBatch> restored_trade_batches;
-    ARROW_RETURN_NOT_OK(backend.read_batches(
-        trade_fragment,
-        BatchProjection::Full,
-        [&restored_trade_batches](const ArrowBatch& batch) {
-            restored_trade_batches.push_back(batch);
-            return arrow::Status::OK();
-        }));
-    require(restored_trade_batches.size() == 1, "trade fixture should be read as one Arrow batch");
-    ARROW_ASSIGN_OR_RAISE(const auto restored_trades, trades_from_arrow(*restored_trade_batches[0], stream()));
-    require(restored_trades.size() == 1, "trade row count must round-trip");
-    require(restored_trades[0].price == trades[0].price && restored_trades[0].quantity == trades[0].quantity,
-            "trade price and quantity must round-trip");
-    require(restored_trades[0].header.source_receive_time == trade_header.source_receive_time,
-            "trade source receive time must round-trip");
+arrow::Status test_interrupted_publication(const std::filesystem::path& root) {
+    ParquetStorageBackend backend{root, ingestion::decode_xnas_record};
+    unsigned index = 0;
+    for (const auto point : {PublicationPoint::Raw, PublicationPoint::References, PublicationPoint::Canonical,
+                            PublicationPoint::Consumer, PublicationPoint::Evidence, PublicationPoint::BeforeComplete}) {
+        const auto name = "interrupted-" + std::to_string(index++);
+        auto prepared = fixture::prepared(name);
+        const auto result = backend.publish(prepared, name, integrity::ConsumerRequirements::ordered_replay(),
+            [point](const PublicationPoint actual) { if (actual == point) { throw std::runtime_error("injected publication interruption"); } });
+        require(!result.ok() && !std::filesystem::exists(root / "versions" / name / "COMPLETE") && !backend.open_version(name).ok(),
+                "interrupted data/reference/evidence write exposed an eligible version");
+        prepared.acquisition.attempt_id = "attempt-2";
+        prepared.acquisition.retry_of = "attempt-1";
+        ARROW_ASSIGN_OR_RAISE(const auto resumed, backend.publish(prepared, name));
+        require(resumed.version_id == name, "unfinished staging was not explicitly retryable");
+    }
+    return arrow::Status::OK();
+}
 
-    const std::vector<OrderExecution> executions{
-        OrderExecution{
-            header(300, std::nullopt, std::uint64_t{11}, std::uint32_t{4}, 22),
-            OrderId{100},
-            Quantity::from_integer(2),
-            std::nullopt,
-        },
-    };
-    ARROW_ASSIGN_OR_RAISE(
-        const auto execution_batch,
-        to_arrow(std::span<const OrderExecution>{executions}));
-    const auto execution_metadata = metadata(DataKind::OrderExecution, stream(), range(300, 301));
-    const std::vector<ArrowBatch> execution_batches{execution_batch};
-    ARROW_ASSIGN_OR_RAISE(
-        const auto execution_fragment,
-        backend.write(execution_metadata, execution_batches));
-    std::vector<ArrowBatch> restored_execution_batches;
-    ARROW_RETURN_NOT_OK(backend.read_batches(
-        execution_fragment,
-        BatchProjection::Full,
-        [&restored_execution_batches](const ArrowBatch& batch) {
-            restored_execution_batches.push_back(batch);
-            return arrow::Status::OK();
-        }));
-    require(restored_execution_batches.size() == 1, "execution fixture should be read as one Arrow batch");
-    ARROW_ASSIGN_OR_RAISE(
-        const auto restored_executions,
-        executions_from_arrow(*restored_execution_batches[0], stream()));
-    require(restored_executions.size() == 1, "execution row count must round-trip");
-    require(restored_executions[0].resting_order_id == executions[0].resting_order_id &&
-                restored_executions[0].executed_quantity == executions[0].executed_quantity,
-            "order execution fields must round-trip");
-    require(!restored_executions[0].price, "optional order execution price must round-trip as absent");
+arrow::Status test_eligibility_and_partial(const std::filesystem::path& root) {
+    ParquetStorageBackend backend{root, ingestion::decode_xnas_record};
+    auto bad_book = fixture::acquisition("gap-evidence");
+    bad_book.records.back() = fixture::record(4, 'C', 103, 8, 132, 100, 1);
+    const auto gap = integrity::prepare(bad_book, fixture::references(), data::StreamId{1}, fixture::range(100, 200), ingestion::decode_xnas_record);
+    require(!backend.publish(gap, "gap-book").ok(), "Degraded default bypassed book/order gate");
+    // A deliberately order-independent consumer may retain a structurally valid analytical view.
+    ARROW_ASSIGN_OR_RAISE(const auto analytic, backend.publish(gap, "gap-analytic", {}));
+    std::size_t delivered = 0;
+    require(!backend.stream_events(analytic.fragments.front(), [&](const auto&) { ++delivered; return arrow::Status::OK(); }).ok() && delivered == 0,
+            "published analytics bypassed ordered consumer checks");
+    require(!backend.stream_ordered_events(analytic.fragments, {}, [&](const auto&) { ++delivered; return arrow::Status::OK(); }).ok() && delivered == 0,
+            "weakened caller requirements bypassed mandatory replay checks");
+
+    auto partial_input = fixture::acquisition("partial-evidence");
+    partial_input.quality = {{fixture::range(100, 150), ingestion::DataQualityKind::Complete, std::nullopt},
+                            {fixture::range(150, 200), ingestion::DataQualityKind::Missing, std::nullopt}};
+    const auto partial = integrity::prepare(partial_input, fixture::references(), data::StreamId{1}, fixture::range(100, 150),
+        ingestion::decode_xnas_record, true);
+    require(!backend.publish(partial, "implicit-partial").ok(), "partial range silently claimed full coverage");
+    auto requirements = integrity::ConsumerRequirements::ordered_replay(); requirements.explicit_partial = true;
+    ARROW_ASSIGN_OR_RAISE(const auto explicit_version, backend.publish(partial, "explicit-partial", requirements));
+    require(!backend.stream_events(explicit_version.fragments.front(), [&](const auto&) { return arrow::Status::OK(); }).ok(),
+            "reader did not require explicit partial consumption");
+    ARROW_RETURN_NOT_OK(backend.stream_ordered_events(explicit_version.fragments, requirements,
+        [&](const auto&) { return arrow::Status::OK(); }));
+    return arrow::Status::OK();
+}
+
+arrow::Status test_reader_failure_before_delivery(const std::filesystem::path& root) {
+    ParquetStorageBackend backend{root, ingestion::decode_xnas_record};
+    ARROW_ASSIGN_OR_RAISE(const auto published, backend.publish(fixture::prepared(), "reader-version"));
+    auto unknown = published.fragments.front(); unknown.schema_version = "canonical-v999";
+    std::size_t delivered = 0;
+    require(!backend.stream_events(unknown, [&](const auto&) { ++delivered; return arrow::Status::OK(); }).ok() && delivered == 0,
+            "unsupported encoding delivered rows");
+    auto incorrect_label = published.fragments.front(); incorrect_label.stream.instrument_id = data::InstrumentId{99};
+    require(!backend.read_batches(incorrect_label, BatchProjection::Full, [&](const auto&) { ++delivered; return arrow::Status::OK(); }).ok(),
+            "requested metadata label overrode original identity");
+    const auto version_path = std::filesystem::path{published.package_locator};
+    const auto attempt = version_path / ".attempt-attempt-1";
+    // A required reference component changed after publication; no callback may see a prefix of rows.
+    files::write_bytes(attempt / "references.qref", std::as_bytes(std::span{"changed", std::size_t{7}}), true);
+    require(!backend.stream_events(published.fragments.front(), [&](const auto&) { ++delivered; return arrow::Status::OK(); }).ok() && delivered == 0,
+            "changed reference snapshot did not fail before delivery");
+
+    ARROW_ASSIGN_OR_RAISE(const auto movable, backend.publish(fixture::prepared("movable-input"), "movable-version"));
+    const auto moved = root / "moved-version";
+    std::filesystem::copy(movable.package_locator, moved, std::filesystem::copy_options::recursive);
+    ARROW_ASSIGN_OR_RAISE(const auto reopened, backend.open_package(moved));
+    ARROW_RETURN_NOT_OK(backend.stream_events(reopened.fragments.front(), [&](const auto&) { return arrow::Status::OK(); }));
+    std::filesystem::remove(moved / ".attempt-attempt-1" / "references.qref");
+    require(!backend.open_package(moved).ok(), "moved artifact missing references remained available");
     return arrow::Status::OK();
 }
 
 arrow::Status run_tests() {
-    const auto root = std::filesystem::temp_directory_path() / "quant-storage-foundation-tests";
-    std::error_code cleanup_error;
-    std::filesystem::remove_all(root, cleanup_error);
-    ARROW_RETURN_NOT_OK(test_metadata_and_schema_validation());
-    ParquetStorageBackend backend{root};
-    ARROW_RETURN_NOT_OK(test_mbo_round_trip_and_replay(backend));
-    ARROW_RETURN_NOT_OK(test_trade_and_execution_round_trip(backend));
-    std::filesystem::remove_all(root, cleanup_error);
+    const auto parent = std::filesystem::canonical(std::filesystem::temp_directory_path());
+    const auto root = parent / ("quant-integrity-storage-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directory(root);
+    ARROW_RETURN_NOT_OK(test_versions_and_replay(root / "versions-test"));
+    ARROW_RETURN_NOT_OK(test_invalid_candidates(root / "invalid-test"));
+    ARROW_RETURN_NOT_OK(test_interrupted_publication(root / "interruptions-test"));
+    ARROW_RETURN_NOT_OK(test_eligibility_and_partial(root / "eligibility-test"));
+    ARROW_RETURN_NOT_OK(test_reader_failure_before_delivery(root / "reader-test"));
+    ARROW_RETURN_NOT_OK(test_self_consistent_but_wrong_witness(root / "association-test"));
+    std::filesystem::remove_all(root);
     return arrow::Status::OK();
 }
-
 } // namespace
-
 int main() {
-    try {
-        const auto status = run_tests();
-        if (!status.ok()) {
-            std::cerr << "storage_tests: failed: " << status.ToString() << '\n';
-            return 1;
-        }
-        std::cout << "storage_tests: passed\n";
-    } catch (const std::exception& error) {
-        std::cerr << "storage_tests: failed: " << error.what() << '\n';
-        return 1;
-    }
-    return 0;
+    try { const auto status = run_tests(); if (!status.ok()) { throw std::runtime_error(status.ToString()); }
+        std::cout << "storage_tests: passed\n"; }
+    catch (const std::exception& error) { std::cerr << "storage_tests: failed: " << error.what() << '\n'; return 1; }
 }

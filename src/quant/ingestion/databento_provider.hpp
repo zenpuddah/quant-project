@@ -290,6 +290,16 @@ inline void mark_corrupt(ProviderBatch& batch, const ProviderMappingSegment& seg
     return "unknown";
 }
 
+[[nodiscard]] inline data::Timestamp day_timestamp(const date::sys_days day) {
+    constexpr std::int64_t nanos_per_day = 86'400'000'000'000LL;
+    const auto days = day.time_since_epoch().count();
+    if (days > std::numeric_limits<std::int64_t>::max() / nanos_per_day ||
+        days < std::numeric_limits<std::int64_t>::min() / nanos_per_day) {
+        throw std::invalid_argument("provider UTC day exceeds canonical timestamp range");
+    }
+    return data::Timestamp::from_unix_nanos(static_cast<std::int64_t>(days) * nanos_per_day);
+}
+
 [[nodiscard]] inline std::vector<DataQualityObservation> day_conditions(
     const std::vector<::databento::DatasetConditionDetail>& conditions,
     const ProviderMappingSegment& segment) {
@@ -302,11 +312,7 @@ inline void mark_corrupt(ProviderBatch& batch, const ProviderMappingSegment& seg
             throw std::invalid_argument("invalid provider condition UTC date");
         }
         const auto start = date::sys_days{day};
-        const TimeRange day_range{
-            data::Timestamp::from_unix_nanos(std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count()),
-            data::Timestamp::from_unix_nanos(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                (start + date::days{1}).time_since_epoch()).count()),
-        };
+        const TimeRange day_range{day_timestamp(start), day_timestamp(start + date::days{1})};
         const auto clipped = intersection(segment.range, day_range);
         if (!clipped) { continue; }
         const auto kind = condition_kind({condition});
@@ -329,9 +335,7 @@ inline void mark_corrupt(ProviderBatch& batch, const ProviderMappingSegment& seg
             }
             const auto start = date::sys_days{interval.start_date};
             const auto finish = date::sys_days{interval.end_date};
-            bindings.push_back({id, TimeRange{
-                data::Timestamp::from_unix_nanos(std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count()),
-                data::Timestamp::from_unix_nanos(std::chrono::duration_cast<std::chrono::nanoseconds>(finish.time_since_epoch()).count())}});
+            bindings.push_back({id, TimeRange{day_timestamp(start), day_timestamp(finish)}});
         }
     }
     return bindings;
@@ -387,6 +391,9 @@ public:
         try {
             validate(request.query);
             validate(request.mapping);
+            if (request.mode != AcquisitionMode::Historical || std::endian::native != std::endian::little) {
+                throw std::invalid_argument("this acquisition adapter supports historical normalized little-endian records only");
+            }
             if (request.mapping.provider != provider_name_ || !request.mapping.venue_id || !request.mapping.source_id) {
                 throw std::invalid_argument("retained Databento acquisition requires a matching full scope");
             }

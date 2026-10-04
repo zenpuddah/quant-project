@@ -294,6 +294,10 @@ void test_retained_normalized_bytes_and_dates() {
     require(scoped.size() == 2 && scoped[0].range.end == time(midnight) && scoped[1].range.start == time(midnight) &&
                 scoped[0].kind == DataQualityKind::Complete && scoped[1].kind == DataQualityKind::Missing,
             "daily conditions must affect only their intersecting UTC day");
+    require_throws([&] {
+        static_cast<void>(databento_detail::day_conditions({
+            {"9999-12-31", ::databento::DatasetCondition::Available, std::nullopt}}, day_mapping));
+    }, "unsupported day must be rejected without signed timestamp overflow");
 }
 
 } // namespace
