@@ -240,7 +240,7 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 ## Next action
 
 1. Review the local implementation branch `implementation/data-integrity-2026-10-03` against the accepted recap, specification, plan and `docs/project/data-integrity-verification-2026-10-03.md`. Owner acceptance precedes implementation publishing/merging.
-2. Use `docs/project/storage-testing-guide.md` for existing serialization behavior, and add regression/failure tests for the newly accepted invariants during implementation. Native Arrow/Parquet CMake package verification remains pending.
+2. Independently run/review the updated testing guide and negative/failure regressions. Native Arrow/Parquet CMake package verification remains pending; library/shim results are separately documented.
 3. Dataset-condition inclusive-date and day-local scoping regressions pass; retain this contract when future provider/range support changes.
 4. Keep the first research/backtesting consumer design separate. Stop for engineering-manager review before XML, generalized persistent cache, live ingestion, production multi-batch work, or a future binary replay optimization.
 
@@ -256,7 +256,7 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 
 - **Implemented/verified:** 2026-10-03 bounded integrity closure and deterministic retained/synthetic provider demonstration complete locally. Exact commands/results/limitations are in `docs/project/data-integrity-verification-2026-10-03.md`; original storage/replay foundation remains intact. Implementation publishing/merging still requires owner instruction.
 
-- **Implementation specification:** 2026-10-03 bounded formats/ownership/identity/ordinal/publication/eligibility specification and plan recorded before production changes. Implementation and regression verification pending.
+- **Earlier specification checkpoint:** 2026-10-03 bounded formats/ownership/identity/ordinal/publication/eligibility specification and plan recorded before production changes; implementation and verification were pending at that checkpoint and are now recorded above.
 
 - **Accepted/reviewed:** 2026-10-03 data-integrity decisions and three final closure contracts recorded; context, AGENTS.md, historical cross-references, and the current OpenCode handoff updated for the owner-requested GitHub publication. Documentation-only changes; no new production implementation or implementation-test claims.
 
