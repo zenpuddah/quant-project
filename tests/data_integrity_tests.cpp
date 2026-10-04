@@ -128,7 +128,11 @@ void tests() {
     integrity::SourceOrderChecker checker;
     integrity::ValidationReport report;
     input = fixture::acquisition();
-    for (const auto& row : input.records) { checker.observe(ingestion::decode_xnas_record(row, input), row.ordinal, true, report); }
+    const auto first_chunk = std::span<const integrity::RawRecord>{input.records}.first(3);
+    const auto second_chunk = std::span<const integrity::RawRecord>{input.records}.subspan(3);
+    for (const auto& row : first_chunk) { checker.observe(ingestion::decode_xnas_record(row, input), row.ordinal, true, report); }
+    // T ends the first chunk; F/C close its normalization group in the next chunk.
+    for (const auto& row : second_chunk) { checker.observe(ingestion::decode_xnas_record(row, input), row.ordinal, true, report); }
     checker.finish(report);
     require(report.groups == integrity::Check::Passed, "checker lost group state across chunks");
     require(fixture::prepared("acquisition-2").acquisition.acquisition_id != fixture::prepared().acquisition.acquisition_id,

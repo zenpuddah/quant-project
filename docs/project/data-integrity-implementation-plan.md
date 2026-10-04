@@ -24,4 +24,4 @@ Update context/engineering status at each checkpoint. Commit only intended files
 
 ## Status
 
-- Specification checkpoint committed. Domain/catalog/reference/preparation/eligibility and provider retained-acquisition/day-condition slices implemented. Strict/sanitizer standalone retention tests and isolated deterministic Databento CTest pass; eight existing standalone tests pass. Durable sink, bound Arrow and publication/reader closure remain pending. Requirements not yet verified are not marked complete.
+- All bounded slices implemented and verified: specification, domain/eligibility, retained provider acquisition/dates, bound Arrow, complete immutable publication/readers, and retained/synthetic end-to-end demonstration. Ten standalone tests, SDK CTest and four storage CTest targets pass normally and with ASan/UBSan. See `data-integrity-verification-2026-10-03.md` for exact commands and limitations. Review/publishing remains an owner decision; implementation is local only.

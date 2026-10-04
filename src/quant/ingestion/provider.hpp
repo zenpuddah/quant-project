@@ -49,8 +49,10 @@ public:
     void enqueue_response(ProviderBatch response) { responses_.push_back(std::move(response)); }
 
     void enqueue_acquisition(integrity::Acquisition acquisition) { acquisitions_.push_back(std::move(acquisition)); }
+    [[nodiscard]] std::size_t retained_requests() const noexcept { return retained_requests_; }
 
     integrity::Acquisition acquire(integrity::Acquisition request, integrity::AcquisitionSink& sink) override {
+        ++retained_requests_;
         sink.begin(request);
         if (next_acquisition_ >= acquisitions_.size()) {
             request.outcome = integrity::AcquisitionOutcome::Failed;
@@ -97,6 +99,7 @@ private:
     std::size_t next_response_ = 0;
     std::vector<integrity::Acquisition> acquisitions_;
     std::size_t next_acquisition_ = 0;
+    std::size_t retained_requests_ = 0;
 };
 
 } // namespace quant::ingestion
