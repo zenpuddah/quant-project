@@ -447,6 +447,9 @@ private:
             header.source_id != context_.source_id) {
             throw std::invalid_argument("MBO event scope does not match buffer context");
         }
+        if (side && *side != Side::Buy && *side != Side::Sell) {
+            throw std::invalid_argument("MBO side is outside the canonical vocabulary");
+        }
 
         records_.push_back(MboRecord{
             header.event_time.unix_nanos(),

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "quant/ingestion/result.hpp"
+#include "quant/integrity/model.hpp"
 
 #include <optional>
 #include <stdexcept>
@@ -29,13 +30,7 @@ enum class DataKind {
     return "unknown";
 }
 
-struct StreamIdentity {
-    data::InstrumentId instrument_id;
-    data::VenueId venue_id;
-    data::SourceId source_id;
-
-    friend bool operator==(const StreamIdentity&, const StreamIdentity&) = default;
-};
+using StreamIdentity = integrity::StreamIdentity;
 
 struct DataFragment {
     DataKind data_kind;
@@ -43,6 +38,11 @@ struct DataFragment {
     ingestion::TimeRange time_range;
     std::string schema_version;
     std::string locator;
+    std::string version_id{};
+    std::string acquisition_id{};
+    std::string package_locator{};
+    std::optional<data::StreamId> row_stream_id{};
+    std::string evidence_digest{};
 
     friend bool operator==(const DataFragment&, const DataFragment&) = default;
 };

@@ -1081,3 +1081,9 @@ Meaningful standalone regressions cover invalid quantities/shapes, retained byte
 Added an explicit retained-acquisition method to the provider port and synchronous planner. Each request gets a named scope; the sink receives request/complete SDK metadata/original bytes before any interpretation or query filtering. Acquisition exceptions retain operation outcome and fetched evidence rather than becoming canonical Missing. The old logical ingestion method remains an inspection/orchestration baseline; it cannot supply the new publication's required raw/evidence package by itself.
 
 Corrected inclusive condition endpoints and UTC-day clipping using the accepted source clarification. SDK-record byte decoding agrees with the existing adapter in deterministic tests; midnight/mixed-day/extra-date conditions are scoped correctly. No credentialed request was made. Durable filesystem capture and complete publication are still pending at this checkpoint.
+
+## Bound interchange checkpoint
+
+Added deliberately named v2 row binding columns outside MboRecord. Conversion checks original headers/context before dropping identity; decoding checks the persisted binding as well as column types. Mixed streams, zero Trade/OrderExecution quantity, malformed control/presence representation and duplicate ordinals are rejected. New version-pinning fields and checked/scoped replay methods remain storage-independent.
+
+Added bounded token-text evidence/reference serialization and dependency-free SHA-256/file primitives for the next publication slice. Known-answer and round-trip tests pass with strict warnings and ASan/UBSan against Arrow 21. Published availability is not inferred from this codec-only checkpoint.

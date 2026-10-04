@@ -1,6 +1,7 @@
 #pragma once
 
 #include "quant/data/observations.hpp"
+#include "quant/data/validation.hpp"
 #include "quant/storage/dataset.hpp"
 
 #include <arrow/api.h>
@@ -39,6 +40,8 @@ inline constexpr std::string_view control = "control";
 inline constexpr std::string_view aggressor_side = "aggressor_side";
 inline constexpr std::string_view resting_order_id = "resting_order_id";
 inline constexpr std::string_view executed_quantity = "executed_quantity";
+inline constexpr std::string_view stream_id = "stream_id";
+inline constexpr std::string_view event_ordinal = "event_ordinal";
 
 } // namespace column_names
 
@@ -328,6 +331,11 @@ template <typename ArrayType>
     arrow::Int8Builder aggressor_side;
 
     for (const auto& trade : trades) {
+        if (!data::is_valid(data::validate(trade))) { return arrow::Status::Invalid("invalid canonical Trade"); }
+        if (trade.header.instrument_id != trades.front().header.instrument_id ||
+            trade.header.venue_id != trades.front().header.venue_id || trade.header.source_id != trades.front().header.source_id) {
+            return arrow::Status::Invalid("mixed-stream Trade input");
+        }
         ARROW_RETURN_NOT_OK(event_time.Append(trade.header.event_time.unix_nanos()));
         if (trade.header.source_receive_time) {
             ARROW_RETURN_NOT_OK(source_receive_time.Append(trade.header.source_receive_time->unix_nanos()));
@@ -398,6 +406,11 @@ template <typename ArrayType>
     arrow::Int64Builder price;
 
     for (const auto& execution : executions) {
+        if (!data::is_valid(data::validate(execution))) { return arrow::Status::Invalid("invalid canonical OrderExecution"); }
+        if (execution.header.instrument_id != executions.front().header.instrument_id ||
+            execution.header.venue_id != executions.front().header.venue_id || execution.header.source_id != executions.front().header.source_id) {
+            return arrow::Status::Invalid("mixed-stream execution input");
+        }
         ARROW_RETURN_NOT_OK(event_time.Append(execution.header.event_time.unix_nanos()));
         if (execution.header.source_receive_time) {
             ARROW_RETURN_NOT_OK(source_receive_time.Append(execution.header.source_receive_time->unix_nanos()));
@@ -459,6 +472,7 @@ template <typename ArrayType>
 [[nodiscard]] inline arrow::Result<data::MboBuffer> from_arrow(
     const arrow::RecordBatch& batch,
     const StreamIdentity& stream) {
+    ARROW_RETURN_NOT_OK(batch.ValidateFull());
     ARROW_RETURN_NOT_OK(validate_batch_schema(*batch.schema(), DataKind::Mbo));
     ARROW_ASSIGN_OR_RAISE(
         const auto event_time,
@@ -511,6 +525,12 @@ template <typename ArrayType>
         };
         try {
             result.append(detail::event_from_record(record, stream));
+            const auto& normalized = result.data()[result.size() - 1];
+            if (normalized.control != record.control || normalized.source_receive_time != record.source_receive_time ||
+                normalized.sequence != record.sequence || normalized.channel_id != record.channel_id ||
+                normalized.order_id != record.order_id || normalized.price != record.price || normalized.quantity != record.quantity) {
+                return arrow::Status::Invalid("noncanonical MBO control/presence representation");
+            }
         } catch (const std::exception&) {
             return arrow::Status::Invalid("Arrow batch contains an invalid canonical MBO record");
         }
@@ -521,6 +541,7 @@ template <typename ArrayType>
 [[nodiscard]] inline arrow::Result<std::vector<data::Trade>> trades_from_arrow(
     const arrow::RecordBatch& batch,
     const StreamIdentity& stream) {
+    ARROW_RETURN_NOT_OK(batch.ValidateFull());
     ARROW_RETURN_NOT_OK(validate_batch_schema(*batch.schema(), DataKind::Trades));
     ARROW_ASSIGN_OR_RAISE(
         const auto event_time,
@@ -572,6 +593,7 @@ template <typename ArrayType>
                 data::Quantity::from_raw(quantity->Value(index)),
                 detail::optional_side(aggressor_side, index),
             });
+            if (!data::is_valid(data::validate(result.back()))) { return arrow::Status::Invalid("invalid canonical Trade"); }
         } catch (const std::exception&) {
             return arrow::Status::Invalid("Arrow batch contains an invalid canonical Trade");
         }
@@ -582,6 +604,7 @@ template <typename ArrayType>
 [[nodiscard]] inline arrow::Result<std::vector<data::OrderExecution>> executions_from_arrow(
     const arrow::RecordBatch& batch,
     const StreamIdentity& stream) {
+    ARROW_RETURN_NOT_OK(batch.ValidateFull());
     ARROW_RETURN_NOT_OK(validate_batch_schema(*batch.schema(), DataKind::OrderExecution));
     ARROW_ASSIGN_OR_RAISE(
         const auto event_time,
@@ -630,6 +653,7 @@ template <typename ArrayType>
                 price->IsNull(index) ? std::nullopt
                                      : std::optional<data::Price>{data::Price::from_raw(price->Value(index))},
             });
+            if (!data::is_valid(data::validate(result.back()))) { return arrow::Status::Invalid("invalid canonical execution"); }
         } catch (const std::exception&) {
             return arrow::Status::Invalid("Arrow batch contains an invalid canonical OrderExecution");
         }
@@ -637,7 +661,7 @@ template <typename ArrayType>
     return result;
 }
 
-using CanonicalEvent = std::variant<data::MboEvent, data::Trade, data::OrderExecution>;
+using CanonicalEvent = integrity::Observation;
 
 [[nodiscard]] inline arrow::Result<std::vector<CanonicalEvent>> events_from_arrow(
     const arrow::RecordBatch& batch,
@@ -669,6 +693,103 @@ using CanonicalEvent = std::variant<data::MboEvent, data::Trade, data::OrderExec
         }
         break;
     }
+    default: return arrow::Status::Invalid("unknown canonical data kind");
+    }
+    return result;
+}
+
+inline constexpr std::string_view supported_encoding = "quant-observations-v2";
+
+[[nodiscard]] inline DataKind kind_of(const CanonicalEvent& event) {
+    return event.index() == 0 ? DataKind::Mbo : event.index() == 1 ? DataKind::Trades : DataKind::OrderExecution;
+}
+
+[[nodiscard]] inline arrow::Status validate_bound_schema(const arrow::Schema& schema, const DataKind kind) {
+    ARROW_RETURN_NOT_OK(validate_batch_schema(schema, kind));
+    for (const auto name : {column_names::stream_id, column_names::event_ordinal}) {
+        const auto index = schema.GetFieldIndex(std::string{name});
+        if (index < 0 || schema.field(index)->type()->id() != arrow::Type::UINT64 || schema.field(index)->nullable()) {
+            return arrow::Status::Invalid("missing/invalid nonnullable uint64 binding column: ", name);
+        }
+    }
+    return arrow::Status::OK();
+}
+
+[[nodiscard]] inline arrow::Result<ArrowBatch> to_bound_arrow(
+    const DataKind kind, const std::span<const integrity::BoundObservation> rows,
+    const integrity::StreamBinding& binding, const std::string& acquisition_id) {
+    try { integrity::validate_token(acquisition_id); }
+    catch (const std::exception& error) { return arrow::Status::Invalid(error.what()); }
+    data::MboBuffer mbo{{binding.stream.instrument_id, binding.stream.venue_id, binding.stream.source_id}};
+    std::vector<data::Trade> trades;
+    std::vector<data::OrderExecution> executions;
+    arrow::UInt64Builder stream_ids;
+    arrow::UInt64Builder ordinals;
+    std::optional<std::uint64_t> previous;
+    for (const auto& row : rows) {
+        const auto& original = integrity::header(row.event);
+        if (row.stream_id != binding.id ||
+            StreamIdentity{original.instrument_id, original.venue_id, original.source_id} != binding.stream ||
+            kind_of(row.event) != kind || (previous && row.ordinal <= *previous)) {
+            return arrow::Status::Invalid("wrong stream/kind/ordinal association before conversion");
+        }
+        if (!std::visit([](const auto& event) { return data::is_valid(data::validate(event)); }, row.event)) {
+            return arrow::Status::Invalid("invalid canonical observation before conversion");
+        }
+        try {
+            if (kind == DataKind::Mbo) { mbo.append(std::get<data::MboEvent>(row.event)); }
+            else if (kind == DataKind::Trades) { trades.push_back(std::get<data::Trade>(row.event)); }
+            else if (kind == DataKind::OrderExecution) { executions.push_back(std::get<data::OrderExecution>(row.event)); }
+            else { return arrow::Status::Invalid("unsupported data kind"); }
+        } catch (const std::exception& error) { return arrow::Status::Invalid(error.what()); }
+        ARROW_RETURN_NOT_OK(stream_ids.Append(binding.id.value()));
+        ARROW_RETURN_NOT_OK(ordinals.Append(row.ordinal));
+        previous = row.ordinal;
+    }
+    ArrowBatch batch;
+    if (kind == DataKind::Mbo) { ARROW_ASSIGN_OR_RAISE(batch, to_arrow(mbo)); }
+    else if (kind == DataKind::Trades) { ARROW_ASSIGN_OR_RAISE(batch, to_arrow(std::span<const data::Trade>{trades})); }
+    else if (kind == DataKind::OrderExecution) { ARROW_ASSIGN_OR_RAISE(batch, to_arrow(std::span<const data::OrderExecution>{executions})); }
+    else { return arrow::Status::Invalid("unsupported data kind"); }
+    std::shared_ptr<arrow::Array> ids;
+    std::shared_ptr<arrow::Array> positions;
+    ARROW_RETURN_NOT_OK(stream_ids.Finish(&ids));
+    ARROW_RETURN_NOT_OK(ordinals.Finish(&positions));
+    ARROW_ASSIGN_OR_RAISE(batch, batch->AddColumn(batch->num_columns(), arrow::field("stream_id", arrow::uint64(), false), ids));
+    ARROW_ASSIGN_OR_RAISE(batch, batch->AddColumn(batch->num_columns(), arrow::field("event_ordinal", arrow::uint64(), false), positions));
+    return batch->ReplaceSchemaMetadata(arrow::KeyValueMetadata::Make(
+        {"quant.encoding", "quant.acquisition_id", "quant.stream_id", "quant.instrument_id", "quant.venue_id", "quant.source_id"},
+        {std::string{supported_encoding}, acquisition_id, std::to_string(binding.id.value()),
+         std::to_string(binding.stream.instrument_id.value()), std::to_string(binding.stream.venue_id.value()),
+         std::to_string(binding.stream.source_id.value())}));
+}
+
+[[nodiscard]] inline arrow::Result<std::vector<integrity::BoundObservation>> bound_from_arrow(
+    const arrow::RecordBatch& batch, const DataKind kind, const integrity::StreamBinding& binding) {
+    ARROW_RETURN_NOT_OK(batch.ValidateFull());
+    ARROW_RETURN_NOT_OK(validate_bound_schema(*batch.schema(), kind));
+    const auto metadata = batch.schema()->metadata();
+    if (!metadata) { return arrow::Status::Invalid("binding metadata is absent"); }
+    for (const auto& [key, expected] : std::vector<std::pair<std::string, std::string>>{
+        {"quant.encoding", std::string{supported_encoding}}, {"quant.stream_id", std::to_string(binding.id.value())},
+        {"quant.instrument_id", std::to_string(binding.stream.instrument_id.value())},
+        {"quant.venue_id", std::to_string(binding.stream.venue_id.value())}, {"quant.source_id", std::to_string(binding.stream.source_id.value())}}) {
+        if (!metadata->Contains(key)) { return arrow::Status::Invalid("missing binding metadata: ", key); }
+        ARROW_ASSIGN_OR_RAISE(const auto actual, metadata->Get(key));
+        if (actual != expected) { return arrow::Status::Invalid("binding metadata disagrees with original stream: ", key); }
+    }
+    ARROW_ASSIGN_OR_RAISE(const auto ids, detail::column<arrow::UInt64Array>(batch, column_names::stream_id, arrow::Type::UINT64));
+    ARROW_ASSIGN_OR_RAISE(const auto ordinals, detail::column<arrow::UInt64Array>(batch, column_names::event_ordinal, arrow::Type::UINT64));
+    ARROW_ASSIGN_OR_RAISE(const auto events, events_from_arrow(batch, kind, binding.stream));
+    std::vector<integrity::BoundObservation> result;
+    std::optional<std::uint64_t> previous;
+    for (int64_t index = 0; index < batch.num_rows(); ++index) {
+        if (ids->IsNull(index) || ordinals->IsNull(index) || ids->Value(index) != binding.id.value() ||
+            (previous && ordinals->Value(index) <= *previous)) {
+            return arrow::Status::Invalid("wrong/reordered/duplicate persisted StreamId/ordinal");
+        }
+        result.push_back({binding.id, ordinals->Value(index), events[static_cast<std::size_t>(index)]});
+        previous = ordinals->Value(index);
     }
     return result;
 }

@@ -248,6 +248,7 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 
 - **Implemented/verified, domain slice:** Nonzero uint64 StreamId, immutable tuple catalog/reference snapshot checks, raw acquisition/ordinal/failure types, canonical preparation, source-order/group/snapshot checks and a separate eligibility gate. `data_integrity_tests` passes strict C++20 and ASan/UBSan; the eight existing standalone tests still pass. Full persisted publication/retention and provider acquisition integration remain in progress.
 - **Implemented/verified, provider slice:** Required acquisition-sink port, explicit per-request acquisition IDs through the synchronous planner, full SDK-normalized record capture before filtering/translation, retained operation outcomes, exact native mappings and provider metadata. SDK-byte decoder agreement and inclusive/day-local condition regressions pass in the isolated Databento CTest. Retention-port strict/sanitizer tests and existing standalone tests pass; durable sink/publication is the next slice.
+- **Implemented/verified, interchange slice:** `quant-observations-v2` binding columns and conversion-time original-scope/ordinal checks, persisted binding metadata checks, financial validation and noncanonical MBO-control rejection. Arrow-only strict/sanitizer regressions and evidence/reference serialization/SHA-256 known-answer tests pass. Complete-package publication/readers are under separate integration verification.
 
 ## Last updated
 

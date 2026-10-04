@@ -45,6 +45,13 @@ target_include_directories(quant_storage_replay_boundary_tests PRIVATE "${CMAKE_
 target_link_libraries(quant_storage_replay_boundary_tests PRIVATE "${QUANT_ARROW_TARGET}")
 add_test(NAME quant_storage_replay_boundary_tests COMMAND quant_storage_replay_boundary_tests)
 
+add_executable(quant_arrow_integrity_tests arrow_integrity_tests.cpp)
+target_compile_features(quant_arrow_integrity_tests PRIVATE cxx_std_20)
+target_compile_options(quant_arrow_integrity_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_include_directories(quant_arrow_integrity_tests PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../src")
+target_link_libraries(quant_arrow_integrity_tests PRIVATE "${QUANT_ARROW_TARGET}")
+add_test(NAME quant_arrow_integrity_tests COMMAND quant_arrow_integrity_tests)
+
 # Run explicitly with an output root; retain the artifact for manual inspection.
 add_executable(quant_storage_manual_round_trip manual_round_trip.cpp)
 target_compile_features(quant_storage_manual_round_trip PRIVATE cxx_std_20)

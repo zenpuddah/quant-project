@@ -9,6 +9,7 @@ namespace quant::storage {
 
 using BatchConsumer = std::function<arrow::Status(const ArrowBatch&)>;
 using EventConsumer = std::function<arrow::Status(const CanonicalEvent&)>;
+using SequencedEventConsumer = std::function<arrow::Status(const integrity::BoundObservation&)>;
 
 class MarketDataReader {
 public:
@@ -25,6 +26,16 @@ public:
     virtual arrow::Status stream_events(
         const DataFragment& fragment,
         const EventConsumer& consumer) const = 0;
+
+    virtual arrow::Status read_batches_checked(
+        const DataFragment&, BatchProjection, integrity::ConsumerRequirements, const BatchConsumer&) const {
+        return arrow::Status::NotImplemented("checked consumer access is unsupported by this reader");
+    }
+
+    virtual arrow::Status stream_ordered_events(
+        std::span<const DataFragment>, integrity::ConsumerRequirements, const SequencedEventConsumer&) const {
+        return arrow::Status::NotImplemented("acquisition-scoped merged replay is unsupported by this reader");
+    }
 };
 
 class StorageBackend : public MarketDataReader {

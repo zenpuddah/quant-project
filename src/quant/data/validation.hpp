@@ -26,6 +26,10 @@ inline void add_issue(ValidationIssues& issues, std::string code, std::string me
 [[nodiscard]] inline ValidationIssues validate(const MboEvent& event) {
     ValidationIssues issues;
 
+    if (event.side && *event.side != Side::Buy && *event.side != Side::Sell) {
+        add_issue(issues, "unknown_side", "MBO side is outside the canonical vocabulary");
+    }
+
     if (event.action == MboAction::Clear) {
         if (event.order_id || event.side || event.price || event.quantity) {
             add_issue(issues, "clear_has_order_fields", "Clear events must not carry order fields");
@@ -92,6 +96,9 @@ inline void add_issue(ValidationIssues& issues, std::string code, std::string me
     ValidationIssues issues;
     if (trade.quantity.is_zero()) {
         add_issue(issues, "zero_trade_quantity", "Trade quantity must be positive");
+    }
+    if (trade.aggressor_side && *trade.aggressor_side != Side::Buy && *trade.aggressor_side != Side::Sell) {
+        add_issue(issues, "unknown_side", "Trade side is outside the canonical vocabulary");
     }
     return issues;
 }
