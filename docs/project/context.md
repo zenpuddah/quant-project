@@ -239,7 +239,7 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 
 ## Next action
 
-1. Review the local implementation branch `implementation/data-integrity-2026-10-03` against the accepted recap, specification, plan and `docs/project/data-integrity-verification-2026-10-03.md`. Owner acceptance precedes implementation publishing/merging.
+1. Review `implementation/data-integrity-2026-10-03` against the accepted recap, specification, plan and `docs/project/data-integrity-verification-2026-10-03.md`. The owner has authorized pushing this implementation branch to GitHub; merging into main remains a separate owner instruction.
 2. Independently run/review the updated testing guide and negative/failure regressions. Native Arrow/Parquet CMake package verification remains pending; library/shim results are separately documented.
 3. Dataset-condition inclusive-date and day-local scoping regressions pass; retain this contract when future provider/range support changes.
 4. Keep the first research/backtesting consumer design separate. Stop for engineering-manager review before XML, generalized persistent cache, live ingestion, production multi-batch work, or a future binary replay optimization.
@@ -253,6 +253,8 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 - **Verification:** Ten standalone tests, deterministic Databento CTest and four storage CTest targets pass, including ASan/UBSan runs. The retained/synthetic provider demonstration and independent Python package/hash/row inspection pass. Native Arrow CONFIG discovery still fails due to absent packages; PyArrow 21 library/shim checks are reported separately. No paid requests or implementation push/merge.
 
 ## Last updated
+
+- **Owner publication instruction:** 2026-10-04 push the completed implementation branch to GitHub for review. Runtime verification remains recorded above; this instruction authorizes branch publication, not a main-branch merge.
 
 - **Implemented/verified:** 2026-10-03 bounded integrity closure and deterministic retained/synthetic provider demonstration complete locally. Exact commands/results/limitations are in `docs/project/data-integrity-verification-2026-10-03.md`; original storage/replay foundation remains intact. Implementation publishing/merging still requires owner instruction.
 
