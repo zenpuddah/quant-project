@@ -10,3 +10,7 @@ secrets/
 
 # Downloaded provider-supplied raw data
 /data/raw/
+
+# Local macOS metadata and CLion project state
+.DS_Store
+/.idea/

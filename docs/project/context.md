@@ -47,7 +47,7 @@ See `docs/architecture/phase1-data-model.md` and `docs/project/engineering-book.
 - **Verified:** Data-model and ingestion tests were reported passing with C++20 warnings-as-errors plus ASan/UBSan in the latest maintenance pass.
 - **Implemented:** Official Databento `XNAS.ITCH` historical adapter/interpreter is isolated behind `ProviderPort`; deterministic translation tests and an opt-in standalone CMake smoke target are present.
 - **Implemented:** Canonical observations preserve provider-side `source_receive_time`; mapping resolution is event-time-only; result metadata carries `AcquisitionMode`.
-- **Deferred:** XML parser, generalized persistent cache, Python binding, live ingestion, and backtesting implementation remain deferred. Bounded stage/evidence persistence and lineage are now accepted but not implemented under the 2026-10-03 integrity supplement below; they do not authorize a general cache or orchestration framework.
+- **Deferred:** XML parser, generalized persistent cache, Python binding, live ingestion, and backtesting implementation remain deferred. Bounded stage/evidence persistence and lineage are implemented under the 2026-10-03 integrity supplement below; they do not authorize a general cache or orchestration framework.
 - **Accepted:** A small Alpaca raw sample exists only as prior research data and does not define the canonical provider architecture.
 
 ## Historical ingestion architecture
@@ -226,7 +226,7 @@ See `docs/project/design-decision-review-2026-10-01.md` for implementation/test 
 
 ## Ingestion/storage integrity closure — accepted 2026-10-03
 
-See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the authoritative accepted contracts. The bounded normalized-XNAS/local-POSIX implementation and regressions are now complete on the local implementation branch; native Arrow package verification and the limitations in the verification report remain explicit.
+See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the authoritative accepted contracts. The bounded normalized-XNAS/local-POSIX implementation and regressions are complete and published on `implementation/data-integrity-2026-10-03`; native Arrow package verification and the limitations in the verification report remain explicit.
 
 - **Identity:** Persist row StreamId, resolve it to the instrument/venue/source tuple, check original identity during conversion, and keep one stream per canonical file. StreamId never changes meaning. Retain the exact reference definitions/mapping snapshot needed by each published version.
 - **Validation and staging:** Apply canonical row and query/range checks after legitimate provider overfetch filtering. Retain original evidence and row-level failures; unresolved affected segments cannot enter research/replay. Recovery is explicit and revalidated; retaining good segments does not imply complete requested coverage.
@@ -239,7 +239,7 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 
 ## Next action
 
-1. Review `implementation/data-integrity-2026-10-03` against the accepted recap, specification, plan and `docs/project/data-integrity-verification-2026-10-03.md`. The owner has authorized pushing this implementation branch to GitHub; merging into main remains a separate owner instruction.
+1. Review `implementation/data-integrity-2026-10-03` against the accepted recap, specification, plan and `docs/project/data-integrity-verification-2026-10-03.md`. This implementation branch is published on GitHub for review; merging into main remains a separate owner instruction.
 2. Independently run/review the updated testing guide and negative/failure regressions. Native Arrow/Parquet CMake package verification remains pending; library/shim results are separately documented.
 3. Dataset-condition inclusive-date and day-local scoping regressions pass; retain this contract when future provider/range support changes.
 4. Keep the first research/backtesting consumer design separate. Stop for engineering-manager review before XML, generalized persistent cache, live ingestion, production multi-batch work, or a future binary replay optimization.
@@ -250,9 +250,11 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 - **Implemented/verified, provider slice:** Required acquisition-sink port, explicit per-request acquisition IDs through the synchronous planner, full SDK-normalized record capture before filtering/translation, retained operation outcomes, exact native mappings and provider metadata. SDK-byte decoder agreement and inclusive/day-local condition regressions pass in isolated deterministic Databento CTest; strict/sanitizer retention tests pass.
 - **Implemented/verified, interchange slice:** `quant-observations-v2` binding columns and conversion-time original-scope/ordinal checks, persisted binding metadata checks, financial validation and noncanonical MBO-control rejection. Arrow-only strict/sanitizer regressions and evidence/reference serialization/SHA-256 known-answer tests pass.
 - **Implemented/verified, publication slice:** Durable pre-conversion capture, recoverable unfinished journal prefix, staged failure reports/good canonical candidates, immutable complete package publication, explicit attempt/retry identity, stable references, current selection, fail-before-delivery readers and cross-kind acquisition replay. Full archive retains original byte witnesses; Replay excludes them. Faulted publication and self-consistent-but-misassociated witness tests pass.
-- **Verification:** Ten standalone tests, deterministic Databento CTest and four storage CTest targets pass, including ASan/UBSan runs. The retained/synthetic provider demonstration and independent Python package/hash/row inspection pass. Native Arrow CONFIG discovery still fails due to absent packages; PyArrow 21 library/shim checks are reported separately. No paid requests or implementation push/merge.
+- **Verification:** Ten standalone tests, deterministic Databento CTest and four storage CTest targets pass, including ASan/UBSan runs. The retained/synthetic provider demonstration and independent Python package/hash/row inspection pass. Native Arrow CONFIG discovery still fails due to absent packages; PyArrow 21 library/shim checks are reported separately. No paid requests during implementation verification. The implementation branch is published to GitHub and remains unmerged.
 
 ## Last updated
+
+- **Repository synchronization:** 2026-10-14 fetched origin and confirmed that both local branches (`main` and `implementation/data-integrity-2026-10-03`) already matched their remote counterparts. No outstanding local commits, tags, or stashes were found. Added ignore rules for local `.DS_Store` files and `.idea/` state, preserving those files, and corrected current publication status above. This housekeeping session changes only ignore rules and documentation; runtime verification remains the previously recorded evidence.
 
 - **Owner publication instruction:** 2026-10-04 push the completed implementation branch to GitHub for review. Runtime verification remains recorded above; this instruction authorizes branch publication, not a main-branch merge.
 
