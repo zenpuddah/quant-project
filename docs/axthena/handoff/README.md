@@ -6,6 +6,8 @@ Compiled 15 October 2026, after Badr's positive graph review. Latest accepted co
 
 **The discovery history is now consolidated into a reviewable implementation handoff.** This packet preserves the accepted model, later changes, proposed technical design, behaviours, tests and ordered implementation tasks. Production code has not started. Badr retains the final architecture decisions.
 
+**Active execution plan (ENG-049):** [`../implementation/v1-slices.md`](../implementation/v1-slices.md), with an owner checkpoint after each of seven slices. The older 13-task plan below is supporting detail.
+
 ## Start here
 
 1. [Review decisions and V2 boundaries](06-review-decisions-and-v2.md) — the six grouped choices/gates needed to turn the draft into an approved execution plan. No renewed general discovery checklist.

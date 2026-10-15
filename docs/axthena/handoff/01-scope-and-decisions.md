@@ -140,6 +140,9 @@ Game roles; domain-conditioned person vectors; empirical person scoring and ML/p
 
 ## 4. Latest recorded changes
 
+**ENG-049 — One prompt and owner-reviewed slices:** the owner requests one comprehensive implementation prompt and a plan of working slices, each meaningfully tested and explicitly confirmed by him before the next proceeds. Current execution lives in `../implementation/`; the full six-field record is in `../repository-handoff.md`. This selects the execution/review method, not unselected backend/dependency/default proposals.
+
+
 **ENG-047 — Automated model communication:** use OpenCode-style provider/authentication/request handling. Reject manual per-article request/answer exchange; retain all artifacts automatically. Exact transport implementation is verified against a pinned runtime.
 
 **ENG-048 — Source trial first:** the first OpenCode task is a bounded 20-article news-source trial. Keep larger collection and the twelve-month target as later work; do not expand the sample automatically. These decisions are recorded in full at `../repository-handoff.md`.

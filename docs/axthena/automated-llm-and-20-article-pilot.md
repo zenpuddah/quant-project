@@ -2,6 +2,8 @@
 
 Owner correction, 15 October 2026. Read this before the older handoff. Full six-field decisions are ENG-047/048 in [repository-handoff.md](repository-handoff.md).
 
+**Latest execution refinement (ENG-049):** use `implementation/v1-slices.md`. Source acquisition/inventory is slice 1 and model automation is slice 2; each is tested and confirmed by Badr before the next starts. The operating principles below remain applicable; they do not authorize skipping these checkpoints.
+
 ## Accepted direction
 
 The LLM exchange is automated, using the provider/authentication/request pattern of OpenCode. There is no per-article copying between files and the ChatGPT UI. Versioned request, answer and event files remain valuable; the application writes them automatically for evidence and replay.

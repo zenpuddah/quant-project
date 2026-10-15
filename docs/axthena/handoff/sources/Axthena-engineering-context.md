@@ -1,5 +1,7 @@
 # Axthena — engineering decisions context
 
+**Latest workflow — ENG-049:** one comprehensive launch prompt and seven working slices; test and obtain Badr's explicit confirmation after each. Current plan/inspection/progress live under `../../implementation/`. Earlier work-package order is supporting history; current architecture proposals retain their selection status.
+
 **Latest owner correction — ENG-047/048 (2026-10-15):** use automated LLM communication patterned after OpenCode; manual per-article request/answer exchange is rejected. The first OpenCode source task is a small 20-article trial. Larger acquisition is later work. Read `../../automated-llm-and-20-article-pilot.md` and the full six-field records in `../../repository-handoff.md`; older proposals are historical.
 
 Updated: 2026-10-15

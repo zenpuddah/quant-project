@@ -8,10 +8,12 @@ The owner asked to put the consolidated Axthena context on a separate branch so 
 
 **Latest owner decisions:** no manual per-article LLM exchange; use automated OpenCode-style communication. First OpenCode task: a small trial of **20 news articles**. Read [the current supplement](automated-llm-and-20-article-pilot.md) before the older handoff. Larger collection follows review of that result.
 
+**Active implementation method — ENG-049:** one launch prompt, seven vertical slices, tests and explicit owner confirmation after every slice. Read [the active slice plan](implementation/v1-slices.md), [inspection guide](implementation/acceptance-guide.md) and [progress](implementation/progress.md). Begin with the 20-article source inventory and pause for its review before automated extraction.
+
 ## Read in this order
 
 1. Root `AGENTS.md` and `docs/project/context.md` for repository rules and routing.
-2. This file and [repository-handoff.md](repository-handoff.md) for the latest branch-specific instruction.
+2. This file, [repository-handoff.md](repository-handoff.md) and the active `implementation/` plan/guide/progress for current execution.
 3. [Scope and decisions](handoff/01-scope-and-decisions.md).
 4. [Data and behaviour specification](handoff/02-data-and-behaviour-specification.md).
 5. [Architecture proposal](handoff/03-architecture-proposal.md), [acceptance tests](handoff/04-acceptance-and-test-plan.md), and [implementation plan](handoff/05-implementation-plan.md).
@@ -29,9 +31,9 @@ Existing C++20, Arrow/Parquet and Databento decisions belong to Qaedalus. For Ax
 
 ## What the second agent can do now
 
-Begin S0: run the requested 20-article source trial and verify automated model communication using available access. Then continue T0 and the applicable staged design choices. Do not ask again whether to read the documents or begin that preparation. Do not reopen accepted C++/local/batch/evidence/UP-DOWN/union requirements.
+Begin slice 1 of the active plan: run the requested 20-article source trial, test and present the source inventory. Pause for Badr's confirmation. Slice 2 demonstrates automated model communication. The older S0/T0–T12 work packages are a reference, superseded by the current seven-slice execution order. Do not ask again whether to read the documents or begin that preparation. Do not reopen accepted C++/local/batch/evidence/UP-DOWN/union requirements.
 
-When a material unselected choice blocks the next task, present the recommended bundle and concrete trade-off to Badr. Record his answer in the six-field format. Branch publication is not silent approval of SQLite, Ladybug, C++20, a paid API, an embedding model, a forecast fallback or a performance number. Execute the reviewed plan when applicable contracts are approved. Continue independent authorized work rather than stopping everything for a later-stage choice.
+When a material unselected choice blocks the next task, present the recommended bundle and concrete trade-off to Badr. Record his answer in the six-field format. Branch publication is not silent approval of SQLite, Ladybug, C++20, a paid API, an embedding model, a forecast fallback or a performance number. Execute only the active slice when applicable contracts are approved. Continue independent authorized work within that slice rather than stopping it for a later-stage choice. Do not start the next implementation slice until the owner confirms the current result.
 
 No simulator, actor-role classifier, ML training, dedicated reason graph, live collection during reads or quant-strategy integration belongs to this V1. Keep automated model communication separate from API-first source acquisition and numeric embedding retrieval.
 

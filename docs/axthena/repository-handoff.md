@@ -26,7 +26,7 @@ Date: 2026-10-15. Branch-routing supplement to the compiled handoff. It changes 
 
 ## Next step
 
-The second agent starts at [START_HERE.md](START_HERE.md) and the accepted S0 20-article source trial, then T0, then executes the approved contract in bounded slices. D1–D6 are staged decision groups, not a demand to resolve every performance number before useful work. Preserve accepted behaviours; escalate material unresolved choices instead of converting advice into policy.
+The second agent starts at [START_HERE.md](START_HERE.md) and slice 1 of `implementation/v1-slices.md`: the accepted 20-article source trial. It tests and presents each slice, then waits for explicit owner confirmation before the next. The older S0/T0–T12 order is supporting reference. D1–D6 are staged decision groups, not a demand to resolve every performance number before useful work. Preserve accepted behaviours; escalate material unresolved choices instead of converting advice into policy.
 
 Source provider/date bounds, confirmation/time/hold details, backend/libraries, embeddings, grouping boundary, target-machine limits and applicable specification approval retain their handoff status. There is no new approval to spend money or access credentials.
 
@@ -58,3 +58,18 @@ Source provider/date bounds, confirmation/time/hold details, backend/libraries, 
 **Implementation scope:** S0 in the updated plan: short source window, relevant Nvidia/Microsoft articles, retained evidence, automated model smoke request then bounded processing, and inspectable outputs for review. Provider remains conditional on actual usable access; no new purchase is authorized.
 
 **Required tests:** Retained unique article count never exceeds 20; actual count/gaps are reported; both target coverage and source/body fidelity are visible; automation retains exact inputs/outputs; failures remain distinguishable; no full-year acquisition is triggered. Review the bounded results before expansion.
+
+
+## ENG-049 — One launch prompt and tested, owner-confirmed vertical slices
+
+**Decision:** Prepare a comprehensive first-V1 agent prompt and implementation plan built from useful slices. Each slice receives clear testing and is confirmed by Badr before the agent begins the next one. Explanations should fit his concrete-example, explicit-state, invariant and transition approach.
+
+**Reason:** Carry the accumulated direction into implementation efficiently while keeping progress inspectable, learning useful and mistakes confined to a reviewable capability.
+
+**Invariant:** One prompt does not mean unattended execution through all checkpoints. Automated model/identity behaviours remain automatic; the human gate is on the slice result. Passing tests, an assistant review, silence or elapsed time is not owner confirmation. Preserve accepted AX/ENG scope and distinguish proposed technologies/defaults from owner choices.
+
+**Trade-offs:** Checkpoints add deliberate pauses while reducing accumulated semantic/design mistakes. The full implementation direction travels in one prompt, with progress/review artifacts allowing reliable continuation between turns.
+
+**Implementation scope:** Active plan `implementation/v1-slices.md`, owner guide, progress ledger and updated launch/routing. Source trial remains capped at 20; no full-year expansion is silently included. This session prepares documentation, not production code. Earlier S0/T0–T12 work packages remain supporting detail rather than a second execution plan.
+
+**Required tests:** Every slice specifies useful input/output, named failure contrasts, exact future verification commands where applicable, an owner demo and explicit stop/approval evidence. Deferred mechanisms and year-scale coverage remain visible. Status cannot become APPROVED without actual owner confirmation; no per-record human identity gate is introduced.

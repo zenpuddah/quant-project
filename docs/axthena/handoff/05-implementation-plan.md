@@ -1,5 +1,7 @@
 # Axthena V1 implementation plan
 
+**Execution-order update — ENG-049:** this document now serves as the detailed work-package reference. The active first-V1 sequence is [`../implementation/v1-slices.md`](../implementation/v1-slices.md), with its inspection guide and progress ledger. Complete, test and obtain owner confirmation for one slice before starting the next. Do not run both plans as separate projects.
+
 > **Status:** proposed execution plan for owner review, 15 October 2026. No production implementation has started. The owner-requested S0 20-article trial is already authorized; begin that bounded probe without another plan-approval question. Resolve the applicable decisions in `06-review-decisions-and-v2.md` and review the production specification/plan before later application implementation. Do not treat proposed technologies or defaults as previously accepted decisions.
 
 **Immediate goal (ENG-048):** the first OpenCode task is a source trial of 20 articles. **Later V1 goal:** deliver a local C++ application for the bounded stock-information corpus, preserves evidence, prepares traceable records and supports useful stock/date queries and graph inspection for Nvidia and Microsoft.
@@ -10,7 +12,7 @@
 
 **Specification:** `02-data-and-behaviour-specification.md`; accepted requirements and supersessions in `01-scope-and-decisions.md`; cases AT-01–AT-36 in `04-acceptance-and-test-plan.md`.
 
-**Global constraints:** owner decides architecture; independent Axthena repository; local sequential workflow; retain exact evidence and failed attempts; no network/model side effects during reads; no automatic fact-conflict resolution; completed uncertain organisation resolution creates automatically; no quant integration, training, role classifier, simulator, active edit monitor or dedicated reason system.
+**Global constraints:** owner decides architecture; independent Axthena project on its selected shared-repository branch; local sequential workflow; retain exact evidence and failed attempts; no network/model side effects during reads; no automatic fact-conflict resolution; completed uncertain organisation resolution creates automatically; no quant integration, training, role classifier, simulator, active edit monitor or dedicated reason system.
 
 **Review focus:** source/version time, confirmation scope, material conditions, actual retrieval versus fixtures, immutable history, idempotent partial retries, missing world records and automated-provider compatibility/throughput. A graph-shaped export is not evidence that the production system has these behaviours.
 
@@ -30,7 +32,7 @@ Each task should finish as one or a few reviewable commits. Keep documentation/t
 
 ## 2. Proposed repository layout and interfaces
 
-All paths below are **future repository-relative paths**, not files created by this handoff. The final repository location and target machine are not selected.
+Paths below are **future paths relative to an isolated Axthena component root**, not the quant repository root. The shared repository/branch is selected; the current slice plan proposes `projects/axthena/`. Target-machine/backend contracts still require their applicable selection.
 
 | Area | Exact proposed paths |
 |---|---|

@@ -1097,3 +1097,8 @@ Documentation link/identifier/hash checks, original archive equality, scoped Git
 ## Axthena owner correction — automated communication and source trial
 
 The owner rejected the manual request/answer proposal and selected automated communication patterned after OpenCode. The first assigned OpenCode task is a small trial of 20 news articles. ENG-047/048 in `docs/axthena/repository-handoff.md` record the full reasons, invariants, scope and tests. Active specifications/plan/startup guidance now reflect that sequence. Headless OpenCode CLI/local API documentation supports the proposed integration route; installed-version/account compatibility still requires the trial. No provider credentials, model call, source acquisition or product implementation was executed in this documentation correction.
+
+
+## Axthena execution method — reviewed slices, 2026-10-15
+
+The owner requests a comprehensive launch prompt and an implementation plan whose working slices are tested and confirmed by him individually. ENG-049 records that workflow in full. `docs/axthena/implementation/v1-slices.md` is now the active order; the old S0/T0–T12 plan supplies detailed background. Source inventory comes first, then automatic model execution, native evidence/read, real identity retrieval, world/confirmation, shared meaning and useful historical/query/recovery outputs. Progress and review packets preserve actual tests, source/run/commit identities and owner confirmation. This change does not accept pending technology defaults, introduce manual per-record approval or claim application tests have run.

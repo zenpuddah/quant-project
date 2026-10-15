@@ -1,5 +1,7 @@
 # Axthena — implementation handoff brief
 
+**Current execution:** follow `../implementation/v1-slices.md` and `../IMPLEMENTATION_PROMPT.md`. ENG-049 requires tests and explicit owner confirmation after every slice; this older brief is supporting context.
+
 S0, the bounded 20-article trial, is already requested by Badr under ENG-048. Begin that probe without asking again whether to start. Later production implementation follows the applicable reviewed specification/plan.
 
 You are implementing Axthena, a separate local C++ stock-information project. Badr owns architecture decisions. Read `README.md`, the current decision map, specification, acceptance plan and execution plan before editing code. Consult the two full context snapshots for six-field decisions. Older research plans in `sources/` are historical references, not current instructions.

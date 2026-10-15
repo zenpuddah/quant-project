@@ -1,12 +1,12 @@
 {
   "package": "Axthena repository handoff edition",
-  "status": "accepted S0 trial; production design choices retain explicit status",
+  "status": "ENG-049 active slice plan outside packet; prior work packages remain supporting context",
   "file_count_excluding_manifest": 48,
   "files": [
     {
       "path": "01-scope-and-decisions.md",
-      "size_bytes": 36749,
-      "sha256": "5053449fb67beef82dbae5cbebf5bc86d49ad14642384d7ce605cd6749553da9"
+      "size_bytes": 37181,
+      "sha256": "20ecf63ddc1180842912fdfc17d09dfa4c8dc4bc0b66b2c2bb606a7d6180ebf2"
     },
     {
       "path": "02-data-and-behaviour-specification.md",
@@ -25,8 +25,8 @@
     },
     {
       "path": "05-implementation-plan.md",
-      "size_bytes": 29211,
-      "sha256": "ac4ba689737593f643bbfa48244a596a1254717b982cce51cac151a54883bb6d"
+      "size_bytes": 29753,
+      "sha256": "d5d5fd82fdd59ff29aff88137b0e0d1e08805dcf1c58c4dffd6a8b31e2c9d965"
     },
     {
       "path": "06-review-decisions-and-v2.md",
@@ -35,8 +35,8 @@
     },
     {
       "path": "07-implementation-agent-brief.md",
-      "size_bytes": 3932,
-      "sha256": "2ddbc62da4c00df59b21e8a7b7d982d631500daacde40b5a79e4d4f37b919463"
+      "size_bytes": 4145,
+      "sha256": "6d4cc0dce645d09830c12a88eb0407ceac766ffe00ab0469ecfce1acb61ed33a"
     },
     {
       "path": "08-research-and-artifact-index.md",
@@ -50,8 +50,8 @@
     },
     {
       "path": "README.md",
-      "size_bytes": 6496,
-      "sha256": "518016fb6b61c8373aa4d0a068dd51ab45153304385a30a45b9d5dd20b007f8a"
+      "size_bytes": 6706,
+      "sha256": "7902438e848d014ae05ef07daba83a255d301517d93624808ced88f209e7235e"
     },
     {
       "path": "manifest-original.json",
@@ -60,8 +60,8 @@
     },
     {
       "path": "repository-adaptations.json",
-      "size_bytes": 8472,
-      "sha256": "0ec056990f9a83af4ba3a240e736566757553161af8fdfd5cb4c6c9c943043d3"
+      "size_bytes": 7218,
+      "sha256": "10c6108d90f3c03e86ef68b0cb12120b22bab08c22996513201a6335fa8ded53"
     },
     {
       "path": "review/company-view.cypher",
@@ -105,8 +105,8 @@
     },
     {
       "path": "sources/Axthena-context.md",
-      "size_bytes": 134094,
-      "sha256": "66f98f431bd16a377c2c8cc88a0d45928080d6a7c599baab24456136eeb7e77a"
+      "size_bytes": 134424,
+      "sha256": "d743679efbe11c30061b5858ad60c4ec9ce4cc49adf74c16f84203c0ba79840e"
     },
     {
       "path": "sources/Axthena-creation-time-opinion-grouping-research-2026-10-14.md",
@@ -125,8 +125,8 @@
     },
     {
       "path": "sources/Axthena-engineering-context.md",
-      "size_bytes": 144935,
-      "sha256": "de2f41f9a080f54728e8a117721617d5c9e228bad188ad853f926822878ab0cc"
+      "size_bytes": 145265,
+      "sha256": "23a39a2d45d556c02d8483e9a3d2e8ebb16500fff039a96247c523526ecc36c8"
     },
     {
       "path": "sources/Axthena-extraction-reference-index-2026-10-14.json",
