@@ -109,6 +109,8 @@ void schema_and_context() {
             "operation identity omitted the accepted factory selector");
     require(schema_fields("StepReceipt").find("status") == 0, "host receipt schema missing");
     require(schema_fields("Unknown").empty(), "unknown schema must not be fabricated");
+    require(schema_descriptor("DisabledCacheV1") != nullptr && schema_descriptor("Unknown") == nullptr,
+            "empty supported record confused with an unknown schema");
 }
 void typed_factory_ownership() {
     struct Parameters { std::int64_t amount; };

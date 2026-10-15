@@ -56,10 +56,26 @@ inline constexpr auto schema_descriptors = std::to_array<SchemaDescriptor>({
     {"Diagnostic", "code,message,length,truncated,logical_ordinal,request_ordinal,key"},
     {"DiagnosticKey", "clock_ordinal,sequence"},
     {"IntegrationCompletion", "kind,cause,host_contract_id,host_contract_version,host_experiment_identity"},
-    {"StepReceipt", "status,key,extent,available_at_ns,gap,completed_scope,sources,observations,reach,cause"}
+    {"StepReceipt", "status,key,extent,available_at_ns,gap,completed_scope,sources,observations,reach,cause"},
+    {"ParseLimitsV1", "xml_bytes,xml_depth,xml_elements,string_bytes"},
+    {"CompositionLimitsV1", "xml_bytes,xml_depth,xml_elements,string_bytes,nodes,edges,requests,source_updates,managed_buffer_bytes,trace_events,trace_message_bytes"},
+    {"RetentionLogConfigurationV1", "path,format,open,flush,failure,overflow,max_bytes,max_events"},
+    {"RunConfigurationV1", "id,clock,driver,execution,sharing,failure,trace,retention_warning_steps,retention_log"},
+    {"PluginDeclarationV1", "path,build_contract_id"},
+    {"DisabledCacheV1", ""},
+    {"LocalCacheConfigurationV1", "mode,backend,directory,matching,trust,integrity,writer,corruption,capacity,cleanup,max_entries,max_store_bytes,max_entry_bytes,max_decoded_bytes"},
+    {"SourceDeclarationV1", "id,ordinal,operation,source_version,scope,completeness,empty,missing,availability,missing_intervals,parameters,location"},
+    {"NodeDeclarationV1", "id,ordinal,operation,alignment,initialization,parameters,inputs,location"},
+    {"CompositionDeclarationV1", "run,limits,plugins,cache,sources,nodes,observations"},
+    {"ResolvedParametersV1", "definition,parameters"},
+    {"CompositionV1", "declaration,sources,nodes"}
 });
+[[nodiscard]] constexpr const SchemaDescriptor* schema_descriptor(std::string_view name) noexcept {
+    for (const auto& record : schema_descriptors) { if (record.name == name) { return &record; } }
+    return nullptr;
+}
 [[nodiscard]] constexpr std::string_view schema_fields(std::string_view name) noexcept {
-    for (const auto& record : schema_descriptors) { if (record.name == name) { return record.fields; } }
-    return {};
+    const auto* descriptor = schema_descriptor(name);
+    return descriptor ? descriptor->fields : std::string_view{};
 }
 } // namespace lexongine

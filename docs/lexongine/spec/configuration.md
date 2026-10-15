@@ -29,6 +29,28 @@ Pure producer configuration excludes consumer masks. Required evidence selection
 
 The generic frontend exposes a bounded raw skeleton/plugin list first. Load the accepted plugins, freeze their registry, then resolve operation/provider parameter schemas. Copy all description strings out of the DOM. Explicit CLI/API overrides go through the same required-field/type/preparation validation and record their origin; an override cannot change a running graph.
 
+Implementation records: ParsedComposition owns CompositionDeclaration (run,
+limits, plugins, cache, sources, nodes and observations), with raw ParamSet literals
+and explicit initialization/alignment directives. Composition adds registered
+definitions and canonical typed parameters while retaining that owned declaration.
+Source preparation supplies validated source facts and lowers directives into
+NodeSpec/InitializationSpec; the frontend does not invent initialization ranges or
+certify a provider's completeness/availability labels. Those provider-specific
+labels are checked by its versioned source service before admission. The runtime
+resource-account/reservation members are capabilities, not serialized pointers.
+The inspectable V1 projection field tables live in `src/lexongine/schema.hpp`.
+
+The parser receives an explicit preparation account through ParseLimits and
+reserves a conservative metadata/workspace ceiling before DOM construction
+(`64 * supplied XML bytes + 65536`, checked arithmetic). Schema resolution obtains
+its own reservation so multiple resolved descriptions cannot escape accounting.
+This is a bounded host charge, not a measured TinyXML allocator/RSS guarantee.
+The authoring grammar itself has at most four element levels and sixteen
+attributes per element. Narrow preflight rejects duplicate attributes, unsupported
+nodes/namespaces/DTD/entities and depth/count/text excess before TinyXML parsing.
+Only XML 1.0/UTF-8 declarations are supported. All copied values and typed numbers
+still undergo the owning schema checks; preflight is not source validation.
+
 ## Scalar encoding
 
 Canonical semantic bytes start with uint64 big-endian domain-byte length followed by UTF-8 domain `lexongine.identity.v1`. A record contains fields in ascending fixed tag order. Each field is uint16 big-endian tag plus uint64 big-endian payload byte length plus payload. Missing, duplicate or unknown tags reject. Unsigned and signed integers use 8-byte big-endian encoding, signed two's-complement bits without arithmetic overflow; narrower model fields are range checked. Bool is one byte0/1. Text is exact bounded UTF-8 bytes with no normalization. Optional is byte0 for absent or byte1 plus encoded value. Lists are uint64 count followed by each item as uint64 byte length plus its encoded value; checked counts/lengths precede allocation. Empty records have zero fields, not omitted required fields.

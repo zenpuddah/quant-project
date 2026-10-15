@@ -57,6 +57,12 @@ cached official Arrow 25 static libraries, separate from native CONFIG/full
 adapter/persisted-source checks, which remain unverified. The graph work does not
 attest supplied source facts or complete the run lifecycle.
 
+**XML checkpoint:** The pinned TinyXML2 11.0.0 frontend and owned registry-schema
+resolution pass 8 focused cases. The six current CTest targets pass normal and
+sanitized configurations. Declaration/encoding and policy-acceptance regressions
+were observed failing before their fixes. This is configuration evidence, not
+source admission or execution; CLI/projection integration remains pending.
+
 ## Deferred work
 
 Concurrency, dynamic run reconfiguration, algebraic equivalence, richer joins/alignments, checkpoint continuation, general outcome-aware branching, stronger plugin isolation, mutable outputs, stronger crash durability, real session/filling policies, numerical/performance upgrades, interactive visualization/breakpoints and ML feedback protocols remain future work. Explicit fixed-count lag and automatic validated cross-run reuse are already v1, not deferred.

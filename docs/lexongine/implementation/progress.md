@@ -13,7 +13,7 @@ Advisor inspected remote implementation/data-integrity-2026-10-03 at f75cd3c179f
 | 1 Owned contracts/registry | InProgress | Owned records/schema/typed factories tested; actual-API prototype passes with cached Arrow static libraries; full source/host declarations/review remain open |
 | 2 Typed binding/immutable ownership | InProgress | Accounted ownership, host destruction and atomic slot primitives tested; complete card not yet verified |
 | 3 Native plugins | Pending | Native macOS round-trip unverified |
-| 4 Strict XML | Pending | TinyXML2 provisioning unverified |
+| 4 Strict XML | InProgress | Pinned TinyXML2 11.0.0 frontend/owned schema resolution pass; CLI overrides/projection and source-admission integration pending |
 | 5 Graph/sharing | InProgress | Product canonical-identity/graph/walk checks pass; prepared-run and observation integration pending |
 | 6 Preparation/source bridge | Pending | Actual Arrow/Parquet prerequisite and adapter tests unverified |
 | 7 Fixture/SMA/lag | InProgress | Canonical numerical helpers and generated bars verified; registered component/scheduler integration pending |
@@ -402,3 +402,57 @@ This closes the bounded actual-API prototype check only. It is not the complete
 Task-6 source adapter or persisted acquisition test. Native Arrow CONFIG discovery
 and the full reader/storage bridge remain Blocked/Unverified. No private reader
 imitation, data acquisition, bar aggregation or storage API change was introduced.
+
+## 2026-10-15 — Strict authoring frontend checkpoint (Task 4)
+
+Starting full HEAD `9338c8d4f6c3cdbc9f9aa5e3d77280e7242c8dde` on
+`implementation/lexongine-v1`. Added owned declaration/resolved configuration
+records, the explicit TinyXML2 adapter, fixed-vocabulary preflight and registry
+schema resolution. The core retains no TinyXML/DOM dependency. Parsing preserves
+initialization directives; source/history preparation must derive their actual
+NodeSpec facts rather than the frontend guessing ranges.
+
+Verification sequence:
+
+- Initial frontend target linked unsuccessfully because parse_xml was not yet
+  implemented; no runtime assertions ran at that checkpoint.
+- After initial implementation, a new declaration test failed **5/6 cases**:
+  XML version 1.1/unsupported encoding could pass TinyXML's generic declaration
+  handling. Added strict XML 1.0/UTF-8 declaration validation, duplicate/order
+  checks and legal character/reference enforcement.
+- A policy test then failed **6/7 cases**: source/observation policy incompatibility
+  was not yet rejected during resolution. Added explicit supported/selected policy
+  checks without choosing an implicit policy for an unbound root.
+- The final frontend target passes **8/8 cases**, normal and sanitized, with full
+  example-field assertions, owned strings after input destruction, schema-typed
+  params/origins, no executable factory invocation, missing/unknown/duplicate data,
+  numeric grammar/range, DTD/entities/namespaces/PI/declarations, explicit limits,
+  named references, driver and cache-disabled behavior.
+
+Exact frontend configuration:
+
+```sh
+cmake -S integration/lexongine -B "$TMP/lexongine-build" -DCMAKE_BUILD_TYPE=Debug -DLEXONGINE_QAEDALUS_BRIDGE=OFF -DLEXONGINE_XML_FRONTEND=ON -DLEXONGINE_TINYXML2_SOURCE_DIR="$TMP/tinyxml2-11.0.0"
+cmake --build "$TMP/lexongine-build"
+ctest --test-dir "$TMP/lexongine-build" --output-on-failure
+cmake -S integration/lexongine -B "$TMP/lexongine-sanitized" -DCMAKE_BUILD_TYPE=Debug -DLEXONGINE_QAEDALUS_BRIDGE=OFF -DLEXONGINE_SANITIZERS=ON -DLEXONGINE_XML_FRONTEND=ON -DLEXONGINE_TINYXML2_SOURCE_DIR="$TMP/tinyxml2-11.0.0"
+cmake --build "$TMP/lexongine-sanitized"
+ctest --test-dir "$TMP/lexongine-sanitized" --output-on-failure
+```
+
+Both complete currently defined suites passed **6/6 CTest targets**. Following
+the final frontend assertions/trace-ceiling adjustment, both focused
+`ctest --test-dir ... -R '^lexongine_frontend_tests$' -V` runs again passed **8/8
+cases**. The sanitizer build instruments project/core/frontend and the supplied
+TinyXML2 source. The external Arrow archives remain separately uninstrumented.
+
+Pinned dependency rejection was also checked with a scratch-only CMake target
+advertising TinyXML2 11.0.1: configuration of `lexongine-unsupported-xml` failed
+at `Explicit TinyXML2 source must be version 11.0.0`, before a product build.
+This is a negative configuration check, not a passing runtime target.
+
+Central projection field tables now include the concrete configuration records;
+unknown schemas remain distinguishable from the supported empty disabled-cache
+record. Provider-specific completeness/availability policy validation, full source
+admission, CLI overrides and complete XML projection round trips remain later
+integration obligations. No run execution or accepted cache publication is claimed.

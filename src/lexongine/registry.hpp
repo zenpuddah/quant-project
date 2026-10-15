@@ -262,6 +262,7 @@ public:
         return diagnostic(FailureCode::UnknownDefinition, "exact operation version/implementation not registered");
     }
     [[nodiscard]] Result<void> freeze() noexcept { frozen_ = true; return ok(); }
+    [[nodiscard]] bool frozen() const noexcept { return frozen_; }
     [[nodiscard]] const auto& definitions() const noexcept { return definitions_; }
 private:
     bool frozen_ = false;

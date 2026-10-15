@@ -1187,3 +1187,25 @@ registry key definition, product tests and the existing storage reader header.
 All 5 current strict/sanitized CTest targets pass; a direct actual-reader prototype
 also passes with cached official Arrow static libraries. Full source, native
 package, plugin and executor verification are still separate pending work.
+
+### Strict XML authoring boundary
+
+Implemented two explicit stages: owned authoring declarations/plugin paths/raw
+literals, followed by frozen-registry parameter-schema resolution. Source/history
+preparation remains responsible for actual initialization ranges and source-policy
+validity. This avoids borrowing a DOM or inventing source facts while parsing.
+
+Checked the pinned TinyXML2 11.0.0 source, including its attribute duplicate path.
+A narrow preflight enforces the accepted vocabulary, counts/depth/text, namespaces,
+DTD/entity/PI restrictions and duplicate attributes before DOM construction. Tests
+exposed that generic XML declaration parsing did not enforce our version/encoding
+contract; explicit validation now rejects that case. Another failing test closed
+static source/observation missing-policy mismatch. Typed schema resolution calls
+no executable factory and inserts no required parameter value.
+
+The explicit preparation account is charged before DOM/owned-record allocation;
+the conservative ceiling is separate from a process-RSS claim. Supplied TinyXML2
+version 11.0.1 is rejected at configuration. Eight frontend cases pass strict and
+sanitized, alongside the existing core/numerical/graph checks (six targets total).
+Full source and execution acceptance is still pending; commands/limits are recorded
+in implementation progress.
