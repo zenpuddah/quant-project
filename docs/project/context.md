@@ -1,5 +1,9 @@
 # Project Context
 
+## Axthena workstream routing — 2026-10-15
+
+The owner requested a separate `implementation/axthena-v1` branch carrying the Axthena handoff for a second agent. Start at [`docs/axthena/START_HERE.md`](../axthena/START_HERE.md). Its model, proposed architecture, tests and plan are there; the paragraphs below retain the inherited **Qaedalus** baseline and are not Axthena implementation instructions. Axthena remains independent. No quant/Lexongine code or root build change is authorized by this documentation handoff. The branch destination is settled; other technical choices retain their status. See ENG-046 in [`repository-handoff.md`](../axthena/repository-handoff.md).
+
 ## Project objective
 
 - **Accepted:** Build a personal C++20/Python quant-development platform that teaches professional engineering, provides Quant Developer portfolio/interview evidence, and grows into a usable research and backtesting platform.

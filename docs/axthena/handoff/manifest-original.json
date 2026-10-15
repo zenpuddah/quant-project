@@ -1,0 +1,232 @@
+{
+  "package": "Axthena-implementation-handoff-2026-10-15",
+  "status": "review draft; production not implemented",
+  "file_count_excluding_manifest": 45,
+  "files": [
+    {
+      "path": "01-scope-and-decisions.md",
+      "size_bytes": 36095,
+      "sha256": "373acf72e4b19ec2fbe7f07724efd377e52f04da1c994332c9ff9d6ec2e6adb0"
+    },
+    {
+      "path": "02-data-and-behaviour-specification.md",
+      "size_bytes": 22705,
+      "sha256": "62389c05c142bbcbabfb9ca0c1ef64bb24b2b242f3f6061cd7347f95fe10f0a6"
+    },
+    {
+      "path": "03-architecture-proposal.md",
+      "size_bytes": 29812,
+      "sha256": "95e8bfc8174bfc0c2f8614d2b4f2959381c9bc6454ceeb520d3a33c24d82d02c"
+    },
+    {
+      "path": "04-acceptance-and-test-plan.md",
+      "size_bytes": 32093,
+      "sha256": "dec185526aa4cf5311c8795193208f891ec067940f7e634f63d046d4b4a5e14f"
+    },
+    {
+      "path": "05-implementation-plan.md",
+      "size_bytes": 26520,
+      "sha256": "e2c61823f74637a2083c736b17a52355d27b37cd0fc4a2a64a200b9eb23f40aa"
+    },
+    {
+      "path": "06-review-decisions-and-v2.md",
+      "size_bytes": 11852,
+      "sha256": "0328e139240e6bd6b957bd3ea0d001cd60b228ccc805b4b95c616883bf87a108"
+    },
+    {
+      "path": "07-implementation-agent-brief.md",
+      "size_bytes": 3538,
+      "sha256": "d3c6b322d0aa1328d1c8ee65fea235645b55e2b3821e541100cee845c314b0ae"
+    },
+    {
+      "path": "08-research-and-artifact-index.md",
+      "size_bytes": 7214,
+      "sha256": "95117b2a47a69efa742f6f4ea53c11289c19ddf548d1e8f5b7a793b787cd39e4"
+    },
+    {
+      "path": "09-handoff-review-notes.md",
+      "size_bytes": 2888,
+      "sha256": "b6335185c94b700a9cdf933a78f42222e753dfa0cfb6c34cfa8384f788b4760f"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 5749,
+      "sha256": "d588b3838dfd620fb381788fd4cc617083abd3582c04e2d0fb2a5ba5d637b858"
+    },
+    {
+      "path": "review/company-view.cypher",
+      "size_bytes": 1421,
+      "sha256": "1cf5d89d4e2860e63cb9e94bd73e9b85aeaa3a0b296ac38db7590b96c1d6257b"
+    },
+    {
+      "path": "review/company-view.md",
+      "size_bytes": 1457,
+      "sha256": "5efcdf4957b89880a98cb2300c58db2789e305982aa1ca0701ff9a5be625decd"
+    },
+    {
+      "path": "source-inventory.json",
+      "size_bytes": 12949,
+      "sha256": "258f97d5745f4179606cddca74d22cf9d49a9c31274fb99bbaaf01f45c86cf77"
+    },
+    {
+      "path": "sources/Axthena-ChatGPT-prompt-A.txt",
+      "size_bytes": 25383,
+      "sha256": "cf52b056af01af258222bb969f33ef03e096886c864f8a06bd8c8304a24f5047"
+    },
+    {
+      "path": "sources/Axthena-ChatGPT-trial-2026-10-15.md",
+      "size_bytes": 14025,
+      "sha256": "818da216a49aeeebb3bcc7d61d3d073c3816e7acc46057e5b1c6f83f7e2cd6e1"
+    },
+    {
+      "path": "sources/Axthena-ChatGPT-trial-2026-10-15.zip",
+      "size_bytes": 66875,
+      "sha256": "856f19c2183080cee187ba921b9f7666c3ca6e5436ecbe09cb710a41290a4d3a"
+    },
+    {
+      "path": "sources/Axthena-LLM-boundary-proposal-2026-10-14.md",
+      "size_bytes": 10044,
+      "sha256": "7ba545950185cd6931018155151722173e3f6d862bc68c84bd1a6df60ed3e5a7"
+    },
+    {
+      "path": "sources/Axthena-context.md",
+      "size_bytes": 133761,
+      "sha256": "2e6d97525c60a3b0698d029258ececea3f746ea9caba111632fe84ae72f68a94"
+    },
+    {
+      "path": "sources/Axthena-creation-time-opinion-grouping-research-2026-10-14.md",
+      "size_bytes": 22525,
+      "sha256": "4b0a04a7bc5cfc97884d7a46b78046e2c179939f15536d3e5df7fdcfa0522691"
+    },
+    {
+      "path": "sources/Axthena-cypher-example-v1.cypher",
+      "size_bytes": 47936,
+      "sha256": "dbf6f61c0e0b1628b33e6aca76ea22ce1cfd7f689c14b2fb732f8a3d9e22b48b"
+    },
+    {
+      "path": "sources/Axthena-cypher-example-v1.md",
+      "size_bytes": 11549,
+      "sha256": "3b62ea12a17b9a89e74a2f5e0ddd93a1aac4ffa1bd83f2f7398d819f953e5500"
+    },
+    {
+      "path": "sources/Axthena-engineering-context.md",
+      "size_bytes": 144491,
+      "sha256": "7bef6b576e74dc5ea56dbeee17b5d6b77b99669f76d28c9a04cc4989bedb083e"
+    },
+    {
+      "path": "sources/Axthena-extraction-reference-index-2026-10-14.json",
+      "size_bytes": 12600,
+      "sha256": "f84d2a790b1fcfa51281a1b68d5f23fc7f19e89b7d69a763de09b698a5fe90b5"
+    },
+    {
+      "path": "sources/Axthena-extraction-research-2026-10-14.md",
+      "size_bytes": 25137,
+      "sha256": "f6a112403df62793a1ad10edd0bc975346c70ac372357b070cf7c6d8002d8d87"
+    },
+    {
+      "path": "sources/Axthena-graph-review-2026-10-15.zip",
+      "size_bytes": 245486,
+      "sha256": "de9167999daede29fe3552edbf504f04c11cc617a82b7c29c705ff6731ef1fe1"
+    },
+    {
+      "path": "sources/Axthena-graph-review-guide-2026-10-15.md",
+      "size_bytes": 9469,
+      "sha256": "28c20afdadc61fe1f24c98e0a906b516177d19427f916e60abc9e49fc5f1f28a"
+    },
+    {
+      "path": "sources/Axthena-graph-review-load-2026-10-15.cypher",
+      "size_bytes": 446465,
+      "sha256": "4f3ae2d22f64568faf794c35557defe1227386c639d236a12ab927d6c2ae4df7"
+    },
+    {
+      "path": "sources/Axthena-graph-review-queries-2026-10-15.cypher",
+      "size_bytes": 9099,
+      "sha256": "90a0223636587f08ae961b55b54efdef316eddcb93575b7f352f330b9de27f92"
+    },
+    {
+      "path": "sources/Axthena-hard-samples-2026-10-15.md",
+      "size_bytes": 118547,
+      "sha256": "3f2aa78fabe2d09059bf6e23139318704c5cf810b3f7f78d147591289afbe57c"
+    },
+    {
+      "path": "sources/Axthena-hard-trial-2026-10-15.zip",
+      "size_bytes": 383913,
+      "sha256": "cd857c365d47921b8d7a13c86b3e43a801e2cee2ef8eb757b627ef057d15388a"
+    },
+    {
+      "path": "sources/Axthena-hard-trial-results-2026-10-15.md",
+      "size_bytes": 12567,
+      "sha256": "9892db32412bd2de5e1c2094b860a5e00c31ae056a13e46599d95c347f15fb11"
+    },
+    {
+      "path": "sources/Axthena-model-lab-load.cypher",
+      "size_bytes": 62680,
+      "sha256": "1dceb6006d1fb3633612ab9de03d255d0bd39e53c7a09554b5c6db3367e69668"
+    },
+    {
+      "path": "sources/Axthena-model-lab-queries.cypher",
+      "size_bytes": 12444,
+      "sha256": "7af14768d91caee30573caa4eedb963bc3c9ef36fe9aa3047d0f9b73f588e55d"
+    },
+    {
+      "path": "sources/Axthena-model-lab.md",
+      "size_bytes": 10721,
+      "sha256": "5c9e90b89c1cc669a832a1500df09eef60fa3510859c5c0686d28da5697767f8"
+    },
+    {
+      "path": "sources/Axthena-model-review-2026-10-13.md",
+      "size_bytes": 38448,
+      "sha256": "d26cc5e3f9ef710568d95086243e63ab8ecfecfbd2469c27e0eaaa332fbfa24b"
+    },
+    {
+      "path": "sources/Axthena-model-stress-checks.cypher",
+      "size_bytes": 6642,
+      "sha256": "b1202773d153243f33f804e15656b3cded6105653a7a00aa9f04924354637e67"
+    },
+    {
+      "path": "sources/Axthena-model-stress-review-2026-10-14.md",
+      "size_bytes": 22460,
+      "sha256": "a9b7921063bbc764d54988082749e24db40d7d22f1ee4685a1357c5f426d2e74"
+    },
+    {
+      "path": "sources/Axthena-opinion-grouping-benchmark-snapshot.json",
+      "size_bytes": 6130,
+      "sha256": "2afdc72f97d3548496df721633fc9ce336f75d465d999da2f705e5e552717fc1"
+    },
+    {
+      "path": "sources/Axthena-opinion-grouping-review-cases.json",
+      "size_bytes": 10505,
+      "sha256": "a67c7320560e697ff458762eab50f8854ce78f6b13c5724bcd4c670bf3847d80"
+    },
+    {
+      "path": "sources/Axthena-proposed-implementation-plan-2026-10-14.md",
+      "size_bytes": 28405,
+      "sha256": "047d0e08a5aa06de6b3639dcb0a72dba3e9232dfd68e136847ee4e1c08b0cb9e"
+    },
+    {
+      "path": "sources/Axthena-research-catalogue-2026-10-14.md",
+      "size_bytes": 29556,
+      "sha256": "96b40365865205769a4aeeb385ec0145ac41361d8fd30d67e25d7451fc236d96"
+    },
+    {
+      "path": "sources/Axthena-second-review-2026-10-13.md",
+      "size_bytes": 29715,
+      "sha256": "a009545f5d3f7c4cb77ff237033494864c30c2d007ddd5d9e1da0edad7c7d333"
+    },
+    {
+      "path": "sources/Axthena-three-round-design-review-2026-10-14.md",
+      "size_bytes": 43264,
+      "sha256": "006ed0cf28800d30eda9af4ce174b1b8843cc710bdfc0bcc8ec36e54e94fbe75"
+    },
+    {
+      "path": "sources/history/Axthena-context-v56.md",
+      "size_bytes": 132210,
+      "sha256": "eb1dcf9f4da9efd87a3671226223187275d69e6538aac60ebced66012742375e"
+    },
+    {
+      "path": "sources/history/Axthena-engineering-context-v37.md",
+      "size_bytes": 139313,
+      "sha256": "19ab4602a4cfbd5d8080564d57ca49b130bc80ec4e13e79b78b5c4bb0d20d432"
+    }
+  ]
+}

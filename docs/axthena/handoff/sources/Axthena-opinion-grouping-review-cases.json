@@ -1,0 +1,189 @@
+{
+  "project": "Axthena",
+  "purpose": "review cases for creation-time grouping; not model predictions or validated benchmark gold",
+  "synthetic": true,
+  "all_originals_retained": true,
+  "grouping_policy_selected": false,
+  "case_count": 24,
+  "cases": [
+    {
+      "id": "C01",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "I expect NOVA shares to gain from March 5 through March 19, 2025: the announced N1 strengthens NovaChip competitive position.",
+      "proposed_expected_relation": "same",
+      "reason": "Faithful paraphrase with same supported target, interval and reason."
+    },
+    {
+      "id": "C02",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "proposed_expected_relation": "same",
+      "reason": "Different anonymous accounts retain separate Expression identities even when meaning is equal.",
+      "person_a": "account-A",
+      "person_b": "account-B"
+    },
+    {
+      "id": "C03",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "proposed_expected_relation": "same",
+      "reason": "Agreement strength is source-specific and does not change shared proposition.",
+      "agreement_a": "strong",
+      "agreement_b": "weak"
+    },
+    {
+      "id": "C04",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "NOVA stock will fall during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "proposed_expected_relation": "different",
+      "reason": "Opposite stock direction must remain separate."
+    },
+    {
+      "id": "C05",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "DRAGON stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "proposed_expected_relation": "different",
+      "reason": "Different target stocks; common sector is not equality."
+    },
+    {
+      "id": "C06",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "NOVA stock will rise during March 5-19, 2025 because shipping costs fall.",
+      "proposed_expected_relation": "different",
+      "reason": "Same stock, direction and period; distinct source-expressed reasons under AX-037."
+    },
+    {
+      "id": "C07",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "NOVA stock will rise during January-December 2026 because the N1 announcement improves NovaChip competitive position.",
+      "proposed_expected_relation": "different",
+      "reason": "Explicitly different assessed periods under AX-027."
+    },
+    {
+      "id": "C08",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "NOVA stock will rise by March 19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "proposed_expected_relation": "different",
+      "reason": "During an interval and by its endpoint are different forecast meanings."
+    },
+    {
+      "id": "C09",
+      "expression_a": "NOVA stock may rise during March 5-19, 2025 because demand improves.",
+      "expression_b": "NOVA stock will rise during March 5-19, 2025 because demand improves.",
+      "proposed_expected_relation": "different",
+      "reason": "Possibility versus asserted forecast modality; preserve wording."
+    },
+    {
+      "id": "C10",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 if interest rates fall.",
+      "expression_b": "NOVA stock will rise during March 5-19, 2025 because interest rates fall.",
+      "proposed_expected_relation": "different",
+      "reason": "Condition and asserted reason must not collapse."
+    },
+    {
+      "id": "C11",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because demand improves AND shipping costs fall.",
+      "expression_b": "NOVA stock will rise during March 5-19, 2025 because demand improves OR shipping costs fall.",
+      "proposed_expected_relation": "different",
+      "reason": "Joint and alternative reasoning differ."
+    },
+    {
+      "id": "C12",
+      "expression_a": "NovaCloud software revenue increased 10% year on year in Q4 2024.",
+      "expression_b": "NovaChip consolidated revenue increased 10% year on year in Q4 2024.",
+      "proposed_expected_relation": "different",
+      "reason": "Subsidiary/business scope differs from consolidated parent."
+    },
+    {
+      "id": "C13",
+      "expression_a": "NovaChip revenue increased 10% year on year in Q4 2024.",
+      "expression_b": "NovaChip revenue increased 10% quarter on quarter in Q4 2024.",
+      "proposed_expected_relation": "different",
+      "reason": "Metric comparison bases differ."
+    },
+    {
+      "id": "C14",
+      "expression_a": "NovaChip consolidated GAAP revenue was USD 80 million in fiscal Q4 2024.",
+      "expression_b": "NovaChip consolidated GAAP revenue was USD 0.08 billion in fiscal Q4 2024.",
+      "proposed_expected_relation": "same",
+      "reason": "Verified unit conversion; retain original number/unit. Statement equality does not confirm truth."
+    },
+    {
+      "id": "C15",
+      "expression_a": "NovaChip consolidated GAAP revenue was USD 80 million in fiscal Q4 2024.",
+      "expression_b": "NovaChip consolidated GAAP revenue was USD 82 million in fiscal Q4 2024.",
+      "proposed_expected_relation": "different",
+      "reason": "Different numeric values in same scope; confirmation/hold is a separate process."
+    },
+    {
+      "id": "C16",
+      "expression_a": "NovaChip announced plans to start N1 production on March 10, 2025.",
+      "expression_b": "NovaChip reported N1 production started on March 10, 2025.",
+      "proposed_expected_relation": "different",
+      "reason": "Announcement of a plan and reported occurrence are distinct."
+    },
+    {
+      "id": "C17",
+      "expression_a": "NOVA stock will rise because demand is strong.",
+      "expression_b": "NOVA stock will rise during March 5-19, 2025 because demand is strong.",
+      "proposed_expected_relation": "different",
+      "reason": "A configured near-term default does not turn missing timing into an explicit source period."
+    },
+    {
+      "id": "C18",
+      "expression_a": "NOVA stock will rise because demand is strong.",
+      "expression_b": "I expect NOVA shares to gain because demand is strong.",
+      "proposed_expected_relation": "same",
+      "reason": "Both clear statements omit timing; keep omission and any presentation default explicit."
+    },
+    {
+      "id": "C19",
+      "expression_a": "NOVA stock will rise over the next two weeks because N1 improves its competitive position.",
+      "expression_b": "NOVA stock will rise over the next two weeks because N1 improves its competitive position.",
+      "proposed_expected_relation": "policy_open",
+      "reason": "Different source-day anchors: decide episode identity versus recurring opinion pattern before labeling.",
+      "source_date_a": "2025-03-04",
+      "source_date_b": "2025-03-07"
+    },
+    {
+      "id": "C20",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "It will rise because the announcement is good.",
+      "proposed_expected_relation": "insufficient_information",
+      "reason": "Unresolved stock/reason/time must follow extraction sufficiency rules; do not invent a target."
+    },
+    {
+      "id": "C21",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "我认为NOVA股价会在2025年3月5日至19日期间上涨，因为N1芯片公告提升了NovaChip的竞争地位。",
+      "proposed_expected_relation": "same",
+      "reason": "Proposed English/Chinese paraphrase; bilingual validation required before treating this as benchmark gold.",
+      "language_a": "en",
+      "language_b": "zh",
+      "label_review": "proposed; bilingual review pending"
+    },
+    {
+      "id": "C22",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "proposed_expected_relation": "same",
+      "reason": "Different publishers retain their publication/evidence identities; a hash does not establish copying or information origin.",
+      "source_a": "Outlet-A",
+      "source_b": "Outlet-B"
+    },
+    {
+      "id": "C23",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "NOVA stock will rise during March 5-19, 2026 because the N1 announcement improves NovaChip competitive position.",
+      "proposed_expected_relation": "different",
+      "reason": "Recurring wording and close embedding do not erase the assessed calendar year."
+    },
+    {
+      "id": "C24",
+      "expression_a": "NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.",
+      "expression_b": "The article quotes an analyst saying: \"NOVA stock will rise during March 5-19, 2025 because the N1 announcement improves NovaChip competitive position.\"",
+      "proposed_expected_relation": "quotation_excluded",
+      "reason": "V1 must not assign a quoted third-party judgment to the publisher; retain full source. This tests extraction/attribution gate before grouping."
+    }
+  ]
+}

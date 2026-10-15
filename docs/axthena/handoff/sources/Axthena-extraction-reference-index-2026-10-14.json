@@ -1,0 +1,324 @@
+{
+  "research_date": "2026-10-14",
+  "status": "primary-source reference index; advisor proposals; no Axthena model runs",
+  "architecture_choices_selected": false,
+  "report": "Axthena-extraction-research-2026-10-14.md",
+  "boundary_proposal": "Axthena-LLM-boundary-proposal-2026-10-14.md",
+  "sources": [
+    {
+      "id": "R01",
+      "title": "GLiNER2.5 author release",
+      "source_kind": "author_release",
+      "url": "https://fastino.ai/blog/gliner2-5-span-free-information-extraction",
+      "relevance": "NER/classification and declared joint-extraction features",
+      "limitation": "Published comparison does not establish complete Idea extraction.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R02",
+      "title": "GLiREL",
+      "source_kind": "peer_reviewed_paper",
+      "url": "https://aclanthology.org/2025.naacl-long.418/",
+      "relevance": "Held-out relation classification",
+      "limitation": "Given entity positions; upstream coreference materially affects performance.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R03",
+      "title": "NuExtract3",
+      "source_kind": "official_model_card",
+      "url": "https://huggingface.co/numind/NuExtract3",
+      "relevance": "Small generative extraction",
+      "limitation": "Private custom-metric benchmark; not comparable with public F1.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R04",
+      "title": "GoLLIE",
+      "source_kind": "peer_reviewed_paper",
+      "url": "https://arxiv.org/html/2310.03668v4",
+      "relevance": "Guideline-following information extraction",
+      "limitation": "Fine-tuned legacy backbone; some modified evaluation tasks.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R05",
+      "title": "DREEAM",
+      "source_kind": "peer_reviewed_paper",
+      "url": "https://aclanthology.org/2023.eacl-main.145/",
+      "relevance": "Document relations and supporting sentences",
+      "limitation": "Given entities/coreference; evidence is sentence-level.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R06",
+      "title": "Doc2EDAG",
+      "source_kind": "peer_reviewed_paper",
+      "url": "https://arxiv.org/abs/1904.07535",
+      "relevance": "Chinese financial event records",
+      "limitation": "Historical five-event ontology with distant annotations.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R07",
+      "title": "ExtractBench — Contextual AI",
+      "source_kind": "preprint",
+      "url": "https://arxiv.org/html/2602.12247v1",
+      "relevance": "Complex PDF-to-JSON extraction",
+      "limitation": "35 PDFs; schema breadth/output validity affects aggregated results.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R08",
+      "title": "ExtractBench — LlamaIndex",
+      "source_kind": "preprint",
+      "url": "https://arxiv.org/html/2607.29677v1",
+      "relevance": "Value extraction and source grounding",
+      "limitation": "Vendor authorship; box-grounding setting; different from R07.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R09",
+      "title": "LangExtract",
+      "source_kind": "official_repository",
+      "url": "https://github.com/google/langextract",
+      "relevance": "Grounded extraction workflow",
+      "limitation": "Features and examples are not a matched extraction benchmark.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R10",
+      "title": "Structured Output Benchmark",
+      "source_kind": "preprint",
+      "url": "https://arxiv.org/html/2604.25359v1",
+      "relevance": "Text-to-schema value accuracy",
+      "limitation": "Exact matching/order, weights/gates, model-pin and gold limitations.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R11",
+      "title": "Cleanlab financial entity experiment",
+      "source_kind": "author_experiment",
+      "url": "https://cleanlab.ai/blog/structured-output-benchmark/",
+      "relevance": "Corrected FIRE-derived entity extraction",
+      "limitation": "Seven-field task and older model versions; not full Ideas.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R12",
+      "title": "BizFinBench v1",
+      "source_kind": "preprint",
+      "url": "https://arxiv.org/html/2505.19457v1",
+      "relevance": "Chinese financial NER",
+      "limitation": "Do not transfer model-version scores or conflate v2 tasks.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R13",
+      "title": "GPT-5.4",
+      "source_kind": "official_documentation",
+      "url": "https://developers.openai.com/api/docs/models/gpt-5.4",
+      "relevance": "Model snapshot, features and pricing",
+      "limitation": "Account access and Axthena quality unmeasured.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R14",
+      "title": "GPT-6.1 Sol",
+      "source_kind": "official_documentation",
+      "url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "relevance": "Current model features and pricing",
+      "limitation": "No matched extraction result or dated snapshot established.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R15",
+      "title": "Qwen3.8 Flash",
+      "source_kind": "official_documentation",
+      "url": "https://www.alibabacloud.com/help/en/model-studio/qwen3-8-flash",
+      "relevance": "Current hosted model features and regional prices",
+      "limitation": "No matched extraction score; alias pin not established.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R16",
+      "title": "DeepSeek models and pricing",
+      "source_kind": "official_documentation",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "relevance": "V4.1 Flash alias and timed pricing",
+      "limitation": "JSON-object support is different from strict tool schema.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R17",
+      "title": "GLiNER2.5 Multi",
+      "source_kind": "official_model_card",
+      "url": "https://huggingface.co/fastino/gliner2.5-multi-v1",
+      "relevance": "Local specialist identity and license",
+      "limitation": "Multilingual claim is not Chinese-finance evidence.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R18",
+      "title": "Qwen3.5-35B-A3B",
+      "source_kind": "official_model_card",
+      "url": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B",
+      "relevance": "Local generative candidate",
+      "limitation": "Paper abbreviated label is not a verified checkpoint/quantization match.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R19",
+      "title": "HLGD",
+      "source_kind": "peer_reviewed_paper",
+      "url": "https://aclanthology.org/2021.naacl-main.255/",
+      "relevance": "Same news-event grouping and consistency",
+      "limitation": "Broader than exact timed stock-Idea equivalence.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R20",
+      "title": "ClaimDiff",
+      "source_kind": "peer_reviewed_paper",
+      "url": "https://aclanthology.org/2023.findings-acl.289/",
+      "relevance": "Directed claim strengthening/weakening",
+      "limitation": "Nuance comparison rather than an equivalence leaderboard.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R21",
+      "title": "FinNLI",
+      "source_kind": "peer_reviewed_paper",
+      "url": "https://aclanthology.org/2025.findings-naacl.257/",
+      "relevance": "Financial textual inference",
+      "limitation": "Economic entailment does not authorize source-unstated price direction.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R22",
+      "title": "Claim2Vec",
+      "source_kind": "preprint",
+      "url": "https://arxiv.org/abs/2604.09812",
+      "relevance": "Claim-specific similarity and clustering",
+      "limitation": "Inherited LLM labels and transitive closure; filter-2 candidate.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R23",
+      "title": "CohTP",
+      "source_kind": "peer_reviewed_paper",
+      "url": "https://aclanthology.org/2026.acl-long.1345/",
+      "relevance": "Temporal event coreference",
+      "limitation": "Different window policy and gold-versus-predicted-mention gap.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R24",
+      "title": "OpenSanctions Pairs",
+      "source_kind": "preprint",
+      "url": "https://arxiv.org/html/2603.11051v1",
+      "relevance": "Multilingual identity matching",
+      "limitation": "Differing model subsets, positive-heavy blocking and default-match policy.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R25",
+      "title": "Trust or Escalate",
+      "source_kind": "peer_reviewed_paper",
+      "url": "https://arxiv.org/abs/2407.18370",
+      "relevance": "Selective judge agreement",
+      "limitation": "Sampling/calibration conditions do not transfer to financial correctness.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R26",
+      "title": "JSONSchemaBench v3",
+      "source_kind": "preprint",
+      "url": "https://arxiv.org/html/2501.10868v3",
+      "relevance": "Constrained output coverage and efficiency",
+      "limitation": "Historical runtime/hardware settings; not Axthena speed.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R27",
+      "title": "XGrammar",
+      "source_kind": "research_paper",
+      "url": "https://arxiv.org/abs/2411.15100",
+      "relevance": "Structured decoding optimization",
+      "limitation": "Serving/token-rate results are not extraction correctness or caller-language speed.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R28",
+      "title": "OpenAI structured outputs",
+      "source_kind": "official_documentation",
+      "url": "https://developers.openai.com/api/docs/guides/structured-outputs",
+      "relevance": "Shape constraints and exceptional outcomes",
+      "limitation": "Schema compliance permits content mistakes.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R29",
+      "title": "Claude OpenAI compatibility",
+      "source_kind": "official_documentation",
+      "url": "https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk",
+      "relevance": "API compatibility limitations",
+      "limitation": "response_format/strict ignored; native behavior differs.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R30",
+      "title": "vLLM structured outputs",
+      "source_kind": "official_documentation",
+      "url": "https://docs.vllm.ai/en/latest/features/structured_outputs/",
+      "relevance": "Runtime/decoder capabilities",
+      "limitation": "Version and decoding backend affect support.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R31",
+      "title": "vLLM reproducibility",
+      "source_kind": "official_documentation",
+      "url": "https://docs.vllm.ai/en/latest/usage/reproducibility/",
+      "relevance": "Environment and scheduling conditions",
+      "limitation": "Regeneration is distinct from retained-response replay.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R32",
+      "title": "Ollama structured outputs",
+      "source_kind": "official_documentation",
+      "url": "https://docs.ollama.com/capabilities/structured-outputs",
+      "relevance": "Local JSON schemas",
+      "limitation": "Cloud behavior is different; application validation remains needed.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R33",
+      "title": "Qwen structured output",
+      "source_kind": "official_documentation",
+      "url": "https://www.alibabacloud.com/help/en/model-studio/qwen-structured-output",
+      "relevance": "Model-specific object/schema support",
+      "limitation": "Support must be checked for the selected model.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R34",
+      "title": "DeepSeek tool calls",
+      "source_kind": "official_documentation",
+      "url": "https://api-docs.deepseek.com/guides/tool_calls/",
+      "relevance": "Beta strict-schema tool path",
+      "limitation": "Subset support and endpoint differ from JSON-object generation.",
+      "retrieved_on": "2026-10-14"
+    },
+    {
+      "id": "R35",
+      "title": "SGLang deterministic inference",
+      "source_kind": "official_documentation",
+      "url": "https://docs.sglang.io/docs/advanced_features/deterministic_inference",
+      "relevance": "Batching and deterministic-serving controls",
+      "limitation": "Requires selected environment/configuration; not automatic reproducibility.",
+      "retrieved_on": "2026-10-14"
+    }
+  ]
+}

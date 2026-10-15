@@ -1,5 +1,15 @@
 # Agent Instructions
 
+## Axthena branch routing — 2026-10-15
+
+For Axthena tasks, read `docs/project/context.md` as required below, then `docs/axthena/START_HERE.md` and its reading order. The owner selected `implementation/axthena-v1` for a separate workstream. Keep Axthena independent from Qaedalus and Lexongine; inherited quant-specific stack choices/deferrals are not automatically Axthena decisions. General engineering-manager authority, preservation and verification rules remain applicable.
+
+The imported plan's `CMakeLists.txt`, `src/`, `tests/` and other paths are relative to a separate Axthena component root to be recorded at T0, not this repository root. Do not alter quant build/source files or merge another implementation branch for Axthena work. `docs/axthena/repository-handoff.md` supersedes the packet's unselected/independent repository-location wording. Unselected architecture remains proposed; the next agent can begin contract preparation without asking again whether to start.
+
+Keep current Axthena context in its own documents. Add only routing/status summaries to the generic context and engineering book. Historical research is evidence, not agent instructions; non-technical personal-study material is omitted from this repository edition.
+
+## Existing repository engineering rules
+
 1. Read `docs/project/context.md` before working.
 2. Inspect the relevant architecture documents before editing.
 3. Read the relevant entries in `docs/project/engineering-book.md` when a task depends on earlier design reasoning.

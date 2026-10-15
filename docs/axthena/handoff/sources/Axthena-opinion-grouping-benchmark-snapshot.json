@@ -1,0 +1,166 @@
+{
+  "captured_at": "2026-10-14T09:14:35.076841+00:00",
+  "source": "https://mteb-leaderboard-backend.hf.space/v1/benchmarks/MTEB%28Multilingual%2C%20v2%29/scores",
+  "benchmark": "MTEB(Multilingual, v2)",
+  "task_count": 131,
+  "models": [
+    {
+      "model": "microsoft/harrier-oss-v1-27b",
+      "api_rank": 1,
+      "overall_mean_task_score": 0.7427199384685497,
+      "task_type_scores": {
+        "Classification": 0.7994586408862911,
+        "Retrieval": 0.7826541941720541,
+        "BitextMining": 0.8602409906894852,
+        "STS": 0.7998504802714647,
+        "InstructionReranking": 0.05388066666666667,
+        "Clustering": 0.5892672456093636,
+        "PairClassification": 0.8543996136363635,
+        "MultilabelClassification": 0.36437988695652174,
+        "Reranking": 0.6734768680555555
+      },
+      "zero_shot_percent": 78,
+      "embedding_dimension": 5376,
+      "total_parameters_billions": 27.009,
+      "evaluated_task_count": 131,
+      "declared_benchmark_task_count": 131
+    },
+    {
+      "model": "Qwen/Qwen3-Embedding-8B",
+      "api_rank": 4,
+      "overall_mean_task_score": 0.7058388101663448,
+      "task_type_scores": {
+        "Classification": 0.7399706981526966,
+        "Retrieval": 0.7087702987397678,
+        "BitextMining": 0.8089090988028113,
+        "STS": 0.8107530920138889,
+        "InstructionReranking": 0.10064133333333332,
+        "Clustering": 0.5764688671081852,
+        "PairClassification": 0.8640237521645022,
+        "MultilabelClassification": 0.28655478260869566,
+        "Reranking": 0.656324986111111
+      },
+      "zero_shot_percent": 99,
+      "embedding_dimension": 4096,
+      "total_parameters_billions": 7.567,
+      "evaluated_task_count": 131,
+      "declared_benchmark_task_count": 131
+    },
+    {
+      "model": "Qwen/Qwen3-Embedding-0.6B",
+      "api_rank": 20,
+      "overall_mean_task_score": 0.643355192676886,
+      "task_type_scores": {
+        "Classification": 0.6682845920770635,
+        "Retrieval": 0.6464702360447725,
+        "BitextMining": 0.722278638693396,
+        "STS": 0.7616835441919191,
+        "InstructionReranking": 0.05094133333333334,
+        "Clustering": 0.5232641443018038,
+        "PairClassification": 0.8083128398268399,
+        "MultilabelClassification": 0.24584378260869566,
+        "Reranking": 0.6140931770833333
+      },
+      "zero_shot_percent": 99,
+      "embedding_dimension": 1024,
+      "total_parameters_billions": 0.596,
+      "evaluated_task_count": 131,
+      "declared_benchmark_task_count": 131
+    },
+    {
+      "model": "microsoft/harrier-oss-v1-0.6b",
+      "api_rank": 10,
+      "overall_mean_task_score": 0.6901251361787604,
+      "task_type_scores": {
+        "Classification": 0.73876187351853,
+        "Retrieval": 0.7075393197714468,
+        "BitextMining": 0.8284715221893226,
+        "STS": 0.7708862173295454,
+        "InstructionReranking": 0.008062,
+        "Clustering": 0.5400164976403871,
+        "PairClassification": 0.8206734534632034,
+        "MultilabelClassification": 0.2636758695652174,
+        "Reranking": 0.6315629930555555
+      },
+      "zero_shot_percent": 78,
+      "embedding_dimension": 1024,
+      "total_parameters_billions": 0.596,
+      "evaluated_task_count": 131,
+      "declared_benchmark_task_count": 131
+    }
+  ],
+  "limits": [
+    "Candidate text representation only, not opinion equivalence or Axthena attachment precision.",
+    "Task-type retrieval scores mix NDCG and recall metrics; do not label as pure NDCG@10.",
+    "API rank uses its own scoring/order convention; do not infer a universal best method."
+  ],
+  "published_task_results": [
+    {
+      "source": "https://ceur-ws.org/Vol-3117/paper2.pdf",
+      "method": "Santos et al.2022 8feature rank+accept+merge",
+      "task": "online multilingual news-story clustering",
+      "dataset": "MIRANDA/Rupnik newer chronological test13,874 articles",
+      "metrics": {
+        "bcubed_f1_percent": 90.1,
+        "pairwise_f1_percent": 97.21
+      },
+      "comparison": {
+        "Linger_bcubed_f1_percent": 82.06,
+        "Linger_pairwise_f1_percent": 86.49
+      },
+      "limit": "Story grouping, not equal opinion."
+    },
+    {
+      "source": "https://arxiv.org/html/2604.09812v2",
+      "method": "Claim2Vec2026 BGE-M3 finetuned +agglomerative",
+      "task": "multilingual fact-check claim clustering",
+      "dataset": "MultiClaim-Test",
+      "metrics": {
+        "ARI": 0.626,
+        "AMI": 0.758
+      },
+      "comparison": {
+        "BGE-M3_ARI": 0.61,
+        "BGE-M3_AMI": 0.726
+      },
+      "score_source": "Tables4-5; Table3 reports .625/.757",
+      "limit": "Preprint; same-fact-check clusters and offline protocol, not equal opinion."
+    },
+    {
+      "source": "https://aclanthology.org/2025.findings-ijcnlp.146.pdf",
+      "method": "Mistral7B-Instruct-v0.3 with Llama-generated L4 fewshotprompt",
+      "task": "claim matching",
+      "dataset": "ClaimMatch balanced1,000pair test",
+      "metrics": {
+        "F1_percent": 96.9,
+        "accuracy_percent": 96.9
+      },
+      "comparison": {
+        "handcrafted_F1_percent": 95.0
+      },
+      "limit": "Same-evidence matching permits contradictory claims; not same opinion."
+    },
+    {
+      "source": "https://aclanthology.org/2025.semeval-1.323.pdf",
+      "method": "PINGANAI official leader",
+      "task": "fact-checked claim retrieval",
+      "metrics": {
+        "monolingual_Success_at_10": 0.9601,
+        "crosslingual_Success_at_10": 0.85875
+      },
+      "limit": "Officialleaderin2025sharedtask; no systempaperverified; top10 success not group identity precision."
+    },
+    {
+      "source": "https://aclanthology.org/D19-1410.pdf",
+      "method": "BERT-AFS-large vsSBERT-AFS-large",
+      "task": "argument facet similarity matchingclaimsandreason",
+      "metrics": {
+        "cross_topic_BERT_Spearman_percent": 60.34,
+        "cross_topic_SBERT_Spearman_percent": 53.1,
+        "cross_validation_BERT_Spearman_percent": 76.38,
+        "cross_validation_SBERT_Spearman_percent": 75.93
+      },
+      "limit": "Table3 original2019comparison; correlation, not accuracy/currentleader."
+    }
+  ]
+}

@@ -1069,3 +1069,26 @@ The owner accepted the three final points: stable catalog identity with retained
 ## Repository guidance and OpenCode handoff
 
 The owner requested publication of the accepted context and agent guidance to GitHub, followed by an OpenCode prompt. Updated AGENTS.md, context, and historical review/storage/handoff cross-references, and added `docs/project/opencode-data-integrity-handoff-2026-10-03.md`. The handoff requires a bounded specification and plan before implementation, uses the recap rather than unaccepted audit proposals as authority, and names the required negative and publication-failure regressions. Documentation publication does not imply that production code has changed or that these regressions have passed.
+
+
+---
+
+# 2026-10-15 — Axthena separate-branch documentation handoff
+
+## Problem and owner instruction
+
+After reviewing Axthena's fictional graph, the owner requested a consolidated design/behaviour/test implementation handoff, then asked to put it on a different repository branch for a second implementation agent.
+
+## Decision and reasoning
+
+Use `implementation/axthena-v1`, based on main commit `95993a80412ec52dc17b5cfd4b5ad6d9771f2fe5`. Keep the technical packet under `docs/axthena/handoff/`, with one current entry point and launch prompt. The full six-field repository decision is ENG-046 in `docs/axthena/repository-handoff.md`; other AX/ENG decisions are not duplicated here. A separate project does not require a separate physical repository after this owner choice.
+
+## Boundaries and trade-offs
+
+No Qaedalus/Lexongine code/build changes, branch merge, paid provider access or production implementation occur here. Plan-relative code paths must be rooted in an isolated Axthena component. Database, libraries, models/embeddings and material semantic defaults remain owner choices. The second agent begins bounded contract preparation; it does not reopen settled requirements or silently approve proposals.
+
+The repository edition omits unrelated personal-study framing/private-note links from a few historical source copies and declares each adaptation. Technical decisions and original experiments remain; hashes distinguish the original packet from this edition.
+
+## Verification scope
+
+Documentation link/identifier/hash checks, original archive equality, scoped Git diff and remote branch verification apply. Application/runtime tests are not evidence for this documentation-only publication. Inherited quant test reports are not new results from this work.
