@@ -1146,3 +1146,21 @@ duplicating numerical history selection in a second state machine. Trade-off:
 the typed callback envelope changes and requires additional metadata lifetime and
 adversarial validation checks. The owning components specification records the
 accepted contract. Acceptance of the choice is distinct from implementation proof.
+
+### Independent canonical-price arithmetic checkpoint
+
+Implemented the accepted signed64 bounded sum and ties-even policy using the
+existing Price representation/operators. Eviction precedes addition so a legal
+full window cannot overflow solely because of update ordering. State retains exact
+inputs and sum; rounded means never feed working state. Unsigned magnitude plus
+quotient/remainder handles signed-minimum rounding without negation overflow or
+doubling a remainder. State allocations are checked/reserved before ring creation.
+
+The generator uses the specified synthetic IDs, intervals, prices, optionals and
+volume; canonical validation checks every generated Bar. A separate Python Fraction
+oracle recomputes full windows and fixed-count lags from raw inputs. Strict and
+sanitized helper/oracle checks pass; exact counts and commands are in progress.
+Source/check: inspected existing `value_types.hpp`, `observations.hpp`, and
+`validation.hpp` plus the accepted numerical specifications/reference cases. No
+provider assumptions or alternative financial types were added. Pure mathematical
+window tests remain distinct from the pending graph/source/host integration.

@@ -42,6 +42,13 @@ download retries were stopped and the reader prototype remains Blocked/Unverifie
 Independent core work continues at the user's request. All milestone claims remain
 bounded by the current progress evidence.
 
+**Numerical helper checkpoint:** The canonical-Price SMA/lag/difference and Bar
+fixture slice now has 6 focused cases and an independent Python Fraction oracle.
+All four currently defined core/numerical CTest targets pass strict and sanitized
+builds. This verifies arithmetic and generated fields, not registered component
+scheduling, source validation, graph/cache behavior or host acceptance. Task 7
+remains InProgress pending those integrations; graph work can proceed independently.
+
 ## Deferred work
 
 Concurrency, dynamic run reconfiguration, algebraic equivalence, richer joins/alignments, checkpoint continuation, general outcome-aware branching, stronger plugin isolation, mutable outputs, stronger crash durability, real session/filling policies, numerical/performance upgrades, interactive visualization/breakpoints and ML feedback protocols remain future work. Explicit fixed-count lag and automatic validated cross-run reuse are already v1, not deferred.

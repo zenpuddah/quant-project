@@ -16,7 +16,7 @@ Advisor inspected remote implementation/data-integrity-2026-10-03 at f75cd3c179f
 | 4 Strict XML | Pending | TinyXML2 provisioning unverified |
 | 5 Graph/sharing | Pending | Research probes are not product tests |
 | 6 Preparation/source bridge | Pending | Actual Arrow/Parquet prerequisite and adapter tests unverified |
-| 7 Fixture/SMA/lag | Pending | Reference values specified; no product execution |
+| 7 Fixture/SMA/lag | InProgress | Canonical numerical helpers and generated bars verified; registered component/scheduler integration pending |
 | 8 Standalone/hosted executor | Pending | Host probe is proposed, not financial backtester |
 | 9 Cross-run result store | Pending | Filesystem/uncertainty tests unverified |
 | 10 CLI/evidence | Pending | Required sink/codec tests unverified |
@@ -272,3 +272,53 @@ aws-sdk-cpp HTTP/2 PROTOCOL_ERROR. No provisioning process is intentionally left
 running. Native Arrow and the actual reader prototype stay **Blocked/Unverified**.
 TinyXML2 remains available at the pinned official checkout. Continue independent
 core work; do not turn these core checks into a source-integration claim.
+
+## 2026-10-15 — Independent numerical slice (Task 7)
+
+Starting HEAD `064ae639c63d410c92b75983252a2c5b7ac04798` on the same isolated
+implementation branch. Implemented checked canonical-Price SMA/lag window helpers,
+signed nearest-ties-even rounding, checked Price subtraction, exact Bar-close
+extraction and the locally generated 120 canonical bars. Existing financial types
+and validators were inspected/reused; no domain layout or storage API changed.
+These mathematical helpers do not implement source-gap scheduling, graph sharing,
+registered typed components or a financial model.
+
+Initial syntax-only test failed on missing `quant/lexongine/sma.hpp` (compile-red).
+The first named-target build preceded CMake regeneration and reported no rule for
+the new target; after explicit configuration, `lexongine_sma_tests` passed **6/6
+cases**. It checks exact/equal-input state, signed ties/extreme sums, N/B policy
+validation, feasible-but-unallocatable windows, pre-allocation quota rejection,
+subtract-before-add at the signed bound, independent subtraction overflow, lag
+startup/repeated values, canonical fixture fields and reference values.
+
+The separate test transport `lexongine_arithmetic_probe` calls these compiled
+helpers. `verify_arithmetic.py` independently recomputes full windows using Python
+integers and Fraction; it imports neither production arithmetic nor the research
+oracle. Both normal and instrumented probe executions passed with seed 20261015:
+
+```text
+rounding=266, SMA_runs=50, SMA_updates=3851, lag_runs=8, lag_updates=672
+```
+
+Exact verification (same TMP/worktree as above):
+
+```sh
+cmake -S integration/lexongine -B "$TMP/lexongine-build" -DCMAKE_BUILD_TYPE=Debug -DLEXONGINE_QAEDALUS_BRIDGE=OFF
+cmake --build "$TMP/lexongine-build"
+ctest --test-dir "$TMP/lexongine-build" -V
+cmake -S integration/lexongine -B "$TMP/lexongine-sanitized" -DCMAKE_BUILD_TYPE=Debug -DLEXONGINE_QAEDALUS_BRIDGE=OFF -DLEXONGINE_SANITIZERS=ON
+cmake --build "$TMP/lexongine-sanitized"
+ctest --test-dir "$TMP/lexongine-sanitized" -V
+```
+
+Both configurations passed **4/4 matched CTest targets**: 8 contract, 7 lifetime,
+6 numerical cases, plus the independent oracle. CMake selected existing Python
+3.14.8 at `/opt/homebrew/Frameworks/Python.framework/Versions/3.14/bin/python3.14`.
+No sanitizer diagnostics were emitted.
+
+Numerical fixture results: fast 101 outputs, slow 71, lagged slow 70; key49 means
+100395000000/100245000000; key119 means 101095000000/100945000000; spread raw
+150000000 and lagged spread 160000000. These are numerical helper results, not
+logical-observation/graph/cache/host execution evidence. Complete Task 7 wiring and
+the source/host acceptance experiment remain pending. Continue independent graph
+validation/identity work while preserving the native Arrow blocker.
