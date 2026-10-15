@@ -22,6 +22,7 @@ Consolidated 2026-10-14. Owner-approved behavior and delegated routine engineeri
 | Owner delegated integration | Bounded checked replay materialization and one shared advance_one/finish primitive for standalone/hosted runs | [Integration](spec/qaedalus-integration.md) |
 | Routine clarification in this consolidation | PointTime/Interval tagged extent; explicit gap coverage codecs; actual-reader Arrow test prerequisite | [Components](spec/components.md), [configuration](spec/configuration.md), [integration](spec/qaedalus-integration.md) |
 | Owner accepted 2026-10-15 during implementation | Typed provenance envelope: immutable input-publication metadata and explicit parent selections in Published, validated by the host against declared current/retained inputs and availability | [Components](spec/components.md#typed-publication-provenance--owner-accepted-2026-10-15) |
+| Owner accepted 2026-10-15 during graph inspection | Include implementation_selector in OperationIdentityV1, recursively, in addition to verified implementation digests; distinct factories in one binary must not become identical by omission | [Configuration](spec/configuration.md), [reuse](spec/reuse.md) |
 | Delegated implementation mechanism 2026-10-15 | Explicit preparation-account capability and reservation retained by PreparedKernel; compiled host controls span typed plugin destruction | [Components](spec/components.md) |
 
 ## Deferred beyond this milestone

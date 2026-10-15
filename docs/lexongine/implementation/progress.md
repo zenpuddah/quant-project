@@ -10,11 +10,11 @@ Advisor inspected remote implementation/data-integrity-2026-10-03 at f75cd3c179f
 
 | Task | Status | Actual evidence |
 | --- | --- | --- |
-| 1 Owned contracts/registry | InProgress | Owned records/schema/typed factories tested; actual reader probe awaits Arrow; foundational review remains open |
+| 1 Owned contracts/registry | InProgress | Owned records/schema/typed factories tested; actual-API prototype passes with cached Arrow static libraries; full source/host declarations/review remain open |
 | 2 Typed binding/immutable ownership | InProgress | Accounted ownership, host destruction and atomic slot primitives tested; complete card not yet verified |
 | 3 Native plugins | Pending | Native macOS round-trip unverified |
 | 4 Strict XML | Pending | TinyXML2 provisioning unverified |
-| 5 Graph/sharing | Pending | Research probes are not product tests |
+| 5 Graph/sharing | InProgress | Product canonical-identity/graph/walk checks pass; prepared-run and observation integration pending |
 | 6 Preparation/source bridge | Pending | Actual Arrow/Parquet prerequisite and adapter tests unverified |
 | 7 Fixture/SMA/lag | InProgress | Canonical numerical helpers and generated bars verified; registered component/scheduler integration pending |
 | 8 Standalone/hosted executor | Pending | Host probe is proposed, not financial backtester |
@@ -322,3 +322,83 @@ Numerical fixture results: fast 101 outputs, slow 71, lagged slow 70; key49 mean
 logical-observation/graph/cache/host execution evidence. Complete Task 7 wiring and
 the source/host acceptance experiment remain pending. Continue independent graph
 validation/identity work while preserving the native Arrow blocker.
+
+## 2026-10-15 — Graph identity and frozen-order traversal (Task 5)
+
+Starting HEAD `a1edadbc2c241ec4a1bd6e02ede837028f8f2914`, branch
+`implementation/lexongine-v1`. The owner chose **Include selector** when inspection
+found OperationKey distinguished factories by implementation selector but the
+draft OperationIdentityV1 omitted it. Updated the owning schema and ledger before
+implementing the codec. Provider and transitive computation identity include the
+selector plus all three implementation digests and SDK/build contract.
+
+Implemented a bounded two-pass canonical encoder, exact ordered transitive
+identities, production FNV-1a64 candidate hashing, full byte comparison, separate
+sharing eligibility, deterministic logical Kahn ordering and first-occurrence
+projection. Identity counting allocates no output buffer; reservations precede
+emission. Unique/effectful/unproven upstreams cannot make pure descendants
+automatically shareable. Source validity remains a separate preparation gate.
+
+New checks first failed compilation at missing graph.hpp. A later runtime test
+failed **6/7 cases**: a Skip producer could incorrectly connect to a Strict
+consumer. The graph connection gate now checks producer, binding and consumer
+policy consistently; the assertion was retained. Focused strict and sanitized
+graph CTest runs now pass **8/8 cases**, including forced collisions, 19 semantic
+field changes, recursive A→B→C identity, selector changes within one binary,
+ordered subtraction ports, cycles, limits, units/clocks and Strict/Skip identity.
+
+Reproduced product graph/walk evidence:
+
+```text
+duplicate-computation graph: logical=6, physical=5
+counterexample logical order: S,p1,A,p2,B
+counterexample physical first occurrences: S,p1,A,B
+p2 aliases p1
+B failure retains earlier A
+failure after A leaves p2 and B unreached
+```
+
+These are structural and callback-traversal tests over explicit test descriptors,
+not a claim of a completed numerical scheduler or validated market source.
+`walk_logical` is the reusable traversal that the executor must consume.
+
+Both complete currently defined suites pass **5/5 CTest targets**, strict and
+ASan/UBSan, using the earlier configure/build commands and `ctest --output-on-failure`.
+Focused commands were `cmake --build "$TMP/lexongine-build" --target lexongine_graph_tests`
+and `ctest --test-dir "$TMP/lexongine-build" -R '^lexongine_graph_tests$' -V`, then
+the equivalent sanitized commands. Build flags now explicitly include
+`-fno-fast-math` alongside warnings-as-errors.
+
+### Actual MarketDataReader prototype — direct native-library verification
+
+The approved Homebrew download had completed the Arrow bottle even though its
+remaining dependencies/install failed. Extracted that existing official archive
+into `$TMP/arrow-bottle-inspect` without changing the system prefix. This provided
+real Arrow 25 headers and static archives for the actual-API prototype.
+
+```sh
+ARROW="$TMP/arrow-bottle-inspect/apache-arrow/25.0.1_8"
+clang++ -std=c++20 -Wall -Wextra -Wpedantic -Werror -fno-fast-math -I src -isystem "$ARROW/include" -fsyntax-only integration/lexongine/source_host_contract_probe.cpp
+clang++ -std=c++20 -Wall -Wextra -Wpedantic -Werror -fno-fast-math -I src -isystem "$ARROW/include" integration/lexongine/source_host_contract_probe.cpp "$ARROW/lib/libarrow.a" "$ARROW/lib/libarrow_bundled_dependencies.a" -L "$TMP/lexongine-build" -llexongine_core -Wl,-rpath,"$TMP/lexongine-build" -o "$TMP/lexongine-reader-probe"
+"$TMP/lexongine-reader-probe"
+clang++ -std=c++20 -Wall -Wextra -Wpedantic -Werror -fno-fast-math -fsanitize=address,undefined -fno-omit-frame-pointer -I src -isystem "$ARROW/include" integration/lexongine/source_host_contract_probe.cpp "$ARROW/lib/libarrow.a" "$ARROW/lib/libarrow_bundled_dependencies.a" -L "$TMP/lexongine-sanitized" -llexongine_core -Wl,-rpath,"$TMP/lexongine-sanitized" -o "$TMP/lexongine-reader-probe-sanitized"
+"$TMP/lexongine-reader-probe-sanitized"
+```
+
+Syntax check succeeded. Both executables printed **1/1 cases passed**, exercising
+the actual checked reader signature, explicit requirements, callback-scoped copies,
+original ordinals 10/12 and nonmonotonic event times, plus explicit causal timing.
+Project/core code was instrumented in the second run; prebuilt Arrow was not.
+
+Observed SHA-256:
+
+- official `apache-arrow--25.0.1_8.arm64_tahoe.bottle.tar.gz`:
+  `8028c307e83c0040e8e5554f7ef359336146408141910a94cd215d0a8a92322f`;
+- `libarrow.a`: `671ccaf7232c4dc88e64ff3b4b4f10c9146648549c9ffd15b0bc97954ae1b4f3`;
+- `libarrow_bundled_dependencies.a`:
+  `f6ebc1f33150f32b4149141804257372dd704fa3792c5fbd82afb2d886d4aab8`.
+
+This closes the bounded actual-API prototype check only. It is not the complete
+Task-6 source adapter or persisted acquisition test. Native Arrow CONFIG discovery
+and the full reader/storage bridge remain Blocked/Unverified. No private reader
+imitation, data acquisition, bar aggregation or storage API change was introduced.

@@ -49,6 +49,14 @@ builds. This verifies arithmetic and generated fields, not registered component
 scheduling, source validation, graph/cache behavior or host acceptance. Task 7
 remains InProgress pending those integrations; graph work can proceed independently.
 
+**Graph and reader-prototype checkpoint:** The owner approved including the
+implementation selector in recursive operation identity. Product graph/identity
+and logical-walk tests now pass (8 cases; all 5 current CTest targets pass strict
+and sanitized). Direct actual-reader prototype verification also passes with the
+cached official Arrow 25 static libraries, separate from native CONFIG/full
+adapter/persisted-source checks, which remain unverified. The graph work does not
+attest supplied source facts or complete the run lifecycle.
+
 ## Deferred work
 
 Concurrency, dynamic run reconfiguration, algebraic equivalence, richer joins/alignments, checkpoint continuation, general outcome-aware branching, stronger plugin isolation, mutable outputs, stronger crash durability, real session/filling policies, numerical/performance upgrades, interactive visualization/breakpoints and ML feedback protocols remain future work. Explicit fixed-count lag and automatic validated cross-run reuse are already v1, not deferred.

@@ -44,7 +44,7 @@ Each row assigns tags1..N to the listed fields in exactly that order. Lists pres
 | Record | Tags1..N (ordered exact fields) |
 | --- | --- |
 | ComputationIdentityV1 | operation, parameters, inputs, outputs, sources, initialization, processing_scope, history, timing_policy, numerical_policy, missing_policy, sharing_contract, codec_contract, validation_contract |
-| OperationIdentityV1 | namespace, name, semantic_version, binary_digest, dependencies_digest, source_build_digest, sdk_build_contract_id |
+| OperationIdentityV1 | namespace, name, semantic_version, implementation_selector, binary_digest, dependencies_digest, source_build_digest, sdk_build_contract_id |
 | CanonicalParamsV1 | schema_version, values |
 | NamedParamV1 | name, value |
 | InputIdentityV1 | input_name, producer_identity, output_port, prior_outputs, alignment_contract, missing_policy |
@@ -61,12 +61,28 @@ Each row assigns tags1..N to the listed fields in exactly that order. Lists pres
 | IntervalV1 | begin_ns, end_ns |
 | PointTimeV1 | event_time_ns |
 | CountHistoryV1 | preceding |
+| TimingPolicyV1 | update_contract, availability_contract |
 | ArtifactIdentityV1 | computation, processing_scope, ordered_output_types, codec_contract, validation_contract |
 | PlanIdentityV1 | effective_composition, logical_order, aliases, admitted_requests, rejected_requests, resource_plan, required_evidence |
 
 `operation`, `sources` and ordered inputs carry actual verified implementation/content/query facts. SourceIdentity reference_digest binds the full validated source association table; source validation verifies that table, not an arbitrary self-reported label. Source content fingerprints include every canonical payload/timing/reference field under the registered provider codec. Timing/order/coverage/availability facts are identity-bearing ContractV1 records, not human prose. Contracts unsupported by the implementation reject, including phase-dependent numeric behavior and independent-source alignment. Descriptive labels, logical IDs, request masks and origin notes are excluded from ComputationIdentity but included in the effective composition/plan as appropriate.
 
 Full source-reference/content records are held in the pinned validation package. Cryptographic digests validate pinned external content; computation hash matches still undergo full canonical structural equality. Changing upstream parameters, ordered ports, source scope or actual implementation changes downstream canonical bytes. Schema fields changing in future require a new schema version.
+
+Owner clarification, 2026-10-15: include implementation_selector in the initial
+OperationIdentityV1. Distinct registered factories can share a binary, operation
+name and semantic version; the selector prevents them from colliding as exact
+implementations. It supplements actual content/build digests. This correction is
+to the pre-implementation v1 artifact contract. Human display labels remain
+nonsemantic. The rule applies to provider-operation records and every transitive
+computation/artifact identity.
+
+The computation timing_policy field is TimingPolicyV1, containing the node's
+declared update and availability ContractV1 records. Its update/effect contracts
+must agree with the resolved operation's sharing contracts; effect and initialization
+contracts are already represented in SharingV1/InitializationV1. This concrete
+field binding keeps the owned NodeSpec policies in identity without hashing prose
+or adding arbitrary extension fields.
 
 ## XML typed-value projection
 

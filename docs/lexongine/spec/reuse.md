@@ -2,6 +2,15 @@
 
 Within-run sharing and reuse of earlier-run outputs are distinct mechanisms. Both require compatible exact semantics; only the latter needs validated durable provenance. Full ordered transitive identity matters: for A→B→C, changing A's parameters/source/version changes B and C identity. Reordering noncommutative inputs or operation sequence remains different even if observed output values happen to match. Preserve compact provenance, not every ancestor payload or an API for accessing all historical rows.
 
+Owner clarification, 2026-10-15: an explicit implementation selector is part of
+operation identity even when multiple factories have the same binary/build
+digests. Human labels are not selectors.
+
+Implementation of the existing eligibility gate: eligibility is checked through the
+ordered dependency chain: in this bounded slice, descendants of a Unique,
+effectful or unproven producer are not automatically shareable merely because
+their own callback is pure. Equal canonical bytes alone do not waive that gate.
+
 ## Artifact services
 
 

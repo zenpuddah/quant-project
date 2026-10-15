@@ -105,6 +105,8 @@ void schema_and_context() {
     require(schema_fields("UpdateContext") == "key,extent,decision_time_ns,activation_available_at_ns", "numeric context schema drift");
     require(schema_fields("DiagnosticKey") == "clock_ordinal,sequence", "failure key must not own strings");
     require(schema_fields("GapV1") == "missing_scope,interval,declared_reason", "gap schema drift");
+    require(schema_fields("OperationIdentityV1") == "namespace,name,semantic_version,implementation_selector,binary_digest,dependencies_digest,source_build_digest,sdk_build_contract_id",
+            "operation identity omitted the accepted factory selector");
     require(schema_fields("StepReceipt").find("status") == 0, "host receipt schema missing");
     require(schema_fields("Unknown").empty(), "unknown schema must not be fabricated");
 }

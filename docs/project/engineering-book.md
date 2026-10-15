@@ -1164,3 +1164,26 @@ Source/check: inspected existing `value_types.hpp`, `observations.hpp`, and
 `validation.hpp` plus the accepted numerical specifications/reference cases. No
 provider assumptions or alternative financial types were added. Pure mathematical
 window tests remain distinct from the pending graph/source/host integration.
+
+### Exact graph identity and implementation-selector clarification
+
+Inspection found that registry keys distinguished implementation selectors while
+the draft wire operation identity omitted them. Distinct factories in one binary
+could therefore receive identical implementation records. The owner selected
+including the selector alongside actual digests, rather than forbidding such
+registrations. Updated the pre-implementation v1 schema and tested recursive
+identity changes under a constant candidate hash.
+
+The graph compiler freezes logical Kahn order before interning. Its physical order
+is only first-occurrence projection; the reusable walk still visits logical aliases
+at their own boundaries. The S,p1,A,p2,B counterexample and failure prefix pass.
+Full field encoding is counted before buffer reservation/allocation and includes
+ordered full parent records. Eligibility propagates separately through dependencies;
+an unshareable upstream cannot be hidden by a pure child. A runtime regression
+also exposed and fixed an unchecked producer/consumer Strict/Skip mismatch.
+
+Source check/evidence: accepted configuration/execution/reuse contracts, actual
+registry key definition, product tests and the existing storage reader header.
+All 5 current strict/sanitized CTest targets pass; a direct actual-reader prototype
+also passes with cached official Arrow static libraries. Full source, native
+package, plugin and executor verification are still separate pending work.

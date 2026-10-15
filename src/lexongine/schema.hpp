@@ -8,7 +8,7 @@ struct SchemaDescriptor { std::string_view name, fields; };
 // Ordered wire fields, not C++ object layout. Shared by all later XML projections.
 inline constexpr auto schema_descriptors = std::to_array<SchemaDescriptor>({
     {"ComputationIdentityV1", "operation,parameters,inputs,outputs,sources,initialization,processing_scope,history,timing_policy,numerical_policy,missing_policy,sharing_contract,codec_contract,validation_contract"},
-    {"OperationIdentityV1", "namespace,name,semantic_version,binary_digest,dependencies_digest,source_build_digest,sdk_build_contract_id"},
+    {"OperationIdentityV1", "namespace,name,semantic_version,implementation_selector,binary_digest,dependencies_digest,source_build_digest,sdk_build_contract_id"},
     {"CanonicalParamsV1", "schema_version,values"}, {"NamedParamV1", "name,value"},
     {"InputIdentityV1", "input_name,producer_identity,output_port,prior_outputs,alignment_contract,missing_policy"},
     {"OutputIdentityV1", "output_name,type_contract,storage_kind,codec_contract,validation_contract"},
@@ -20,6 +20,7 @@ inline constexpr auto schema_descriptors = std::to_array<SchemaDescriptor>({
     {"CoverageV1", "expected_scope,complete_keys,gaps,expected_timeline_contract"},
     {"GapV1", "missing_scope,interval,declared_reason"}, {"IntervalV1", "begin_ns,end_ns"},
     {"PointTimeV1", "event_time_ns"}, {"CountHistoryV1", "preceding"},
+    {"TimingPolicyV1", "update_contract,availability_contract"},
     {"ArtifactIdentityV1", "computation,processing_scope,ordered_output_types,codec_contract,validation_contract"},
     {"PlanIdentityV1", "effective_composition,logical_order,aliases,admitted_requests,rejected_requests,resource_plan,required_evidence"},
     {"StartupV1", "initialization,history"},
