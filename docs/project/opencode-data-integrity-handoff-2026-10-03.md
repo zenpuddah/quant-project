@@ -1,5 +1,8 @@
 # OpenCode handoff — ingestion/storage integrity, 2026-10-03
 
+> Historical task/snapshot. Preserve the dated commands and evidence below. They do not govern new Lexongine work or reopen completed ingestion/provider/storage tasks. Read [current context](context.md) and [Lexongine handoff](../lexongine/README.md) for current routing.
+
+
 ## Status and objective
 
 The owner accepted the reviewed ingestion/storage design contracts in `docs/architecture/phase1-data-integrity-session-2026-10-03.md`, including its three final closure contracts. Implement those contracts when explicitly asked to implement this handoff. First record a bounded implementation specification and focused plan, then work in reviewable slices with regression tests.

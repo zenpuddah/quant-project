@@ -1,5 +1,8 @@
 # OpenCode Review — Synchronous Ingestion Skeleton
 
+> Historical task/snapshot. Preserve the dated commands and evidence below. They do not govern new Lexongine work or reopen completed ingestion/provider/storage tasks. Read [current context](context.md) and [Lexongine handoff](../lexongine/README.md) for current routing.
+
+
 ## Status
 
 The generic synchronous ingestion skeleton from Tasks 1–6 has been reviewed after implementation.

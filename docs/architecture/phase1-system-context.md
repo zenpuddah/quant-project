@@ -1,5 +1,8 @@
 # Phase 1 System Context
 
+> Earlier whole-platform architecture layer. Later accepted data/provider/storage/integrity documents and [current context](../project/context.md) resolve iteration-local open questions. [Lexongine](../lexongine/README.md) now specifies the computation boundary; financial models remain separately scoped. Do not treat the older open-question list as current implementation instructions.
+
+
 - **Accepted:** This is the first architecture layer. It describes purpose, boundary, actors, inputs, outputs, responsibilities, flow, non-goals, and decision points without selecting unnecessary implementation mechanisms.
 - **Accepted:** Detailed data-domain decisions are maintained in `docs/architecture/phase1-data-model.md`; reasoning and source checks are maintained in `docs/project/engineering-book.md`.
 

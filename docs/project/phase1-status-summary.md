@@ -1,5 +1,8 @@
 # Phase 1 Status Summary
 
+> Historical task/snapshot. Preserve the dated commands and evidence below. They do not govern new Lexongine work or reopen completed ingestion/provider/storage tasks. Read [current context](context.md) and [Lexongine handoff](../lexongine/README.md) for current routing.
+
+
 **Status date:** 2026-09-03
 
 ## Executive status

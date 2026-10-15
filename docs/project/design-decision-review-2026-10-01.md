@@ -1,5 +1,8 @@
 # Design Decision Coverage Review — 2026-10-01
 
+> Historical failure/design review. Later accepted integrity contracts and the [2026-10-03 verification](data-integrity-verification-2026-10-03.md) govern implemented closure; read [current context](context.md) for publication/current scope. Original test/failure evidence below is preserved, not rerun.
+
+
 ## Status and conclusion
 
 - **Review:** Checked the working tree based on commit `76e66a6`, including the uncommitted owner testing guide/manual example.

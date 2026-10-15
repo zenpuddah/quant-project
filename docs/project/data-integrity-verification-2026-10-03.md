@@ -1,5 +1,8 @@
 # Data-integrity implementation verification — 2026-10-03
 
+> Publication update, 2026-10-14: the integrity implementation is available remotely on `implementation/data-integrity-2026-10-03` at `f75cd3c179f3b070f9a85c054ec3704b89f4cb69`, unmerged in inspected main. The local-only status and commands below describe the original verification session; this documentation audit did not rerun them. See [current context](context.md).
+
+
 Base `95993a8`, local branch `implementation/data-integrity-2026-10-03`. The original storage foundation is extended by the later accepted recap, not reset to the audit baseline. Specification and plan preceded code. Implementation is local; publishing/merging requires the owner's instruction.
 
 ## Results

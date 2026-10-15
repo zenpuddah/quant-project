@@ -1,5 +1,8 @@
 # OpenCode Handoff — Phase 1 Synchronous Ingestion Skeleton
 
+> Historical task/snapshot. Preserve the dated commands and evidence below. They do not govern new Lexongine work or reopen completed ingestion/provider/storage tasks. Read [current context](context.md) and [Lexongine handoff](../lexongine/README.md) for current routing.
+
+
 ## Historical scope
 
 This handoff describes the original skeleton, which has since been implemented and supplemented by accepted Databento, query-planning, and storage slices. Its iteration-local restrictions and stop points are historical; they do not revoke those later accepted decisions. For the current task, read `docs/project/opencode-data-integrity-handoff-2026-10-03.md` and the accepted `docs/architecture/phase1-data-integrity-session-2026-10-03.md`. Do not recreate the skeleton or reset to its earlier query/result contracts.

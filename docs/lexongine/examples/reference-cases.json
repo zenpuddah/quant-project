@@ -1,0 +1,1047 @@
+{
+  "format": "lexongine-advisor-reference-examples-v1",
+  "status": "behavioral_reference_pack_not_product_execution",
+  "date": "2026-10-14",
+  "semantics": {
+    "price": "signed_int64_raw_coefficient_scale9",
+    "rounding": "nearest_ties_even",
+    "sum_width": "signed64",
+    "overflow": "fail",
+    "initialization": "empty_at_step_0",
+    "execution": "synchronous",
+    "input_clock": "test-clock-v1",
+    "updates": "ordered_distinct_sequence_keys",
+    "published_payloads": "immutable",
+    "action_effects": "unique_occurrences"
+  },
+  "cases": [
+    {
+      "id": "sma_repeated_updates_and_two_consumers",
+      "parameters": {
+        "window": 3,
+        "max_abs_input_raw": 8
+      },
+      "inputs_raw": [
+        2,
+        2,
+        2,
+        8
+      ],
+      "consumer_count": 2,
+      "expected": {
+        "outcomes": [
+          {
+            "step": 0,
+            "status": "Warming"
+          },
+          {
+            "step": 1,
+            "status": "Warming"
+          },
+          {
+            "step": 2,
+            "status": "Published",
+            "raw": 2
+          },
+          {
+            "step": 3,
+            "status": "Published",
+            "raw": 4
+          }
+        ],
+        "shared_kernel_advances": 4,
+        "producer_publications": 2,
+        "duplicate_reads_add_advances": 0
+      }
+    },
+    {
+      "id": "sma_signed_ties",
+      "parameters": {
+        "window": 2,
+        "max_abs_input_raw": 3
+      },
+      "independent_runs": [
+        {
+          "inputs_raw": [
+            1,
+            0
+          ],
+          "published_raw": 0
+        },
+        {
+          "inputs_raw": [
+            3,
+            0
+          ],
+          "published_raw": 2
+        },
+        {
+          "inputs_raw": [
+            -1,
+            0
+          ],
+          "published_raw": 0
+        },
+        {
+          "inputs_raw": [
+            -3,
+            0
+          ],
+          "published_raw": -2
+        }
+      ]
+    },
+    {
+      "id": "exact_sharing_and_collisions",
+      "candidate_hasher": "constant",
+      "pairs": [
+        {
+          "difference": "human_label_only",
+          "expected": "share_if_eligible"
+        },
+        {
+          "difference": "source_snapshot_version",
+          "expected": "separate"
+        },
+        {
+          "difference": "initialization_history",
+          "expected": "separate"
+        },
+        {
+          "difference": "ordered_subtraction_ports",
+          "expected": "separate"
+        },
+        {
+          "difference": "unique_action_occurrence_even_with_identical_content",
+          "expected": "separate"
+        }
+      ]
+    },
+    {
+      "id": "original_120_bar_fixture",
+      "input": {
+        "count": 120,
+        "close_raw_start": 100000000000,
+        "close_raw_increment": 10000000,
+        "window_fast": 20,
+        "window_slow": 50,
+        "max_abs_input_raw": 102000000000,
+        "evaluation_begin_step": 49,
+        "evaluation_end_step": 120
+      },
+      "expected": {
+        "logical_nodes": 6,
+        "physical_nodes": 5,
+        "fast_first_publication_step": 19,
+        "fast_publications": 101,
+        "slow_first_publication_step": 49,
+        "slow_publications": 71,
+        "spread_publications": 71,
+        "observations_per_consumer": 71,
+        "spread_raw": 150000000,
+        "values": [
+          {
+            "step": 19,
+            "fast_raw": 100095000000,
+            "slow_status": "Warming"
+          },
+          {
+            "step": 48,
+            "fast_raw": 100385000000,
+            "slow_status": "Warming"
+          },
+          {
+            "step": 49,
+            "fast_raw": 100395000000,
+            "slow_raw": 100245000000
+          },
+          {
+            "step": 119,
+            "fast_raw": 101095000000,
+            "slow_raw": 100945000000
+          }
+        ]
+      }
+    },
+    {
+      "id": "lag1_sma50",
+      "parent_case": "original_120_bar_fixture",
+      "parameters": {
+        "lag_steps": 1,
+        "alignment": "same_step_activation",
+        "evaluation_begin_step": 50,
+        "evaluation_end_step": 120,
+        "activation": "current_parent_publication_required",
+        "missing_intervals": "strict",
+        "count_basis": "complete_bar_updates"
+      },
+      "expected": {
+        "step49": "Warming",
+        "first_publication_step": 50,
+        "first_parent_step": 49,
+        "preceding_raw_input_count": 50,
+        "spread_raw": 160000000,
+        "observations": 70,
+        "observation_begin49": "reject_insufficient_readiness",
+        "preserve_original_parent_timing": true,
+        "derived_availability": "not_before_current_activation_and_all_required_inputs"
+      },
+      "policy_status": "owner_accepts_explicit_Strict_and_Skip_no_hidden_default"
+    },
+    {
+      "id": "bundle_failure_and_causal_access",
+      "scenarios": [
+        {
+          "input": "output_one_staged_then_output_two_validation_fails",
+          "expected": {
+            "bundle_committed": false,
+            "normal_execution_stops": true,
+            "earlier_evidence": "partial",
+            "accepted_success": false,
+            "accepted_new_cache_artifacts": false
+          }
+        },
+        {
+          "input": "future_buffer_loaded_but_not_available_at_decision_time",
+          "expected": {
+            "dependent_numeric_access": "blocked",
+            "implicit_read_ahead_access": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "immutable_shared_payload_lifetime",
+      "resource_category_under_test": "accounted_payload_bytes_not_total_process_memory",
+      "payload_bytes": 64,
+      "phases": [
+        {
+          "holders": [
+            "consumer_A",
+            "consumer_B",
+            "external_caller"
+          ],
+          "charged_bytes": 64
+        },
+        {
+          "holders": [
+            "consumer_B",
+            "external_caller"
+          ],
+          "charged_bytes": 64
+        },
+        {
+          "holders": [
+            "external_caller"
+          ],
+          "charged_bytes": 64
+        },
+        {
+          "holders": [],
+          "charged_bytes": 0
+        }
+      ],
+      "expected": {
+        "log_metadata_owns_payload": false,
+        "after_run_external_handle_keeps_account_alive": true,
+        "second_payload_exceeding_explicit_payload_budget": "fail_before_publication",
+        "retention_warning_forces_release": false
+      }
+    },
+    {
+      "id": "exact_scope_cache_replay",
+      "parameters": {
+        "window": 2,
+        "max_abs_input_raw": 3
+      },
+      "inputs_raw": [
+        1,
+        1,
+        3
+      ],
+      "expected": {
+        "outcomes": [
+          {
+            "step": 0,
+            "status": "Warming"
+          },
+          {
+            "step": 1,
+            "status": "Published",
+            "raw": 1
+          },
+          {
+            "step": 2,
+            "status": "Published",
+            "raw": 2
+          }
+        ],
+        "fresh_sma_advances": 3,
+        "cache_sma_advances": 0,
+        "cache_outcome_deliveries": 3,
+        "extended_scope": "miss_reconstruct_and_compute",
+        "changed_source_version": "reported_miss",
+        "corrupt_payload": "fail_preparation",
+        "invalid_current_source": "reject_even_if_prior_artifact_valid",
+        "provisional_artifact_without_accepted_run_marker": "ineligible",
+        "explicit_store_capacity_policy": "bypass_new_entries_with_evidence"
+      },
+      "extension_reference_case": "exact_scope_extension_same_fixed_snapshot"
+    },
+    {
+      "id": "strict_configuration",
+      "invalid_inputs": [
+        "window=20junk",
+        "duplicate_node_id",
+        "unknown_cache_field",
+        "missing_required_parameter",
+        "wrong_clock",
+        "unsupported_operation_version"
+      ],
+      "expected": "explicit_rejection_with_defined_scope_and_stable_code"
+    },
+    {
+      "id": "shared_producer_independent_consumer_evaluation_masks",
+      "parameters": {
+        "window": 2,
+        "max_abs_input_raw": 5
+      },
+      "inputs_raw": [
+        1,
+        1,
+        3,
+        5
+      ],
+      "producer_processing_scope": {
+        "begin_step": 0,
+        "end_step": 4,
+        "initialization": "empty_at_step_0"
+      },
+      "consumers": [
+        {
+          "id": "consumer_A",
+          "evaluation_begin_step": 1,
+          "evaluation_end_step": 4,
+          "action": "unique_simulated_occurrence"
+        },
+        {
+          "id": "consumer_B",
+          "evaluation_begin_step": 2,
+          "evaluation_end_step": 4,
+          "action": "unique_simulated_occurrence"
+        }
+      ],
+      "expected": {
+        "producer_outcomes": [
+          {
+            "step": 0,
+            "status": "Warming"
+          },
+          {
+            "step": 1,
+            "status": "Published",
+            "raw": 1
+          },
+          {
+            "step": 2,
+            "status": "Published",
+            "raw": 2
+          },
+          {
+            "step": 3,
+            "status": "Published",
+            "raw": 4
+          }
+        ],
+        "shared_kernel_advances": 4,
+        "producer_publications": 3,
+        "consumer_observations": {
+          "consumer_A": [
+            {
+              "step": 1,
+              "raw": 1
+            },
+            {
+              "step": 2,
+              "raw": 2
+            },
+            {
+              "step": 3,
+              "raw": 4
+            }
+          ],
+          "consumer_B": [
+            {
+              "step": 2,
+              "raw": 2
+            },
+            {
+              "step": 3,
+              "raw": 4
+            }
+          ]
+        },
+        "evaluated_action_steps": {
+          "consumer_A": [
+            1,
+            2,
+            3
+          ],
+          "consumer_B": [
+            2,
+            3
+          ]
+        },
+        "step1_consumer_eligibility": {
+          "consumer_A": "evaluated",
+          "consumer_B": "outside_evaluation_mask"
+        },
+        "total_unique_evaluated_actions": 5,
+        "producer_does_not_inherit_consumer_phase": true,
+        "phase_dependent_producer_behavior": "explicit_semantic_schedule_required_before_sharing"
+      }
+    },
+    {
+      "id": "warming_producer_advance_vs_warming_dependency_wait",
+      "parameters": {
+        "window": 3,
+        "max_abs_input_raw": 5
+      },
+      "inputs_raw": [
+        1,
+        1,
+        3,
+        5
+      ],
+      "downstream_operation": "checked_difference_current_price_minus_sma3_same_step",
+      "duplicate_reads": {
+        "step": 0,
+        "readers": 2
+      },
+      "expected": {
+        "steps": [
+          {
+            "step": 0,
+            "source_status": "Published",
+            "sma_invoked": true,
+            "sma_count": 1,
+            "sma_sum_raw": 1,
+            "sma_status": "Warming",
+            "difference_invoked": false,
+            "difference_status": "Warming",
+            "difference_reason": "dependency_initializing"
+          },
+          {
+            "step": 1,
+            "source_status": "Published",
+            "sma_invoked": true,
+            "sma_count": 2,
+            "sma_sum_raw": 2,
+            "sma_status": "Warming",
+            "difference_invoked": false,
+            "difference_status": "Warming",
+            "difference_reason": "dependency_initializing"
+          },
+          {
+            "step": 2,
+            "source_status": "Published",
+            "sma_invoked": true,
+            "sma_count": 3,
+            "sma_sum_raw": 5,
+            "sma_status": "Published",
+            "sma_raw": 2,
+            "difference_invoked": true,
+            "difference_status": "Published",
+            "difference_raw": 1
+          },
+          {
+            "step": 3,
+            "source_status": "Published",
+            "sma_invoked": true,
+            "sma_count": 3,
+            "sma_sum_raw": 9,
+            "sma_status": "Published",
+            "sma_raw": 3,
+            "difference_invoked": true,
+            "difference_status": "Published",
+            "difference_raw": 2
+          }
+        ],
+        "sma_state_advances": 4,
+        "difference_kernel_invocations": 2,
+        "difference_resolved_update_keys": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "difference_publication_keys": [
+          2,
+          3
+        ],
+        "duplicate_reads_add_advances": 0,
+        "require_value_observation_begin_step": 2,
+        "observation_begin1": "reject_insufficient_readiness"
+      }
+    },
+    {
+      "id": "lag1_current_activation_availability_and_original_lineage",
+      "policy_status": "owner_accepts_explicit_Strict_and_Skip_no_hidden_default",
+      "parameters": {
+        "lag_steps": 1,
+        "alignment": "same_step_activation",
+        "activation": "current_parent_publication_required",
+        "missing_intervals": "strict",
+        "count_basis": "complete_bar_updates"
+      },
+      "parent_updates": [
+        {
+          "step": 0,
+          "status": "Published",
+          "raw": 1,
+          "interval_begin_ns": 0,
+          "interval_end_ns": 60,
+          "available_at_ns": 60,
+          "decision_time_ns": 60
+        },
+        {
+          "step": 1,
+          "status": "Published",
+          "raw": 3,
+          "interval_begin_ns": 60,
+          "interval_end_ns": 120,
+          "available_at_ns": 120,
+          "decision_time_ns": 120
+        },
+        {
+          "step": 2,
+          "status": "Published",
+          "raw": 5,
+          "interval_begin_ns": 120,
+          "interval_end_ns": 180,
+          "available_at_ns": 180,
+          "decision_time_ns": 180
+        }
+      ],
+      "expected": {
+        "outcomes": [
+          {
+            "step": 0,
+            "status": "Warming"
+          },
+          {
+            "step": 1,
+            "status": "Published",
+            "raw": 1,
+            "available_at_ns": 120,
+            "activation_available_at_ns": 120,
+            "lineage_parent_step": 0,
+            "lineage_parent_interval_begin_ns": 0,
+            "lineage_parent_interval_end_ns": 60,
+            "lineage_parent_available_at_ns": 60
+          },
+          {
+            "step": 2,
+            "status": "Published",
+            "raw": 3,
+            "available_at_ns": 180,
+            "activation_available_at_ns": 180,
+            "lineage_parent_step": 1,
+            "lineage_parent_interval_begin_ns": 60,
+            "lineage_parent_interval_end_ns": 120,
+            "lineage_parent_available_at_ns": 120
+          }
+        ],
+        "lag_kernel_advances": 3,
+        "publications": 2,
+        "attempt_observe_step1_at_time60": "blocked_current_activation_not_available",
+        "cached_replay_obeys_same_activation_boundary": true,
+        "original_parent_availability_is_not_new_publication_availability": true,
+        "interior_absence_example": {
+          "parent_updates": [
+            {
+              "step": 0,
+              "status": "Published",
+              "raw": 1
+            },
+            {
+              "step": 1,
+              "status": "ValidAbsence"
+            },
+            {
+              "step": 2,
+              "status": "Published",
+              "raw": 3
+            }
+          ],
+          "failure_step": 1,
+          "lag_publications_before_failure": 0,
+          "step2_processed": false,
+          "successful_publication_compression": "unsupported_in_proposed_v1_mode",
+          "classification": "arbitrary_component_ValidAbsence_not_declared_source_gap_still_unsupported"
+        }
+      }
+    },
+    {
+      "id": "source_known_sma_bound_preflight_full_required_scope",
+      "source": {
+        "snapshot_id": "fixed-price-snapshot-bound-v1",
+        "source_version": "1",
+        "canonical_price_valid": true,
+        "inputs_raw": [
+          1,
+          1,
+          3,
+          5
+        ]
+      },
+      "parameters": {
+        "window": 2,
+        "max_abs_input_raw": 3
+      },
+      "producer_processing_scope": {
+        "begin_step": 0,
+        "end_step": 4,
+        "initialization": "empty_at_step_0"
+      },
+      "consumer_evaluation_scope": {
+        "begin_step": 1,
+        "end_step": 4,
+        "absence": "require_value"
+      },
+      "expected": {
+        "int64_accumulator_feasibility": "passes",
+        "source_validity": "passes",
+        "operation_domain_compatibility": "reject_before_admission",
+        "first_out_of_bound_step": 3,
+        "first_out_of_bound_raw": 5,
+        "dependent_numerical_callbacks": 0,
+        "sma_state_instances_created": 0,
+        "evaluated_observations": 0,
+        "accepted_cache_hit_cannot_bypass_preflight": true,
+        "rejection_is_source_corruption": false,
+        "warmup_variant": {
+          "inputs_raw": [
+            5,
+            1,
+            1,
+            3
+          ],
+          "first_out_of_bound_step": 0,
+          "dependent_numerical_callbacks": 0
+        },
+        "computed_input_boundary": "validate_declared_range_if_available_and_check_each_actual_input_before_state_mutation"
+      }
+    },
+    {
+      "id": "exact_scope_extension_same_fixed_snapshot",
+      "source": {
+        "snapshot_id": "fixed-price-snapshot-four-v1",
+        "source_version": "1",
+        "inputs_raw": [
+          1,
+          1,
+          3,
+          5
+        ],
+        "available_scope": {
+          "begin_step": 0,
+          "end_step": 4
+        },
+        "snapshot_identity_same_for_all_runs": true
+      },
+      "parameters": {
+        "window": 2,
+        "max_abs_input_raw": 5
+      },
+      "initialization": "empty_at_step_0",
+      "runs": [
+        {
+          "id": "first_scope",
+          "processing_begin_step": 0,
+          "processing_end_step": 3,
+          "evaluation_begin_step": 1,
+          "evaluation_end_step": 3,
+          "starting_artifact_store": "empty"
+        },
+        {
+          "id": "same_scope",
+          "processing_begin_step": 0,
+          "processing_end_step": 3,
+          "evaluation_begin_step": 1,
+          "evaluation_end_step": 3,
+          "candidate_artifact_scope": {
+            "begin_step": 0,
+            "end_step": 3
+          }
+        },
+        {
+          "id": "extended_scope",
+          "processing_begin_step": 0,
+          "processing_end_step": 4,
+          "evaluation_begin_step": 1,
+          "evaluation_end_step": 4,
+          "candidate_artifact_scope": {
+            "begin_step": 0,
+            "end_step": 3
+          }
+        }
+      ],
+      "expected": {
+        "first_scope": {
+          "reuse": "reported_miss",
+          "sma_kernel_advances": 3,
+          "outcome_deliveries": 3,
+          "outcomes": [
+            {
+              "step": 0,
+              "status": "Warming"
+            },
+            {
+              "step": 1,
+              "status": "Published",
+              "raw": 1
+            },
+            {
+              "step": 2,
+              "status": "Published",
+              "raw": 2
+            }
+          ]
+        },
+        "same_scope": {
+          "reuse": "accepted_exact_scope_hit",
+          "sma_kernel_advances": 0,
+          "cache_outcome_deliveries": 3,
+          "outcomes": [
+            {
+              "step": 0,
+              "status": "Warming"
+            },
+            {
+              "step": 1,
+              "status": "Published",
+              "raw": 1
+            },
+            {
+              "step": 2,
+              "status": "Published",
+              "raw": 2
+            }
+          ]
+        },
+        "extended_scope": {
+          "reuse": "reported_scope_mismatch_miss",
+          "sma_kernel_advances": 4,
+          "cache_outcome_deliveries": 0,
+          "reconstruct_initialization_from_declared_input_history": true,
+          "outcomes": [
+            {
+              "step": 0,
+              "status": "Warming"
+            },
+            {
+              "step": 1,
+              "status": "Published",
+              "raw": 1
+            },
+            {
+              "step": 2,
+              "status": "Published",
+              "raw": 2
+            },
+            {
+              "step": 3,
+              "status": "Published",
+              "raw": 4
+            }
+          ]
+        },
+        "source_validation_precedes_every_run": true,
+        "scope_extension_is_within_fixed_validated_snapshot": true,
+        "source_version_change_required": false,
+        "saved_mean_used_as_checkpoint": false,
+        "partial_overlap_reuse": "unsupported"
+      }
+    },
+    {
+      "id": "logical_first_occurrence_preserves_actions_and_failure_prefix",
+      "schedule_policy": "logical_first_occurrence_v1",
+      "nodes": [
+        {
+          "id": "S",
+          "declaration_ordinal": 0,
+          "parents": [],
+          "sharing": "unique_source"
+        },
+        {
+          "id": "p1",
+          "declaration_ordinal": 1,
+          "parents": [
+            "S"
+          ],
+          "sharing": "eligible_pure_P"
+        },
+        {
+          "id": "B",
+          "declaration_ordinal": 2,
+          "parents": [
+            "p2"
+          ],
+          "sharing": "unique_action"
+        },
+        {
+          "id": "A",
+          "declaration_ordinal": 3,
+          "parents": [
+            "S"
+          ],
+          "sharing": "unique_action"
+        },
+        {
+          "id": "p2",
+          "declaration_ordinal": 4,
+          "parents": [
+            "S"
+          ],
+          "sharing": "eligible_pure_P"
+        }
+      ],
+      "expected": {
+        "logical_schedule": [
+          "S",
+          "p1",
+          "A",
+          "p2",
+          "B"
+        ],
+        "physical_first_occurrences": [
+          "S",
+          "P",
+          "A",
+          "B"
+        ],
+        "logical_action_order": [
+          "A",
+          "B"
+        ],
+        "incorrect_independent_physical_sort": [
+          "S",
+          "P",
+          "B",
+          "A"
+        ],
+        "shared_P_advances_per_key": 1,
+        "unshared_p1_p2_advances_per_key": 2,
+        "B_failure": {
+          "partial_actions": [
+            "A"
+          ],
+          "accepted": false,
+          "B_successful_action": false
+        },
+        "failure_after_A_before_p2": {
+          "physical_P_publication_exists": true,
+          "logical_p2_reached": false,
+          "p2_observations": 0,
+          "later_nodes": "Aborted"
+        }
+      }
+    },
+    {
+      "id": "numerical_completion_required_evidence_close_failure",
+      "required_sink": "separate_runtime_retention_log",
+      "injected_error": "close_returns_EIO_before_acceptance",
+      "expected": {
+        "numerical": "Completed",
+        "acceptance": "Rejected",
+        "primary_code": "EvidenceIO",
+        "new_cache_entries_eligible": false,
+        "accepted_run_marker_published": false,
+        "previous_outputs": "partial_evidence",
+        "throwing_destructor_used_for_error_reporting": false
+      }
+    },
+    {
+      "id": "final_marker_uncertainty_and_no_hidden_capacity_write",
+      "cache_mechanism_status": "owner_accepted_bounded_local_exact_scope",
+      "scenarios": [
+        {
+          "condition": "marker_publication_may_have_taken_effect_and_bounded_reconciliation_cannot_determine",
+          "expected": {
+            "numerical": "Completed",
+            "acceptance": "Unconfirmed",
+            "cache_publication": "Unconfirmed",
+            "successful_score": false,
+            "cli_exit": 5,
+            "origin_proven_rejected": false,
+            "recovery": "validate_authoritative_marker_before_eligibility"
+          }
+        },
+        {
+          "condition": "configured_capacity_bypass_before_new_write",
+          "expected": {
+            "numerical": "Completed",
+            "acceptance": "Accepted_if_required_evidence_finalizes",
+            "new_cache_writes": 0,
+            "new_store_markers": 0
+          }
+        },
+        {
+          "condition": "new_entries_and_required_external_acceptance_envelope",
+          "expected": {
+            "authoritative_publication_count": 1,
+            "external_required_record": "Pending_precommit_evidence",
+            "store_marker": "sole_final_acceptance_authority"
+          }
+        },
+        {
+          "condition": "self_referencing_snapshot_inventory",
+          "expected": "reject_schema_self_reference"
+        }
+      ]
+    },
+    {
+      "id": "missing_intervals_strict_and_skip",
+      "policy_status": "owner_accepted_explicit_policies",
+      "source_expected_scope": [
+        0,
+        4
+      ],
+      "clock": "test-clock-v1",
+      "complete_bars": [
+        {
+          "step": 0,
+          "raw": 100
+        },
+        {
+          "step": 2,
+          "raw": 110
+        },
+        {
+          "step": 3,
+          "raw": 120
+        }
+      ],
+      "declared_source_gaps": [
+        {
+          "begin_step": 1,
+          "end_step": 2,
+          "reason": "missing_complete_bar"
+        }
+      ],
+      "parameters": {
+        "sma_window": 2,
+        "max_abs_input_raw": 120,
+        "lag_steps": 1,
+        "lag_count_basis": "complete_bar_updates"
+      },
+      "expected": {
+        "strict": {
+          "preparation": "reject_known_required_gap",
+          "kernel_advances": 0
+        },
+        "skip": {
+          "source_complete_keys": [
+            0,
+            2,
+            3
+          ],
+          "gap_step1": {
+            "publications": 0,
+            "numeric_callbacks": 0,
+            "actions": 0,
+            "state_changes": 0,
+            "gap_logged": true
+          },
+          "sma_outcomes": [
+            {
+              "step": 0,
+              "status": "Warming"
+            },
+            {
+              "step": 2,
+              "status": "Published",
+              "raw": 105
+            },
+            {
+              "step": 3,
+              "status": "Published",
+              "raw": 115
+            }
+          ],
+          "lag_outcomes": [
+            {
+              "step": 0,
+              "status": "Warming"
+            },
+            {
+              "step": 2,
+              "status": "Published",
+              "raw": 100,
+              "parent_step": 0
+            },
+            {
+              "step": 3,
+              "status": "Published",
+              "raw": 110,
+              "parent_step": 2
+            }
+          ],
+          "sma_advances": 3,
+          "lag_advances": 3,
+          "keys_renumbered": false,
+          "fill_used": false
+        },
+        "strict_vs_skip_cache_match": false,
+        "present_corrupted_record": "reject",
+        "wrong_instrument": "reject",
+        "all_gap_require_value_request": "reject_insufficient_usable_history",
+        "cache_replay": "same_original_complete_keys_and_declared_gap_evidence"
+      }
+    },
+    {
+      "id": "point_event_timing_preserves_source_order",
+      "source_clock": "trade-clock-v1",
+      "source_events": [
+        {
+          "key": 0,
+          "source_ordinal": 10,
+          "event_time_ns": 100,
+          "available_at_ns": 110
+        },
+        {
+          "key": 1,
+          "source_ordinal": 12,
+          "event_time_ns": 100,
+          "available_at_ns": 111
+        },
+        {
+          "key": 2,
+          "source_ordinal": 13,
+          "event_time_ns": 95,
+          "available_at_ns": 112
+        }
+      ],
+      "expected": {
+        "delivery_keys": [
+          0,
+          1,
+          2
+        ],
+        "delivery_source_ordinals": [
+          10,
+          12,
+          13
+        ],
+        "timing_kind": "point",
+        "interval_fabricated": false,
+        "event_time_sort_used": false,
+        "filtered_ordinal_11_is_source_gap": false,
+        "decision_time_must_be_at_least_availability": true,
+        "all_records_same_explicit_acquisition": true
+      }
+    }
+  ],
+  "purpose": "deterministic_advisor_reference_data_not_production_schema"
+}

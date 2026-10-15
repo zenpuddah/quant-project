@@ -1,5 +1,18 @@
 # Project Context
 
+## Current project routing — 2026-10-14
+
+**Publication update — 2026-10-15:** The owner authorized pushing the consolidated Lexongine context/specifications/plan/examples/start prompt on `implementation/lexongine-v1`, based on f75. No engine implementation or main-branch merge is part of this documentation publication. OpenCode should use the published branch and record its actual checkout before coding.
+
+Qaedalus (formerly Quadeplus) owns market data, research and financial backtesting; Lexongine (formerly Legongine) owns reusable computation/composition/execution; Axthena (formerly Athena) owns news/events/actors/information evidence. See [documentation index](../README.md).
+
+Lexongine's bounded v1 behavior/technical decisions are accepted; its current source of authority is [Lexongine context](lexongine-context.md) and [consolidated handoff](../lexongine/README.md). No Lexongine implementation was verified in the inspected remote baseline f75cd3c179f3b070f9a85c054ec3704b89f4cb69. OpenCode records actual local checkout/build evidence in [progress](../lexongine/implementation/progress.md), preserving newer local/unpushed context.
+
+Earlier XML/general-cache deferrals below concern their ingestion/storage iteration. Lexongine's accepted strict XML composition frontend, trusted plugins and bounded validated exact-scope numerical result reuse are a project-specific exception; ingestion NoopCache/general reader XML remain deferred. Qaedalus integrity/storage invariants remain mandatory. The included source/host seams do not choose a financial fill/cost/accounting model or imply persisted-Bar support.
+
+Older dated instructions retain their historical scope. Current accepted specifications and recorded implementation evidence govern later work; no old stop gate reopens a completed provider/storage slice or this accepted engine milestone.
+
+
 ## Project objective
 
 - **Accepted:** Build a personal C++20/Python quant-development platform that teaches professional engineering, provides Quant Developer portfolio/interview evidence, and grows into a usable research and backtesting platform.
