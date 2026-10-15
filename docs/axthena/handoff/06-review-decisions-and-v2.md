@@ -35,17 +35,17 @@ Review sheet · 15 October 2026. These are proposed choices, not newly accepted 
 
 ## D3 — Model transport, retrieval and meaning membership
 
-**Already decided:** existing ChatGPT access for the first experiment; replaceable model communication; name and vector retrieval separately, union in V1, retained intersection metadata, AI final organisation decision; automatic organisation creation after completed no-selection including uncertainty.
+**Already decided:** existing ChatGPT access for the first experiment; ENG-047 selects automated OpenCode-style model communication and rejects manual per-article exchange; replaceable model communication; name and vector retrieval separately, union in V1, retained intersection metadata, AI final organisation decision; automatic organisation creation after completed no-selection including uncertainty.
 
 **Recommendations:**
 
-- Implement manual versioned task/answer packet exchange first. No paid generation API or browser automation is assumed.
+- Use automated provider/authentication/request handling patterned after OpenCode. Recommended initial adapter: pinned headless OpenCode CLI or local server, with the existing configured provider. Versioned request/answer files are written automatically; no copy/paste workflow.
 - Approve a local embedding package only after tokenizer/pooling parity and name-retrieval tests. ONNX Runtime is a candidate runtime; `multilingual-e5-small` is a candidate to evaluate, not the winner of an Axthena benchmark.
 - Start with exact cosine scans and a simple name-similarity baseline. Proposed limits are eight candidates per organisation branch; retain their full deduplicated union, up to sixteen. Choose these limits based on the frozen alias packet; they are not accepted numbers.
 - A failed required retrieval branch stops/retries that resolution rather than creating an organisation. Completed uncertain no-selection creates normally. This distinction implements the accepted rule; it does not introduce human identity review.
 - For Ideas, reuse only after a supported SAME decision against the canonical complete meaning and material retained variants. Uncertain meaning stays separate; do not merge whole similarity-connected components. Review HM03/HM13 before freezing this boundary.
 
-**Trade-off:** manual transport avoids selecting paid generation access now but may not support processing the full year within reasonable human effort. Real vector retrieval requires an additional selected encoder; a ChatGPT text answer is not an embedding service. Measure this in the real pilot.
+**Trade-off:** reusing a pinned OpenCode runtime adds one external integration but avoids reimplementing provider/authentication details prematurely. Actual account/model compatibility must be demonstrated. Embedding inference is separate. The first provider/source trial is 20 articles under ENG-048.
 
 **Blocks:** T4 transport details, T6 actual retrieval, T8 grouping and T10 full-corpus processing feasibility.
 
@@ -55,9 +55,9 @@ Review sheet · 15 October 2026. These are proposed choices, not newly accepted 
 
 **Needed selection:** provider/access path, exact sources and languages, exact common date bounds, security/listing identifiers, body availability/retention, allowed request volume, source-view definitions, topic/supplier configuration and what the budget includes. The price preference is not permission to buy a subscription.
 
-**Recommended sequence:** inspect an affordable provider's actual retained sample before selecting the full-year corpus; then a 20–50 report pilot with both stocks and difficult surrounding-world cases. Report downloaded and processed coverage separately. Provider capability/pricing must be checked when selecting it; older research prices are not current offers.
+**Accepted next task (ENG-048):** the first OpenCode task is a small source trial of 20 articles. Inspect actual retained content before selecting the full-year corpus; then the owner-requested 20-article trial, with both stocks where usable coverage permits. Report downloaded and processed coverage separately. Provider capability/pricing must be checked when selecting it; older research prices are not current offers.
 
-**Blocks:** T3's real provider adapter and T10's full acquisition/processing run. Fixture replay can support development but cannot replace these acceptance gates.
+**Order:** S0 (20-article source trial) comes first; its sample informs T3's adapter. The larger T10 acquisition is later and is not authorized by the small trial. Fixture replay can support development but cannot replace these acceptance gates.
 
 ## D5 — Useful reads and measurable targets
 

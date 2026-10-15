@@ -1092,3 +1092,8 @@ The repository edition omits unrelated personal-study framing/private-note links
 ## Verification scope
 
 Documentation link/identifier/hash checks, original archive equality, scoped Git diff and remote branch verification apply. Application/runtime tests are not evidence for this documentation-only publication. Inherited quant test reports are not new results from this work.
+
+
+## Axthena owner correction — automated communication and source trial
+
+The owner rejected the manual request/answer proposal and selected automated communication patterned after OpenCode. The first assigned OpenCode task is a small trial of 20 news articles. ENG-047/048 in `docs/axthena/repository-handoff.md` record the full reasons, invariants, scope and tests. Active specifications/plan/startup guidance now reflect that sequence. Headless OpenCode CLI/local API documentation supports the proposed integration route; installed-version/account compatibility still requires the trial. No provider credentials, model call, source acquisition or product implementation was executed in this documentation correction.

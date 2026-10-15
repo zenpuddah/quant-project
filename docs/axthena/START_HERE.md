@@ -6,6 +6,8 @@ Repository handoff · 15 October 2026
 
 The owner asked to put the consolidated Axthena context on a separate branch so a second agent can carry the work into implementation. This branch starts from `main` at `95993a80412ec52dc17b5cfd4b5ad6d9771f2fe5`; it does not merge the separate Lexongine workstream.
 
+**Latest owner decisions:** no manual per-article LLM exchange; use automated OpenCode-style communication. First OpenCode task: a small trial of **20 news articles**. Read [the current supplement](automated-llm-and-20-article-pilot.md) before the older handoff. Larger collection follows review of that result.
+
 ## Read in this order
 
 1. Root `AGENTS.md` and `docs/project/context.md` for repository rules and routing.
@@ -21,17 +23,17 @@ Use [IMPLEMENTATION_PROMPT.md](IMPLEMENTATION_PROMPT.md) to launch the second ag
 
 The earlier plan says “independent Axthena repository” and “repository location unselected.” Those location statements are superseded: **Axthena now has this separate branch in the shared repository.** Axthena remains a separate project with its own decisions. Physical co-location does not merge its architecture with Qaedalus or Lexongine.
 
-The future paths in handoff T1 and the repository layout are **relative to an isolated Axthena component root**, not the quant repository root. Suggested placement is `projects/axthena/`; record the final placement in T0 before application files. Do not overwrite root build files or put Axthena internals inside `src/quant/`. Existing quant tests/dependencies must remain usable without installing Axthena dependencies.
+The future paths in handoff T1 and the repository layout are **relative to an isolated Axthena component root**, not the quant repository root. Suggested placement is `projects/axthena/`; record the final placement in T0 before production application files. S0 may use an isolated, clearly labelled trial directory before T0; do not build a production application merely to fetch the sample. Do not overwrite root build files or put Axthena internals inside `src/quant/`. Existing quant tests/dependencies must remain usable without installing Axthena dependencies.
 
 Existing C++20, Arrow/Parquet and Databento decisions belong to Qaedalus. For Axthena, C++ is accepted; its standard, database, libraries, embeddings and interface retain their handoff selection status. A quant-only deferral of SQLite is not an Axthena backend decision. General correctness, evidence, owner authority and preservation rules still apply.
 
 ## What the second agent can do now
 
-Begin T0: reconcile the concrete contract and staged decision groups. Do not ask again whether to read the documents or begin that preparation. Do not reopen accepted C++/local/batch/evidence/UP-DOWN/union requirements.
+Begin S0: run the requested 20-article source trial and verify automated model communication using available access. Then continue T0 and the applicable staged design choices. Do not ask again whether to read the documents or begin that preparation. Do not reopen accepted C++/local/batch/evidence/UP-DOWN/union requirements.
 
 When a material unselected choice blocks the next task, present the recommended bundle and concrete trade-off to Badr. Record his answer in the six-field format. Branch publication is not silent approval of SQLite, Ladybug, C++20, a paid API, an embedding model, a forecast fallback or a performance number. Execute the reviewed plan when applicable contracts are approved. Continue independent authorized work rather than stopping everything for a later-stage choice.
 
-No simulator, actor-role classifier, ML training, dedicated reason graph, live collection during reads or quant-strategy integration belongs to this V1. Keep the current ChatGPT transport proposal separate from API-first source acquisition and numeric embedding retrieval.
+No simulator, actor-role classifier, ML training, dedicated reason graph, live collection during reads or quant-strategy integration belongs to this V1. Keep automated model communication separate from API-first source acquisition and numeric embedding retrieval.
 
 ## Other project context
 

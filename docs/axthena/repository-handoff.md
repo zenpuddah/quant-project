@@ -26,6 +26,35 @@ Date: 2026-10-15. Branch-routing supplement to the compiled handoff. It changes 
 
 ## Next step
 
-The second agent starts at [START_HERE.md](START_HERE.md) and T0, then executes the approved contract in bounded slices. D1–D6 are staged decision groups, not a demand to resolve every performance number before useful work. Preserve accepted behaviours; escalate material unresolved choices instead of converting advice into policy.
+The second agent starts at [START_HERE.md](START_HERE.md) and the accepted S0 20-article source trial, then T0, then executes the approved contract in bounded slices. D1–D6 are staged decision groups, not a demand to resolve every performance number before useful work. Preserve accepted behaviours; escalate material unresolved choices instead of converting advice into policy.
 
 Source provider/date bounds, confirmation/time/hold details, backend/libraries, embeddings, grouping boundary, target-machine limits and applicable specification approval retain their handoff status. There is no new approval to spend money or access credentials.
+
+
+## ENG-047 — Automated LLM communication patterned after OpenCode
+
+**Decision:** Automate model communication using the provider/authentication/request approach of OpenCode. The owner explicitly rejects the proposed manual request/answer exchange.
+
+**Reason:** Manual per-article exchange creates unnecessary work and defeats the intended automated processing flow.
+
+**Invariant:** Retain the replaceable LLM boundary and exact request/response provenance. Files are generated automatically for history/replay. Do not turn the existing ChatGPT access choice into an invented general API entitlement, copy secrets into evidence, or treat model output as validated domain truth. Other architecture recommendations are not accepted by this correction.
+
+**Trade-offs:** Automated access adds runtime/provider/version integration and failure handling. Reusing a pinned headless OpenCode runtime is the recommended first adapter; the accepted direction does not require rebuilding its entire coding-agent system or accept a particular CLI/HTTP binding.
+
+**Implementation scope:** Replace the manual-first proposal in active handoff documents. The next implementation session verifies configured provider access and one automatic request, then runs the bounded sample. Authentication stays with the supported client. Keep C++ domain validation/storage independent.
+
+**Required tests:** Automated submission and capture without per-article human exchange; exact task/attempt correlation; completion and malformed/refused/truncated/timed-out outcomes; raw events distinguished from extraction JSON; fresh-session isolation; duplicate application idempotence; replay without a new model request; credentials absent from retained artifacts. These runtime tests remain pending.
+
+## ENG-048 — First OpenCode source task is a 20-article trial
+
+**Decision:** Make the news-source trial the first OpenCode task. Use a small sample of 20 articles for testing, with no large collection in this initial step.
+
+**Reason:** Validate actual source content and the processing path cheaply before broader work.
+
+**Invariant:** Target 20 unique retained articles and cap the trial at 20. Preserve requested/actual counts, duplicates, missing bodies and failures. Do not fabricate content or expand into twelve-month acquisition automatically. The earlier longer historical target remains later work; this is the immediate task boundary.
+
+**Trade-offs:** A small sample permits quick inspection but does not prove source coverage, statistical accuracy, volume feasibility or historical/predictive usefulness.
+
+**Implementation scope:** S0 in the updated plan: short source window, relevant Nvidia/Microsoft articles, retained evidence, automated model smoke request then bounded processing, and inspectable outputs for review. Provider remains conditional on actual usable access; no new purchase is authorized.
+
+**Required tests:** Retained unique article count never exceeds 20; actual count/gaps are reported; both target coverage and source/body fidelity are visible; automation retains exact inputs/outputs; failures remain distinguishable; no full-year acquisition is triggered. Review the bounded results before expansion.

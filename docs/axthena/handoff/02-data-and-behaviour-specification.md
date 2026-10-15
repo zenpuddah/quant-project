@@ -8,7 +8,7 @@ This document translates accepted meanings into a proposed implementation contra
 
 An analyst configures Nvidia, Microsoft and relevant organisations, dependencies and topics. Axthena downloads a bounded source collection, retains the material, processes it separately and provides stock/date/source-filtered reads. A read can explain which organisation and domain an idea concerns, who expressed it, its supporting passage, any supported stock UP/DOWN judgment and its period, and how a surrounding event is relevant. Original evidence survives classification errors and retries.
 
-The first application runs locally, primarily in C++. It prepares data before serving ordinary reads. It does not simulate future worlds, trade, train predictors, infer motives or manufacture historical information. The initial historical target is twelve consecutive months; exact dates, sources and numerical performance targets remain unselected. See AX-001/011–014/018/041/049–052 and ENG-004/009–016/042.
+The first application runs locally, primarily in C++. It prepares data before serving ordinary reads. It does not simulate future worlds, trade, train predictors, infer motives or manufacture historical information. The immediate first OpenCode source trial is 20 articles (ENG-048), using automated OpenCode-style LLM communication (ENG-047). The later historical target is twelve consecutive months; exact dates, sources and numerical performance targets remain unselected. See AX-001/011–014/018/041/049–052 and ENG-004/009–016/042.
 
 The graph reviewed on 15 October is a **fictional diagnostic projection**, not this complete implementation. It exposes 36 Reports, 38 Expressions, 38 singleton Ideas and 14 Judgments. It does not yet implement collection, real candidate retrieval, shared-Idea insertion, structured Event/Fact/Confirmation/dependency extraction or historical runtime replay.
 
@@ -57,7 +57,7 @@ Required relationship information includes who represents whom when supported, w
 
 ## 4. Collection and processing contracts
 
-Required sequence: configure → collect/retain → process → query stored results. Collection is API-first and source-specific; ChatGPT is a separate extraction/decision transport. Ordinary reads never fetch or process missing data.
+Required sequence: configure → collect/retain → process → query stored results. Model requests and answers are exchanged automatically; retained versioned files serve provenance/replay rather than manual copy/paste. Collection is API-first and source-specific; ChatGPT is a separate extraction/decision transport. Ordinary reads never fetch or process missing data.
 
 Proposed operational records, stored logically apart from domain records:
 

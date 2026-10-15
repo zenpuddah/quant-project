@@ -6,7 +6,7 @@ Compiled 15 October 2026. This index makes prior work reusable without presentin
 
 ## Precedence and evidence
 
-1. Latest explicit owner decisions, recorded in the updated contexts through AX-054 and ENG-045.
+1. Latest explicit owner decisions, recorded in the updated contexts through AX-054/ENG-045, with current branch decisions ENG-046–048 in `../repository-handoff.md`.
 2. Current handoff's decision map and specification, with every new mechanism labelled proposed until accepted.
 3. Dated research, model reviews, prompts and experiments as supporting evidence, not automatic choices.
 
@@ -54,3 +54,5 @@ The older scientific and compiler analogies are retained as inspiration. Do not 
 Preserve existing raw experiments and their reference/score hashes. Add new prompts/contracts/runs under new versions. A revised expected answer cannot improve the score of an already executed experiment. Keep operational failure, insufficient source information and a genuinely wrong model decision separate.
 
 The original archives retain their own internal checksums. The handoff manifest checks the archive bytes and current documents; it does not rerun their experiments or certify product correctness.
+
+Latest primary transport documentation: OpenCode CLI, provider and server references are recorded in `../automated-llm-and-20-article-pilot.md`. They support automated interfaces; installed-version/account compatibility is a pending check.

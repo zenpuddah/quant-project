@@ -1,5 +1,7 @@
 # Axthena — dedicated project context
 
+**Latest owner correction — ENG-047/048 (2026-10-15):** use automated LLM communication patterned after OpenCode; manual per-article request/answer exchange is rejected. The first OpenCode source task is a small 20-article trial. Larger acquisition is later work. Read `../../automated-llm-and-20-article-pilot.md` and the full six-field records in `../../repository-handoff.md`; older proposals are historical.
+
 Updated: 2026-10-15
 Stage: positive owner review of the populated fictional graph received; consolidated design, behaviour, tests and implementation plan compiled for review. No product implementation has started.
 

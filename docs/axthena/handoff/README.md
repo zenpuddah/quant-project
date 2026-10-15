@@ -2,7 +2,7 @@
 
 **Repository edition:** this packet was imported into the separate Axthena branch. Read `../START_HERE.md` first; it supersedes old repository-location wording. A few historical source copies omit private-note links and non-technical study framing, recorded in `repository-adaptations.json`. Original source hashes are in `manifest-original.json` and `source-inventory-original.json`; original experiments are unchanged. The current `manifest.json` describes this repository edition.
 
-Compiled 15 October 2026, after Badr's positive review of the populated fictional graph.
+Compiled 15 October 2026, after Badr's positive graph review. Latest accepted corrections: automated OpenCode-style LLM communication (ENG-047) and a first source trial of 20 articles (ENG-048). Read `../START_HERE.md` and the latest supplement first.
 
 **The discovery history is now consolidated into a reviewable implementation handoff.** This packet preserves the accepted model, later changes, proposed technical design, behaviours, tests and ordered implementation tasks. Production code has not started. Badr retains the final architecture decisions.
 
@@ -10,7 +10,7 @@ Compiled 15 October 2026, after Badr's positive review of the populated fictiona
 
 1. [Review decisions and V2 boundaries](06-review-decisions-and-v2.md) — the six grouped choices/gates needed to turn the draft into an approved execution plan. No renewed general discovery checklist.
 2. [Data and behaviour specification](02-data-and-behaviour-specification.md) — the current world model, extraction, identity, confirmation, time and query contracts; accepted meaning versus proposed representation.
-3. [Implementation plan](05-implementation-plan.md) — five milestones and 13 tasks, with proposed file paths, interfaces, dependencies, tests and deliverables.
+3. [Implementation plan](05-implementation-plan.md) — five milestones and S0 plus T0–T12, with proposed file paths, interfaces, dependencies, tests and deliverables.
 
 Supporting documents:
 
@@ -46,7 +46,7 @@ Name and vector retrieval produce separate organisation candidate lists; their u
 | Graph display implies selected backend | Cypher/Neo4j is a review surface; production store remains unselected |
 | Reviewed extraction is the whole world model | Explicit Event, Fact/Confirmation and dependency extraction still needs its final contract |
 
-The new architecture recommendation is a single C++ application with SQLite structured records, immutable evidence files, a small read surface and graph export; Ladybug is an alternative. This is **advice**, not an accepted change. Model transport can begin with manual ChatGPT packets, but a numeric embedding pipeline and full-year processing feasibility still need selection/evidence.
+The new architecture recommendation is a single C++ application with SQLite structured records, immutable evidence files, a small read surface and graph export; Ladybug is an alternative. This is **advice**, not an accepted change. Model transport is automated, patterned after OpenCode; a pinned headless-runtime adapter is the current recommendation. Retained packets are written automatically. A numeric embedding pipeline and later full-year feasibility still need evidence.
 
 ## How to interpret this packet
 

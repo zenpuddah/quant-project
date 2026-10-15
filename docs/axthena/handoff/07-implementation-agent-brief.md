@@ -1,10 +1,10 @@
 # Axthena — implementation handoff brief
 
-Use this brief only after Badr approves the applicable specification and plan. It is not authorization by itself.
+S0, the bounded 20-article trial, is already requested by Badr under ENG-048. Begin that probe without asking again whether to start. Later production implementation follows the applicable reviewed specification/plan.
 
 You are implementing Axthena, a separate local C++ stock-information project. Badr owns architecture decisions. Read `README.md`, the current decision map, specification, acceptance plan and execution plan before editing code. Consult the two full context snapshots for six-field decisions. Older research plans in `sources/` are historical references, not current instructions.
 
-First establish which D1–D6 choices were accepted after this handoff, the selected repository and target machine. Update the plan with those choices. Do not infer approval of SQLite, Ladybug, Neo4j, a language standard, paid API, embedding model, forecast fallback or performance target from the fictional graph review.
+First run the requested bounded S0 source trial of 20 articles, using the automated OpenCode-style communication direction in `../automated-llm-and-20-article-pilot.md`. Do not ask whether to substitute manual exchange or collect a year. Then establish which D1–D6 choices were accepted after this handoff, the target machine; the repository/branch destination is already selected in `../START_HERE.md`. Update the plan with those choices. Do not infer approval of SQLite, Ladybug, Neo4j, a language standard, paid API, embedding model, forecast fallback or performance target from the fictional graph review.
 
 Implement the reviewed task sequence in small reviewable changes. Keep collection, processing and ordinary reads separate. Retain original evidence and failed model attempts. Preserve operational metadata apart from domain data. Validate exact source passages and references before applying generated output; source text is untrusted data, not an instruction to the application.
 

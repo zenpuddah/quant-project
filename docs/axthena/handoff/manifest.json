@@ -1,47 +1,47 @@
 {
   "package": "Axthena repository handoff edition",
-  "status": "review draft; production not implemented",
+  "status": "accepted S0 trial; production design choices retain explicit status",
   "file_count_excluding_manifest": 48,
   "files": [
     {
       "path": "01-scope-and-decisions.md",
-      "size_bytes": 36095,
-      "sha256": "373acf72e4b19ec2fbe7f07724efd377e52f04da1c994332c9ff9d6ec2e6adb0"
+      "size_bytes": 36749,
+      "sha256": "5053449fb67beef82dbae5cbebf5bc86d49ad14642384d7ce605cd6749553da9"
     },
     {
       "path": "02-data-and-behaviour-specification.md",
-      "size_bytes": 22705,
-      "sha256": "62389c05c142bbcbabfb9ca0c1ef64bb24b2b242f3f6061cd7347f95fe10f0a6"
+      "size_bytes": 22967,
+      "sha256": "b4527fc4f3b854a4704a127eb7a6549b387acb5b043007d778fc7df9aae8c51a"
     },
     {
       "path": "03-architecture-proposal.md",
-      "size_bytes": 29812,
-      "sha256": "95e8bfc8174bfc0c2f8614d2b4f2959381c9bc6454ceeb520d3a33c24d82d02c"
+      "size_bytes": 30194,
+      "sha256": "174a30c00ece25529b22f8c58cea666f353c1fda148a2f573b0ec3c8deaf070a"
     },
     {
       "path": "04-acceptance-and-test-plan.md",
-      "size_bytes": 32093,
-      "sha256": "dec185526aa4cf5311c8795193208f891ec067940f7e634f63d046d4b4a5e14f"
+      "size_bytes": 32738,
+      "sha256": "5c6616a62492720fb67cbfd81727b11cc2e904bae232c72b4c39ed2bb83c0f6a"
     },
     {
       "path": "05-implementation-plan.md",
-      "size_bytes": 26520,
-      "sha256": "e2c61823f74637a2083c736b17a52355d27b37cd0fc4a2a64a200b9eb23f40aa"
+      "size_bytes": 29211,
+      "sha256": "ac4ba689737593f643bbfa48244a596a1254717b982cce51cac151a54883bb6d"
     },
     {
       "path": "06-review-decisions-and-v2.md",
-      "size_bytes": 11852,
-      "sha256": "0328e139240e6bd6b957bd3ea0d001cd60b228ccc805b4b95c616883bf87a108"
+      "size_bytes": 12252,
+      "sha256": "0c7c2ba56b49ada0661b10f89558081ec5aa7a104bd5b6b15f1021465565a49e"
     },
     {
       "path": "07-implementation-agent-brief.md",
-      "size_bytes": 3538,
-      "sha256": "d3c6b322d0aa1328d1c8ee65fea235645b55e2b3821e541100cee845c314b0ae"
+      "size_bytes": 3932,
+      "sha256": "2ddbc62da4c00df59b21e8a7b7d982d631500daacde40b5a79e4d4f37b919463"
     },
     {
       "path": "08-research-and-artifact-index.md",
-      "size_bytes": 7699,
-      "sha256": "d7bc0fbc7c81d44c06eb3625165e21f900fdc71c010ad33cf90a769b6f3a9363"
+      "size_bytes": 8011,
+      "sha256": "9b87d333252153a0bac4464bfd025f4dd134ba6deeb2efd40020cd68425e1925"
     },
     {
       "path": "09-handoff-review-notes.md",
@@ -50,8 +50,8 @@
     },
     {
       "path": "README.md",
-      "size_bytes": 6234,
-      "sha256": "414c7ebc005dd3cdaab37a51eb14ed8a6d000e0eaca490f2e412aa49929e4acc"
+      "size_bytes": 6496,
+      "sha256": "518016fb6b61c8373aa4d0a068dd51ab45153304385a30a45b9d5dd20b007f8a"
     },
     {
       "path": "manifest-original.json",
@@ -60,8 +60,8 @@
     },
     {
       "path": "repository-adaptations.json",
-      "size_bytes": 5236,
-      "sha256": "64cbd59aeb664b093bd10349013b9dd0fba96c8b3badd74f871ef4c519b2a93a"
+      "size_bytes": 8472,
+      "sha256": "0ec056990f9a83af4ba3a240e736566757553161af8fdfd5cb4c6c9c943043d3"
     },
     {
       "path": "review/company-view.cypher",
@@ -105,8 +105,8 @@
     },
     {
       "path": "sources/Axthena-context.md",
-      "size_bytes": 133679,
-      "sha256": "83425f52f6bf474701aa6e103b351d7ec87d6a9bbe8e2d5201ffee18b63aab22"
+      "size_bytes": 134094,
+      "sha256": "66f98f431bd16a377c2c8cc88a0d45928080d6a7c599baab24456136eeb7e77a"
     },
     {
       "path": "sources/Axthena-creation-time-opinion-grouping-research-2026-10-14.md",
@@ -125,8 +125,8 @@
     },
     {
       "path": "sources/Axthena-engineering-context.md",
-      "size_bytes": 144520,
-      "sha256": "ff49beade96175b3f427a96fb617758152fd39f840619242c828f88854177a10"
+      "size_bytes": 144935,
+      "sha256": "de2f41f9a080f54728e8a117721617d5c9e228bad188ad853f926822878ab0cc"
     },
     {
       "path": "sources/Axthena-extraction-reference-index-2026-10-14.json",

@@ -1,6 +1,6 @@
 # Axthena — scope and current decision map
 
-Consolidated decision map, 15 October 2026. Based on the full AX context through AX-054 and engineering context through ENG-043, plus the latest user instructions recorded as ENG-044/045. The full six-field decisions are retained in `sources/Axthena-context.md` and `sources/Axthena-engineering-context.md`. Every AX-001–AX-054 and ENG-001–ENG-043 entry was reviewed. AX-016 is withdrawn; historically accepted entries are interpreted through their explicit later refinements. P-/F- sections are evidence of proposals/findings, not independent owner decisions.
+Consolidated decision map, 15 October 2026. Based on the full AX context through AX-054 and engineering context through ENG-043, plus later branch decisions through ENG-048 in `../repository-handoff.md`. The full six-field decisions are retained in `sources/Axthena-context.md` and `sources/Axthena-engineering-context.md`. Every AX-001–AX-054 and ENG-001–ENG-043 entry was reviewed. AX-016 is withdrawn; historically accepted entries are interpreted through their explicit later refinements. P-/F- sections are evidence of proposals/findings, not independent owner decisions.
 
 ## 1. Accepted current requirements, grouped by domain
 
@@ -140,6 +140,10 @@ Game roles; domain-conditioned person vectors; empirical person scoring and ML/p
 
 ## 4. Latest recorded changes
 
+**ENG-047 — Automated model communication:** use OpenCode-style provider/authentication/request handling. Reject manual per-article request/answer exchange; retain all artifacts automatically. Exact transport implementation is verified against a pinned runtime.
+
+**ENG-048 — Source trial first:** the first OpenCode task is a bounded 20-article news-source trial. Keep larger collection and the twelve-month target as later work; do not expand the sample automatically. These decisions are recorded in full at `../repository-handoff.md`.
+
 **ENG-044 — Graph review milestone and implementation handoff:** Badr expressed satisfaction with the current graph results and requested consolidated design, behaviour, changes, tests and an implementation plan. This authorizes the documentation handoff. It does not select a database, approve every production contract, prove the graph queries all ran, or start production implementation. Required world concepts and documented gaps remain in scope.
 
 **ENG-045 — Company and judgment visual conventions:** company orange, subsidiary yellow, UP green and DOWN red; show the stock-linked judgment and its source-grounded explanation/evidence. These are display choices. They do not assert actual market direction, inherent positive/negative company sentiment or a dedicated reason subsystem. Parent/subsidiary roles are relative to the selected view.
@@ -150,4 +154,4 @@ The complete six-field entries are in the updated engineering context. Historica
 
 All business IDs reviewed: AX-001–AX-054 (53 accepted/historically accepted entries plus AX-016 withdrawn). All engineering IDs reviewed: ENG-001–ENG-043. No current technical backend, numerical horizon default, complete production schema or final execution plan is accepted by these snapshots. New proposal documents should preserve the accepted full logical world while making the extraction-to-full-model gap an explicit work item, not redefine V1 around the narrower successful fixture.
 
-Current handoff adds ENG-044 and ENG-045; neither selects a production technology.
+The handoff records ENG-044/045; the branch supplement adds ENG-046–048, including automated communication and the first 20-article trial. Backend/libraries remain unselected.

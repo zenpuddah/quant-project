@@ -1,5 +1,7 @@
 # Axthena — engineering decisions context
 
+**Latest owner correction — ENG-047/048 (2026-10-15):** use automated LLM communication patterned after OpenCode; manual per-article request/answer exchange is rejected. The first OpenCode source task is a small 20-article trial. Larger acquisition is later work. Read `../../automated-llm-and-20-article-pilot.md` and the full six-field records in `../../repository-handoff.md`; older proposals are historical.
+
 Updated: 2026-10-15
 Stage: Badr has expressed satisfaction with the populated fictional graph and requested a consolidated implementation handoff (ENG-044). The design, behaviour specification, acceptance tests and execution plan are now compiled for review. Real-source validation and documented contract gaps remain open. Production implementation awaits review of the specification and plan. C++ is accepted; standard, libraries, backend and other technologies remain unselected.
 

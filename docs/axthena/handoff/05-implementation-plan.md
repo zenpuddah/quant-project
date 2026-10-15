@@ -1,8 +1,8 @@
 # Axthena V1 implementation plan
 
-> **Status:** proposed execution plan for owner review, 15 October 2026. No production implementation has started. Resolve the applicable decisions in `06-review-decisions-and-v2.md` and approve this plan before executing it. Do not treat proposed technologies or defaults as previously accepted decisions.
+> **Status:** proposed execution plan for owner review, 15 October 2026. No production implementation has started. The owner-requested S0 20-article trial is already authorized; begin that bounded probe without another plan-approval question. Resolve the applicable decisions in `06-review-decisions-and-v2.md` and review the production specification/plan before later application implementation. Do not treat proposed technologies or defaults as previously accepted decisions.
 
-**Goal:** deliver a local C++ application that collects a bounded twelve-month stock-information corpus, preserves evidence, prepares traceable records and supports useful stock/date queries and graph inspection for Nvidia and Microsoft.
+**Immediate goal (ENG-048):** the first OpenCode task is a source trial of 20 articles. **Later V1 goal:** deliver a local C++ application for the bounded stock-information corpus, preserves evidence, prepares traceable records and supports useful stock/date queries and graph inspection for Nvidia and Microsoft.
 
 **Architecture:** proposed single native application; one structured store; immutable evidence/model artifacts; separate collection, processing and reading; replaceable task/answer transport; explicit organisation identity and shared-meaning preparation. This is a conceptual graph regardless of backend.
 
@@ -12,14 +12,14 @@
 
 **Global constraints:** owner decides architecture; independent Axthena repository; local sequential workflow; retain exact evidence and failed attempts; no network/model side effects during reads; no automatic fact-conflict resolution; completed uncertain organisation resolution creates automatically; no quant integration, training, role classifier, simulator, active edit monitor or dedicated reason system.
 
-**Review focus:** source/version time, confirmation scope, material conditions, actual retrieval versus fixtures, immutable history, idempotent partial retries, missing world records and manual-model throughput. A graph-shaped export is not evidence that the production system has these behaviours.
+**Review focus:** source/version time, confirmation scope, material conditions, actual retrieval versus fixtures, immutable history, idempotent partial retries, missing world records and automated-provider compatibility/throughput. A graph-shaped export is not evidence that the production system has these behaviours.
 
 ## 1. Milestones and dependency order
 
 | Milestone | Tasks | Observable deliverable | Exit condition |
 |---|---|---|---|
-| M0 Reviewed contract | T0 | Signed-off specification, choices, frozen examples | No material V1 meaning silently unresolved |
-| M1 Evidence and a useful first read | T1–T5 | One retained real report → manually obtained ChatGPT answer → validated stock/date evidence read | Passage, subject, qualification, date basis and trace survive restart |
+| M0 Source trial and reviewed contract | S0, then T0 | Signed-off specification, choices, frozen examples | No material V1 meaning silently unresolved |
+| M1 Evidence and a useful first read | T1–T5 | One retained real report → automatically obtained model answer → validated stock/date evidence read | Passage, subject, qualification, date basis and trace survive restart |
 | M2 Real identity and shared meaning | T6–T8 | Actual two-branch retrieval, automatic identity continuation, scoped world facts and grouping | Sequential reuse and damaging non-merges demonstrated |
 | M3 Investigator workflow | T9–T10 | Full query catalogue, graph export and bounded real-source corpus | Owner reviews useful application outputs and coverage |
 | M4 Release candidate | T11–T12 | Measured local performance, restore demonstration, packaged native application | Frozen acceptance packet passes; limits and missing coverage explicit |
@@ -38,7 +38,7 @@ All paths below are **future repository-relative paths**, not files created by t
 | Domain and contracts | `include/axthena/domain/types.hpp`, `include/axthena/domain/time.hpp`, `schemas/task.json`, `schemas/answer.json`, `schemas/query-result.json` |
 | Evidence/storage | `include/axthena/storage/store.hpp`, `src/storage/sqlite_store.cpp`, `src/storage/artifact_store.cpp`, `migrations/001_initial.sql` |
 | Collection | `include/axthena/collection/source.hpp`, `src/collection/collector.cpp`, `src/collection/news_api_source.cpp` |
-| Model exchange/validation | `include/axthena/model/task_exchange.hpp`, `src/model/manual_exchange.cpp`, `src/model/answer_validator.cpp`, `prompts/extract-v1.txt`, `prompts/resolve-organisation-v1.txt`, `prompts/compare-idea-v1.txt` |
+| Model exchange/validation | `include/axthena/model/task_exchange.hpp`, `src/model/opencode_transport.cpp`, `src/model/answer_validator.cpp`, `prompts/extract-v1.txt`, `prompts/resolve-organisation-v1.txt`, `prompts/compare-idea-v1.txt` |
 | Resolution/retrieval | `src/retrieval/name_candidates.cpp`, `src/retrieval/vector_candidates.cpp`, `src/retrieval/candidate_union.cpp`, `src/resolution/organisation_resolver.cpp`, `src/grouping/idea_matcher.cpp` |
 | Preparation/world | `src/processing/preparer.cpp`, `src/processing/publication.cpp`, `src/world/claims.cpp`, `src/world/confirmation.cpp`, `src/world/relationships.cpp` |
 | Reads/export | `include/axthena/query/query_service.hpp`, `src/query/query_service.cpp`, `src/query/eligibility.cpp`, `src/export/graph_export.cpp`, `src/cli/main.cpp` |
@@ -50,7 +50,8 @@ The exact record definitions are completed at T0; these ownership boundaries avo
 SourceAdapter.fetch(CollectionRequest, Cursor) -> Result<SourcePage>
 ArtifactStore.retain(bytes, metadata) -> Result<ArtifactRef>
 TaskExchange.prepare(TaskEnvelope) -> Result<PendingTask>
-TaskExchange.import_answer(TaskId, answer_bytes) -> Result<AnswerArtifact>
+TaskExchange.submit(TaskEnvelope) -> Result<AttemptId>
+TaskExchange.await_result(AttemptId) -> Result<AnswerArtifact>
 AnswerValidator.validate(TaskEnvelope, AnswerArtifact) -> ValidationReport
 CandidateRetriever.retrieve(Mention, CatalogueVersion) -> CandidateBatch
 OrganisationResolver.apply(ValidatedIdentityDecision, ApplyKey) -> IdentityResult
@@ -62,6 +63,18 @@ QueryService.read(QuerySpec, RunId, ViewVersion) -> QueryResult
 `Result` denotes a typed success/error value, not a selected third-party type or C++23 requirement. Errors retain stage, reason and retryability. `CandidateBatch` records both branch outcomes, candidates and intersection. `ValidationReport` separates structural errors, evidence failures, semantic issues and valid components. `QueryResult` separates domain records from coverage/status/limits. Do not return raw pointers into a database row buffer.
 
 ## 3. Execution tasks
+
+### S0 — First OpenCode task: 20-article source trial
+
+**Owner-requested immediate task (ENG-048).** Begin this bounded source probe before a broad application build or full-year collection. It does not depend on choosing every database/library/detail in T0.
+
+1. Inspect source access already available, beginning with the EODHD candidate or another explicitly configured source. Use a short recorded date interval and target 20 unique news articles relevant to Nvidia/Microsoft, including relevant surroundings where available. Keep the retained trial set capped at 20 articles. If access/text quality prevents reaching 20, report the actual count and reason rather than expanding scope or inventing content.
+2. Retain actual response/body, source URL/ID, declared dates, collection time, text availability and request outcome. Aim for coverage of both targets; distinguish a provider's ticker tags from verified entity resolution. Do not fetch a year as part of this trial.
+3. Establish one automated OpenCode-style model call using the configured provider; pin the observed runtime/model/configuration and capture requests/answers automatically. Start with one retained article, then process the retained set when that path works. No per-article copy/paste. No new paid source/model purchase is implied.
+4. Deliver an inspectable article inventory and processing output with exact passages and visible gaps, plus a small graph/query review where the current contract supports it. Mark unresolved contract fields rather than silently narrowing the intended world model.
+5. Review the 20-article result with Badr before enlarging the corpus. Use failures to inform T0/T3/T4; trial utilities remain clearly labelled, and application implementation follows the reviewed contract.
+
+**Deliverable:** the bounded source trial and an evidence-based provider/automation recommendation. No full-year coverage, production retrieval or whole-model accuracy claim.
 
 ### T0 — Freeze decisions, exact formats and reference cases
 
@@ -125,21 +138,21 @@ QueryService.read(QuerySpec, RunId, ViewVersion) -> QueryResult
 
 **Deliverable:** real retained source packet plus coverage ledger. No unreviewed full-year purchase or crawl.
 
-### T4 — Replaceable manual ChatGPT task exchange
+### T4 — Automated OpenCode-style LLM communication
 
 **Depends on:** T2 and D3 transport contract.
 
 **Create:** model exchange files/schemas, `tests/unit/task_validation.cpp`, `tests/integration/answer_import.cpp`.
 
 1. Export a self-contained, versioned request packet with evidence, task ID, required schema and applicable instructions. Treat article text as untrusted data, not application instructions.
-2. Import the unedited actual answer, preserving bytes and task correlation. Unknown model version/token/cost information stays unknown.
+2. Submit and receive automatically through a pinned OpenCode-style provider adapter. Retain the actual request, raw response/events, completed answer and task/attempt correlation without human exchange. Unknown model version/token/cost information stays unknown.
 3. Keep pending, completed, refused, malformed, truncated, failed and uncertain outcomes distinct. An incomplete JSON container is not automatically a valid partial result.
 4. Validate IDs, enum values, references and exact quotations before domain application. Keep short grounded explanations; do not claim access to private model reasoning.
 5. Replay stored answers without contacting ChatGPT. A different answer or prompt creates a new attempt/version.
 
-**Tests:** wrong task, unknown candidate ID, fabricated passage, prompt-injection text, repeated import, changed source hash, malformed response, refusal and no-response states. AT-01/02/07/09/36 plus the explicit transport cases in the architecture document.
+**Tests:** automatic submission/capture without per-article human exchange, raw-event versus completed-answer distinction, fresh-session isolation, wrong task, unknown candidate ID, fabricated passage, prompt-injection text, repeated completion/application, changed source hash, malformed response, refusal/timeout and no-response states. AT-01/02/07/09/36 plus the explicit transport cases in the architecture document.
 
-**Deliverable:** transport boundary usable with the current account through manual exchange; no embedded paid API or browser automation.
+**Deliverable:** automated transport boundary demonstrated with the available configured account/model. Replaying files is a diagnostic capability, not the operating workflow. A paid API or browser automation is not assumed.
 
 ### T5 — First evidence-to-query slice
 
@@ -220,17 +233,17 @@ QueryService.read(QuerySpec, RunId, ViewVersion) -> QueryResult
 
 **Deliverable:** useful native reads plus owner-reviewable graph. Export load/rerun claims require actual execution in the named graph engine.
 
-### T10 — Real-source pilot and twelve-month coverage
+### T10 — Later corpus expansion after the 20-article trial
 
 **Depends on:** T9 and D4 corpus/access decisions.
 
 **Create:** `docs/source-pilot.md`, `docs/corpus-manifest.md`, `tests/fixtures/real-reference/` where retention permits.
 
-1. Run a proposed pilot of 20–50 mixed real reports across both stocks and relevant surrounding events, including difficult cases. This count is a planning suggestion, not an accepted target.
+1. Reuse and review the owner-requested 20-article S0 trial; do not quietly replace it with a 20–50 article acquisition. Expand only after the source/processing findings are reviewed.
 2. Badr reviews meanings, subjects, passages and useful queries. Preserve raw first responses and errors before scoring; keep the held-out portion separate.
-3. Measure manual task preparation/import effort and source-body coverage. Decide whether manual model exchange can cover the intended processing volume; no API access is assumed.
-4. Collect the selected full twelve-month interval only after the source/access/cost gate. Publish actual downloaded and processed coverage separately, including gaps and failed work.
-5. If manual processing cannot complete the intended corpus, record an explicit owner choice on corpus processing scope or later automated transport. Do not silently call downloaded-only data a fully processed V1.
+3. Measure automatic submission/completion/retry behavior, provider limits, native processing time and source-body coverage. Confirm that the integration fits the intended later volume.
+4. A full twelve-month collection is later work, requiring a separate source/access/cost and scope decision after the 20-article trial. Publish actual downloaded and processed coverage separately, including gaps and failed work.
+5. Keep downloaded coverage and successfully processed coverage separate. Provider failure/limit handling must not fabricate completed output or silently grow the trial.
 
 **Tests:** AT-33/36; real-source evidence quality and missing-version uncertainty, plus selected semantic contrasts. No predictive-performance conclusion.
 
@@ -243,7 +256,7 @@ QueryService.read(QuerySpec, RunId, ViewVersion) -> QueryResult
 **Create:** `benchmarks/query_workload.cpp`, `benchmarks/retrieval_workload.cpp`, `docs/benchmark-results.md`, complete `docs/runbook.md`.
 
 1. Freeze hardware, corpus scale, query mixes, cold/warm protocol, memory/disk limits and success thresholds before measuring.
-2. Measure acquisition, native preparation, embedding, model/manual waiting and stored reads separately. Report latency distributions, throughput, peak memory and bytes with denominators.
+2. Measure acquisition, native preparation, embedding, model waiting and stored reads separately. Report latency distributions, throughput, peak memory and bytes with denominators.
 3. Add only optimizations addressing a measured bottleneck: indexes/materialized subject lookups, prepared queries, lossless artifact compression or a vector index. Recheck result equality and evidence recovery after each.
 4. Demonstrate restart, interruption and full restore on the target machine. Check missing/corrupt artifacts and historical manifests.
 
@@ -292,4 +305,4 @@ Expected result: the named test exists and passes the frozen assertions. An empt
 - Complete one reviewed implementation pass. Findings may require local corrections; they do not justify reopening the entire discovery process.
 - At review, verify every AT family maps to a task, every task has a deliverable and the final accepted spec supersedes this draft clearly.
 
-No effort estimate or performance promise is invented here. The dominant unknowns are source quality, complete-world extraction, embedding integration and manual processing throughput. The first real slice and frozen contract resolve those before a broad build becomes expensive.
+No effort estimate or performance promise is invented here. The dominant unknowns are source quality, complete-world extraction, embedding integration and automated-provider compatibility/throughput. The first real slice and frozen contract resolve those before a broad build becomes expensive.
