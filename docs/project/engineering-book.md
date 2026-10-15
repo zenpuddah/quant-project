@@ -1110,3 +1110,22 @@ Integration: checked MarketDataReader callback replay materializes a bounded val
 Source check: all 25 Markdown files and relevant data/replay headers inspected at remote f75cd3c179f3b070f9a85c054ec3704b89f4cb69. Research references and limits are in [Lexongine research](../lexongine/research/README.md). No local project checkout, product implementation or native macOS build was verified by the advisor. Research oracle counts are not product test evidence.
 
 Trade-offs: trusted same-build native plugins, bounded materialization and exact full-scope cache are deliberately narrow v1 engineering choices. Concurrency, checkpoints, richer alignment/gap recovery, numerical upgrades, stronger isolation/durability and ML feedback remain future work. See [decisions](../lexongine/decisions.md), [operative handoff](../lexongine/README.md) and [implementation progress](../lexongine/implementation/progress.md). Keep rules in their owning specification rather than duplicating this chronology as a new contract.
+
+### 2026-10-15 — Initial owned-contract and lifetime implementation
+
+The local baseline/handoff divergence was documentation-only and was reconciled
+without changing the accepted specifications or domain code. Initial framework-free
+checks now exercise owned descriptors, typed parameter/state preparation, immutable
+payload holders, bounded diagnostics, reservations, and atomic bundle visibility.
+A runtime test reproduced duplicate-key state advancement; a pre-callback key
+guard fixes that case without changing its assertion.
+
+The accepted host-held module pin rule motivates a common compiled core library
+for erased control and callback-manager destruction: the pin remains alive until
+the paired typed destructor returns. Headers still carry typed numerical adapters;
+no Arrow or XML dependency enters the core. Current evidence is two passing strict
+and ASan/UBSan targets, not a native-plugin or whole-milestone result. Full
+pre-admission accounting and the remaining task-card matrix still need closure.
+The owner approved provisioning the already accepted TinyXML2 and Arrow/Parquet
+dependencies; source pin and network failures are recorded in implementation
+progress. No new provider/financial assumptions were introduced.

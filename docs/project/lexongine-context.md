@@ -25,6 +25,15 @@ Use the [decision ledger](../lexongine/decisions.md) for accepted/delegated/defe
 
 All twelve product tasks start Pending in this handoff. Research arithmetic/graph probes are supporting design evidence, not product tests. OpenCode must update progress after meaningful checkpoints with exact commands, results, limitations and commit IDs; do not rewrite historical test transcripts as fresh evidence.
 
+**Implementation checkpoint — 2026-10-15:** The published owner handoff has been
+reconciled with the local baseline record in the isolated worktree. Tasks 1–2 are
+InProgress: initial owned/typed contracts and publication/lifetime primitives have
+two passing strict and sanitizer CTest targets. This is partial foundation
+evidence, not task closure. The owner authorized provisioning accepted build
+dependencies; TinyXML2 11.0.0 is pinned locally, while native Arrow installation
+is still pending network retries. See the progress record for exact commands,
+the reproduced runtime failure/fix and remaining obligations.
+
 ## Deferred work
 
 Concurrency, dynamic run reconfiguration, algebraic equivalence, richer joins/alignments, checkpoint continuation, general outcome-aware branching, stronger plugin isolation, mutable outputs, stronger crash durability, real session/filling policies, numerical/performance upgrades, interactive visualization/breakpoints and ML feedback protocols remain future work. Explicit fixed-count lag and automatic validated cross-run reuse are already v1, not deferred.
