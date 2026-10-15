@@ -45,7 +45,8 @@ Graph display IDs are descriptive; declaration ordinals determine deterministic 
 The host uses a project-owned C++20 Result<T>=variant<T,Diagnostic>; Result<void>=variant<monostate,Diagnostic>. Definitions returning Result of an opaque class require that class's complete owning declaration before the variant is instantiated. A forward declaration is not its implementation. Opaque wrappers use host-owned pimpls with nonthrowing move/destruction. No numerical base class is required.
 
 ```cpp
-// ReadValue<T> contains const T& value plus the scoped ownership lease.
+// ReadValue<T> contains const T& value, its scoped lease and immutable current
+// publication metadata. parent() selects a host-issued provenance reference.
 // PublishValue<T> is T for ScalarCopy, Immutable<T> for ImmutableOwned.
 // Typed helper checks the declared semantic type against the C++ witness.
 template<class P, class S, class Inputs, class Outputs> struct TypedOperation;
@@ -69,6 +70,16 @@ struct TypedOperation<P,S,std::tuple<In...>,std::tuple<Out...>> {
 ```
 
 InputPort<T>={name,RegisteredType<T>,prior_outputs}; OutputPort<T>={name,RegisteredType<T>}. OperationContract owns identity, parameter schema, ordered named type contracts, supported protocols, SharingContract and human description. PreparationFacts owns actual processing scope, InitializationSpec, explicit supported policies and admitted resource bounds. StateAllocator and PublicationAllocator expose only reservation/allocation capabilities. They do not expose a source resolver, arbitrary file access, RNG or ambient clock. Author callbacks may throw; host adapters catch ordinary exceptions. Destructors, module bootstrap, fixed-diagnostic transfer and final visibility swaps are nonthrowing.
+
+Implementation mechanism (2026-10-15, delegated): PreparationFacts also carries an
+explicit host-only preparation-account capability. The adapter reserves its
+admitted graph-metadata bound before parameter parsing/factory construction and
+transfers that reservation into PreparedKernel ownership. The capability is not
+a numerical input, identity field or serialized pointer; numeric step callbacks
+never receive PreparationFacts. This implements the pre-allocation rule without
+ambient/thread-local allocation services. Definitions/SDK registration remain
+host setup; their per-plan copies belong to the admitted graph budget. A resource
+bound is a reservation ceiling, not a claim of measured process RSS.
 
 ```cpp
 Result<Registry> Registry::create() noexcept;
@@ -134,7 +145,7 @@ SourceDelivery<T>=variant<SourceRecord<T>{timing,PublishValue<T>},SourceGap{Sequ
 | OperationContract | OperationKey key; ImplementationIdentity implementation; ParameterSchema parameters; ordered InputContract and OutputContract; SharingContract sharing; supported timing/alignment/missing/history protocols; owned description. |
 | InputContract | name; TypeContract type; supported alignment/missing policy; explicit required-value protocol. |
 | OutputContract | name; TypeContract type; StorageKind; codec_id/version and validation_contract_id/version; explicit cacheability supported by its codec. |
-| StepResult<Outputs> | variant<Published{Outputs},Warming{uint64 remaining_preceding},ValidAbsence{uint32 declared_reason},Diagnostic>; no partial published bundle. First numeric fixture does not accept arbitrary interior ValidAbsence. |
+| StepResult<Outputs> | variant<Published{Outputs,ParentSelections},Warming{uint64 remaining_preceding},ValidAbsence{uint32 declared_reason},Diagnostic>; no partial published bundle. First numeric fixture does not accept arbitrary interior ValidAbsence. |
 | PrepareOptions | Owned submitted run ID, explicit validation/event/diagnostic limits, enabled graph comparison mode and declared source/store/evidence services; no hidden numerical defaults. Must agree with Composition. |
 | MissingIntervalPolicy | enum Strict,Skip; exact text strict/skip. |
 | TimingDescriptor | UpdateKey key; TemporalExtent extent; int64 available_at_ns; variant<CompleteRecord{uint64 payload_index},DeclaredGap{SourceGap}>; ordered, host-only, bounded. Payload indices never enter semantic identity. End is a separate cursor status. |
@@ -144,3 +155,30 @@ SourceDelivery<T>=variant<SourceRecord<T>{timing,PublishValue<T>},SourceGap{Sequ
 Point-event sources declare their succession/coverage contract and cannot infer missing expected bars from filtered acquisition ordinals. An expected-interval contract is required before a source can emit SourceGap. PublicationMetadata's TemporalExtent describes current activation; each ParentPublication preserves its own original extent. [Configuration](configuration.md) fixes temporal wire tags.
 
 The concrete owned SourceMetadata definition above replaces the abbreviated source-service notation. Declare complete owning wrappers before instantiating Result<T>. These are selected interface contracts, not an assertion that the prose C++ excerpts constitute a compiling implementation.
+
+## Typed publication provenance — owner accepted 2026-10-15
+
+The owner selected the typed provenance envelope after the implementation exposed
+that payload-only Published and value/lease-only ReadValue could not communicate
+which retained parent supplied a lagged value.
+
+- ReadValue exposes a bounded immutable publication-metadata view and a host-issued
+  parent-selection reference. Retaining a selection retains metadata, not an
+  ancestor payload, source reader or future timeline.
+- Published contains the typed output tuple plus explicit ParentSelections.
+  A zero-input source uses an explicit empty selection. The publication allocator
+  supplies bounded storage for these references; it does not select parents or
+  grant access to other inputs.
+- The typed host adapter validates each selected reference against its declared
+  input port, actual producer authority, current/retained publication and declared
+  count-history bound. Selection order follows input-port order and original
+  succession within each input. Every required input has a selected parent;
+  undeclared, duplicate, future or over-history references fail before commit.
+- Host publication availability includes the current activation and every required
+  current input as well as the selected parents. Selecting an older parent never
+  backdates availability. ParentPublication retains the selected original key,
+  extent, availability and semantic computation identity.
+- This changes the typed callback envelope. It does not add a second lineage
+  scheduler, expose mutable metadata or replace full ordered computation identity.
+  The existing outcome/parent wire projection carries the validated metadata;
+  runtime authority tokens are never serialized or hashed as semantic identity.

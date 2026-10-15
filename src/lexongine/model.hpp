@@ -335,7 +335,34 @@ enum class StepStatus { Processed, Gap, Exhausted, Stopped };
 enum class OutcomeKind { Published, Warming, ValidAbsence, MissingRequired, Failure };
 struct Warming { std::uint64_t remaining_preceding; };
 struct ValidAbsence { std::uint32_t declared_reason; };
-template<class T> struct Published { T outputs; };
+struct ParentPublication;
+struct ParentCertificate;
+struct ParentSelectionBuffer;
+class ProvenanceValidator;
+class ParentSelection {
+public:
+    [[nodiscard]] const ParentPublication& metadata() const noexcept;
+private:
+    friend class ResultSlot;
+    friend class ProvenanceValidator;
+    template<class> friend class ReadValue;
+    ParentSelection(std::shared_ptr<const ParentCertificate> certificate, std::optional<PortIndex> input) noexcept
+        : certificate_(std::move(certificate)), input_(input) {}
+    std::shared_ptr<const ParentCertificate> certificate_;
+    std::optional<PortIndex> input_;
+};
+class ParentSelections {
+public:
+    [[nodiscard]] static ParentSelections none() noexcept { return ParentSelections{nullptr}; }
+    [[nodiscard]] std::span<const ParentSelection> entries() const noexcept;
+private:
+    friend class PublicationAllocator;
+    static Result<ParentSelections> create(std::shared_ptr<class ResourceAccount>, std::uint64_t maximum,
+                                           std::span<const ParentSelection>) noexcept;
+    explicit ParentSelections(std::shared_ptr<const ParentSelectionBuffer> data) noexcept : data_(std::move(data)) {}
+    std::shared_ptr<const ParentSelectionBuffer> data_;
+};
+template<class T> struct Published { T outputs; ParentSelections parents; };
 template<class T> using StepResult = std::variant<Published<T>, Warming, ValidAbsence, Diagnostic>;
 struct SourceGap {
     SequenceScope missing_scope;

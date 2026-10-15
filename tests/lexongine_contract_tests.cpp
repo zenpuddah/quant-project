@@ -131,22 +131,50 @@ void typed_factory_ownership() {
         [](const Parameters&, const PreparationFacts&) -> Result<ResourceBounds> { return ResourceBounds{0, 4096, 0, 4096, 16, 4096, 0}; },
         [](const Parameters&, const InitializationSpec&, StateAllocator&) -> Result<int> { return 0; },
         [](int& state, const Parameters& parameters, const std::tuple<>&, const UpdateContext&, PublicationAllocator&)
-            -> StepResult<std::tuple<std::int64_t>> { ++state; return Published{std::tuple{parameters.amount + state}}; },
+            -> StepResult<std::tuple<std::int64_t>> { ++state; return Published{std::tuple{parameters.amount + state}, ParentSelections::none()}; },
         [](const Parameters&, const std::tuple<std::int64_t>&, const UpdateContext&) -> Result<void> { return ok(); }, {}};
     success(registry.register_definition(std::move(source)));
+    TypedOperation<Parameters, int, std::tuple<std::int64_t>, std::tuple<std::int64_t>> identity{
+        operation("identity", SharingClass::StatelessDeterministic), {{"input", registered, 0}}, {{"output", registered}},
+        source.parse_params, source.canonicalize, source.history, source.resources, source.make_state,
+        [](int&, const Parameters& parameters, const std::tuple<ReadValue<std::int64_t>>& inputs,
+           const UpdateContext&, PublicationAllocator& allocator) -> StepResult<std::tuple<std::int64_t>> {
+            auto parents = allocator.parents({std::get<0>(inputs).parent()});
+            if (const auto* error = std::get_if<Diagnostic>(&parents)) { return *error; }
+            return Published{std::tuple{std::get<0>(inputs).value + parameters.amount}, std::get<ParentSelections>(std::move(parents))};
+        }, source.validate_outputs, {}};
+    const auto identity_key = identity.contract.key;
+    success(registry.register_definition(std::move(identity)));
     auto definition = take(registry.resolve(description.key));
+    auto resources = take(ResourceAccount::create({{65536, 65536, 65536, 65536, 65536, 65536, 65536}, 64, 64, 256, 2}));
     const PreparationFacts facts{{"clock", 0, 3}, {contract("empty"), {"clock", 0, 3}, empty_params()},
-        MissingIntervalPolicy::Strict, Alignment::SameStep, {65536, 65536, 65536, 65536, 65536, 65536, 65536}};
+        MissingIntervalPolicy::Strict, Alignment::SameStep, {4096, 4096, 4096, 4096, 4096, 8192, 4096}, resources};
+    {
+        const auto remaining = 65536 - resources->current(ResourceKind::Graph);
+        auto occupied = take(resources->reserve(ResourceKind::Graph, remaining));
+        rejects(definition->prepare({{{"amount", "5", {"bounded", 1}}}}, facts), FailureCode::ResourceExceeded);
+    }
     auto prepared = [&] { ParamSet temporary{{{"amount", "5", {"temporary", 1}}}}; return take(definition->prepare(temporary, facts)); }();
     source.contract.description.clear();
-    auto resources = take(ResourceAccount::create({facts.admitted_resources, 64, 64, 256, 2}));
     InstanceServices services{resources, {}};
     auto first = take(prepared.instantiate(services));
     auto second = take(prepared.instantiate(services));
-    auto slot = take(ResultSlot::create(resources, {{integer_type(), std::type_index(typeid(std::int64_t)), StorageKind::ScalarCopy, {}}}, 0));
+    auto slot = take(ResultSlot::create(resources, {{integer_type(), std::type_index(typeid(std::int64_t)), StorageKind::ScalarCopy, {}}}, 0, Sha256{}, std::nullopt));
     UpdateContext context{{"clock", 0}, PointTime{10}, 10, 10};
     slot->commit(take(validate_pending(take(first.step(context)), *slot, context)));
     require(take(slot->read<std::int64_t>(0, context)).value == 6, "typed parameters did not survive source text");
+    auto identity_prepared = take(take(registry.resolve(identity_key))->prepare({{{"amount", "0", {"typed", 1}}}}, facts));
+    InstanceServices identity_services{resources, {{slot, 0, 0}}};
+    auto identity_instance = take(identity_prepared.instantiate(identity_services));
+    auto identity_slot = take(ResultSlot::create(resources, {{integer_type(), std::type_index(typeid(std::int64_t)), StorageKind::ScalarCopy, {}}},
+                                                0, Sha256{std::byte{1}}, std::nullopt));
+    identity_slot->commit(take(validate_pending(take(identity_instance.step(context)), *identity_slot, context)));
+    require(take(identity_slot->read<std::int64_t>(0, context)).value == 6, "typed input binding changed the value");
+    require(identity_slot->current()->parents.entries().size() == 1, "typed factory dropped selected input provenance");
+    auto wrong_type = take(ResultSlot::create(resources, {{integer_type(), std::type_index(typeid(std::uint64_t)), StorageKind::ScalarCopy, {}}},
+                                             0, Sha256{}, std::nullopt));
+    InstanceServices wrong_services{resources, {{wrong_type, 0, 0}}};
+    rejects(identity_prepared.instantiate(wrong_services), FailureCode::TypeMismatch);
     auto read = take(slot->read<std::int64_t>(0, context));
     require(read.value == 6, "read advanced state");
     rejects(first.step(context), FailureCode::UpdateProtocol);

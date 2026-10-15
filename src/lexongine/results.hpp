@@ -108,6 +108,7 @@ public:
     [[nodiscard]] std::uint64_t id() const noexcept { return payload_charge_.id(); }
     [[nodiscard]] const auto& account() const noexcept { return account_; }
 private:
+    template<class> friend class ReadValue;
     ModulePin pin_;
     Reservation payload_charge_, control_charge_;
     std::shared_ptr<ResourceAccount> account_;

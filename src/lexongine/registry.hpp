@@ -51,6 +51,7 @@ struct PreparationFacts {
     MissingIntervalPolicy missing_intervals;
     Alignment alignment;
     ResourceBounds admitted_resources;
+    std::shared_ptr<ResourceAccount> preparation_account;
 };
 struct SourceMetadata {
     std::string snapshot_name, version;
@@ -82,7 +83,6 @@ template<class T> struct RegisteredType {
 };
 template<class T> struct InputPort { std::string name; RegisteredType<T> type; std::uint64_t prior_outputs; };
 template<class T> struct OutputPort { std::string name; RegisteredType<T> type; };
-struct BoundInput { std::shared_ptr<ResultSlot> slot; PortIndex port; };
 
 class StateAllocator {
 public:
@@ -93,7 +93,14 @@ private:
 };
 class PublicationAllocator {
 public:
-    explicit PublicationAllocator(std::shared_ptr<ResourceAccount> account) : account_(std::move(account)) {}
+    PublicationAllocator(std::shared_ptr<ResourceAccount> account, std::uint64_t maximum_parents)
+        : account_(std::move(account)), maximum_parents_(maximum_parents) {}
+    Result<ParentSelections> parents(std::span<const ParentSelection> selected) noexcept {
+        return ParentSelections::create(account_, maximum_parents_, selected);
+    }
+    Result<ParentSelections> parents(std::initializer_list<ParentSelection> selected) noexcept {
+        return parents(std::span<const ParentSelection>{selected.begin(), selected.size()});
+    }
     template<class T> Result<Immutable<T>> freeze(const T& input, const RegisteredType<T>& type) noexcept {
         return guarded([&]() -> Result<Immutable<T>> {
             if (!type.policy.validate || !type.policy.measure || !type.policy.freeze) {
@@ -108,6 +115,7 @@ public:
     }
 private:
     std::shared_ptr<ResourceAccount> account_;
+    std::uint64_t maximum_parents_;
 };
 struct InstanceServices {
     std::shared_ptr<ResourceAccount> account;
@@ -141,6 +149,8 @@ public:
     static Result<PreparedKernel> create(ModulePin, CanonicalParams, HistoryRequirement, ResourceBounds,
                                         std::function<Result<KernelInstance>(InstanceServices&)>) noexcept;
 private:
+    friend class OperationDefinition;
+    void adopt_preparation_reservation(Reservation) noexcept;
     struct Impl;
     explicit PreparedKernel(std::unique_ptr<Impl>) noexcept;
     std::unique_ptr<Impl> impl_;

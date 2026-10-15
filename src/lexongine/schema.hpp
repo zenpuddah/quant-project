@@ -41,6 +41,7 @@ inline constexpr auto schema_descriptors = std::to_array<SchemaDescriptor>({
     {"ResourceBounds", "source,state,scratch,staging,retention,graph,evidence"},
     {"PreparationFacts", "processing_scope,initialization,missing_intervals,alignment,admitted_resources"},
     {"ParentPublication", "computation_digest,key,port,extent,available_at_ns,source_reference_digest"},
+    {"Published", "outputs,parents"},
     {"PublicationMetadata", "key,extent,available_at_ns,parents,output_types"},
     {"ObservationRequest", "missing_intervals,id,producer,output_name,evaluation,absence,prior_outputs,label"},
     {"InputBindingSpec", "input_name,producer,output_name,prior_outputs,alignment,missing_intervals"},

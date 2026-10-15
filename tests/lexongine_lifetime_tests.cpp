@@ -1,6 +1,7 @@
 #include "lexongine_test_support.hpp"
 #include "lexongine/results.hpp"
 #include "lexongine/binding.hpp"
+#include "lexongine/registry.hpp"
 
 namespace {
 using namespace lexongine;
@@ -72,7 +73,7 @@ void atomic_bundle_and_reads() {
     auto resources = account();
     const TypeContract semantic{"test.integer", 1, {1, {}}};
     const ValueContract integer{semantic, std::type_index(typeid(std::int64_t)), StorageKind::ScalarCopy, {}};
-    auto slot = take(ResultSlot::create(resources, {integer, integer}, 1));
+    auto slot = take(ResultSlot::create(resources, {integer, integer}, 1, Sha256{}, std::nullopt));
     const UpdateContext first{{"clock", 0}, PointTime{10}, 10, 10};
     auto partial = take(PendingOutcome::create(resources, first, 2));
     auto value = take(make_owned<std::int64_t>(resources, ResourceKind::Retention, 8, {}, [] { return std::int64_t{7}; }));
@@ -88,6 +89,8 @@ void atomic_bundle_and_reads() {
     auto read1 = take(slot->read<std::int64_t>(0, first));
     auto read2 = take(slot->read<std::int64_t>(0, first));
     require(read1.value == 7 && &read1.value == &read2.value, "reads changed stable current publication");
+    auto scalar_copy = take(read1.retain("external", "scalar_copy"));
+    require(scalar_copy.get() == 7 && &scalar_copy.get() != &read1.value, "scalar retention must copy the value");
     rejects(slot->read<std::uint64_t>(0, first), FailureCode::TypeMismatch);
     auto future = first; future.decision_time_ns = 9;
     rejects(slot->read<std::int64_t>(0, future), FailureCode::FutureRead);
@@ -101,11 +104,58 @@ void atomic_bundle_and_reads() {
     rejects(slot->read<std::int64_t>(0, second), FailureCode::MissingRequired);
     require(read1.value == 7, "later warming invalidated retained read");
 }
+void provenance_envelope() {
+    auto resources = account();
+    const TypeContract semantic{"test.integer", 1, {1, {}}};
+    const ValueContract integer{semantic, std::type_index(typeid(std::int64_t)), StorageKind::ScalarCopy, {}};
+    auto input = take(ResultSlot::create(resources, {integer}, 0, Sha256{std::byte{1}}, std::nullopt));
+    auto output = take(ResultSlot::create(resources, {integer}, 0, Sha256{std::byte{2}}, std::nullopt));
+    auto publish = [&](ResultSlot& slot, const UpdateContext& context, std::int64_t raw) {
+        auto pending = take(PendingOutcome::create(resources, context, 1));
+        auto value = take(make_owned<std::int64_t>(resources, ResourceKind::Retention, 8, {}, [raw] { return raw; }));
+        success(pending.set_output(0, take(ErasedValue::from(std::move(value), semantic))));
+        slot.commit(take(validate_pending(std::move(pending), slot, context)));
+    };
+    const UpdateContext first{{"clock", 0}, Interval{0, 60}, 60, 60};
+    // Publication age counts actual inputs, not key distance across a source gap.
+    const UpdateContext second{{"clock", 2}, Interval{120, 180}, 180, 180};
+    publish(*input, first, 10);
+    const auto old_parent = take(input->read<std::int64_t>(0, first, 0)).parent();
+    publish(*input, second, 20);
+    require(resources->current(ResourceKind::Retention) == 8, "parent metadata retained ancestor payload");
+    const std::array<BoundInput, 1> bindings{{{input, 0, 0}}};
+    PublicationAllocator allocator{resources, 2};
+    auto pending = take(PendingOutcome::create(resources, second, 1));
+    auto payload = take(make_owned<std::int64_t>(resources, ResourceKind::Retention, 8, {}, [] { return std::int64_t{10}; }));
+    success(pending.set_output(0, take(ErasedValue::from(std::move(payload), semantic))));
+    success(ProvenanceValidator::attach(pending, take(allocator.parents({old_parent})), bindings, 1, second));
+    output->commit(take(validate_pending(std::move(pending), *output, second)));
+    auto value = take(output->read<std::int64_t>(0, second));
+    require(value.publication().available_at_ns == 180 && value.publication().key.sequence == 2,
+            "lagged publication was backdated");
+    const auto& parent = output->current()->parents.entries()[0].metadata();
+    require(parent.key.sequence == 0 && parent.available_at_ns == 60 && parent.computation_digest[0] == std::byte{1},
+            "selected original parent metadata was lost");
+    auto bad = take(PendingOutcome::create(resources, second, 1));
+    rejects(ProvenanceValidator::attach(bad, ParentSelections::none(), bindings, 1, second), FailureCode::OutputInvalid);
+    rejects(ProvenanceValidator::attach(bad, take(allocator.parents({old_parent, old_parent})), bindings, 1, second), FailureCode::OutputInvalid);
+    rejects(ProvenanceValidator::attach(bad, take(allocator.parents({old_parent})), bindings, 0, second), FailureCode::OutputInvalid);
+    auto unrelated = take(ResultSlot::create(resources, {integer}, 0, Sha256{std::byte{1}}, std::nullopt));
+    publish(*unrelated, second, 20);
+    auto foreign = take(unrelated->read<std::int64_t>(0, second, 0)).parent();
+    rejects(ProvenanceValidator::attach(bad, take(allocator.parents({foreign})), bindings, 1, second), FailureCode::OutputInvalid);
+    auto no_port = take(input->read<std::int64_t>(0, second)).parent();
+    rejects(ProvenanceValidator::attach(bad, take(allocator.parents({no_port})), bindings, 1, second), FailureCode::OutputInvalid);
+    auto right = take(input->read<std::int64_t>(0, second, 1)).parent();
+    auto left = take(input->read<std::int64_t>(0, second, 0)).parent();
+    const std::array<BoundInput, 2> two_bindings{{{input, 0, 0}, {input, 0, 0}}};
+    rejects(ProvenanceValidator::attach(bad, take(allocator.parents({right, left})), two_bindings, 1, second), FailureCode::OutputInvalid);
+}
 }
 int main() {
     const Case cases[]{{"reservation precedes allocation", reserve_before_allocation},
         {"escaped shared payload lifetime", external_lifetime}, {"immutable copy and bounded warning", immutable_copy_and_warning},
         {"host pin spans typed destructor", pinned_destruction}, {"holder quota without invalidation", hold_limit},
-        {"atomic bundle and causal reads", atomic_bundle_and_reads}};
+        {"atomic bundle and causal reads", atomic_bundle_and_reads}, {"typed bounded provenance envelope", provenance_envelope}};
     return lexongine::test::run(cases);
 }

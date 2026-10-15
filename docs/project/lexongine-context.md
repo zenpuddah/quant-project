@@ -34,6 +34,14 @@ dependencies; TinyXML2 11.0.0 is pinned locally, while native Arrow installation
 is still pending network retries. See the progress record for exact commands,
 the reproduced runtime failure/fix and remaining obligations.
 
+**Subsequent checkpoint:** The owner selected a typed provenance envelope to close
+the payload-only publication interface gap. Its initial typed binding/lifetime
+checks pass with the reservation and scalar-copy regressions (8 contract + 7
+lifetime cases, strict and ASan/UBSan). Native Arrow configuration still fails;
+download retries were stopped and the reader prototype remains Blocked/Unverified.
+Independent core work continues at the user's request. All milestone claims remain
+bounded by the current progress evidence.
+
 ## Deferred work
 
 Concurrency, dynamic run reconfiguration, algebraic equivalence, richer joins/alignments, checkpoint continuation, general outcome-aware branching, stronger plugin isolation, mutable outputs, stronger crash durability, real session/filling policies, numerical/performance upgrades, interactive visualization/breakpoints and ML feedback protocols remain future work. Explicit fixed-count lag and automatic validated cross-run reuse are already v1, not deferred.

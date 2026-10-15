@@ -230,3 +230,45 @@ typed binding/retention edge cases, explicit source/host owning declarations,
 actual-reader prototype compilation, and the full card's negative/lifetime
 matrix. The current passing subset is not evidence that these remaining contracts
 are closed.
+
+## 2026-10-15 — Provenance envelope and reservation hardening
+
+Starting full HEAD `001c1de687f29f288ed19eac04b869a75bee2f03` on
+`implementation/lexongine-v1`. The owner selected **Typed provenance envelope**
+after the publication-interface gap was surfaced. The accepted addition is in
+components.md and the decision ledger; no lag/count/Strict/Skip behavior was
+reopened.
+
+New runtime failures reproduced before fixes:
+
+- Lifetime target failed **5/6 cases** on `scalar retention must copy the value`.
+  Scalar retention now makes a separately charged value copy; immutable-owned
+  payload sharing retains one allocation charge.
+- Contract target failed **7/8 cases** when graph capacity was fully occupied but
+  preparation still succeeded. Preparation now receives an explicit host account,
+  reserves its admitted metadata ceiling before parsing/factory work and transfers
+  the reservation into PreparedKernel lifetime. Canonicalizers cannot omit/change
+  explicit parameters or return a noncanonical order. Typed binding checks the
+  actual C++ witness before state construction.
+- Provenance checks first failed compilation against the incomplete new envelope;
+  this is compile-red, not a claimed executed regression. The completed checks
+  exercise typed input binding and parent selection, original timing/identity,
+  metadata-only retention, current activation availability, original nonconsecutive
+  keys, missing/duplicate/reordered/foreign/over-history parent rejection.
+
+Strict and sanitizer rebuilds plus `ctest --test-dir "$TMP/lexongine-build"
+--output-on-failure` and the corresponding `lexongine-sanitized` command pass
+**2/2 targets**. Their source case sets are now **8 contract + 7 lifetime cases**.
+New provenance storage is reserved before allocation; runtime authority tokens
+are not semantic identities and will not be persisted. Source/host end-to-end,
+graph/reuse codecs and complete task-card closure remain pending.
+
+Native prerequisite result: configuring `lexongine-native` with
+`-DLEXONGINE_QAEDALUS_BRIDGE=ON -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/apache-arrow`
+failed at `find_package(Arrow)` (no tests compiled or matched). The HTTP/1.1
+Homebrew retry was stopped after another stalled transfer period; the log records
+SIGTERM, not a successful install. Earlier retries explicitly reported an
+aws-sdk-cpp HTTP/2 PROTOCOL_ERROR. No provisioning process is intentionally left
+running. Native Arrow and the actual reader prototype stay **Blocked/Unverified**.
+TinyXML2 remains available at the pinned official checkout. Continue independent
+core work; do not turn these core checks into a source-integration claim.

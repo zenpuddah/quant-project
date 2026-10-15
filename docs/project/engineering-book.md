@@ -1129,3 +1129,20 @@ pre-admission accounting and the remaining task-card matrix still need closure.
 The owner approved provisioning the already accepted TinyXML2 and Arrow/Parquet
 dependencies; source pin and network failures are recorded in implementation
 progress. No new provider/financial assumptions were introduced.
+
+### Publication provenance interface clarification — owner accepted 2026-10-15
+
+Problem/source check: the written typed interfaces exposed only value/lease on
+ReadValue and Outputs in Published, while accepted retained-input/lag behavior
+requires preserving an earlier parent's original timing and lineage. Inspection
+of components/execution/cache contracts exposed a missing communication path;
+an allocation-only PublicationAllocator could not implicitly supply it.
+
+The owner selected a typed provenance envelope over a separate host lineage
+selector. ReadValue gains immutable metadata access and Published carries explicit
+bounded parent selections. The host verifies input authority, history, order and
+causal availability. This keeps selection next to the typed calculation and avoids
+duplicating numerical history selection in a second state machine. Trade-off:
+the typed callback envelope changes and requires additional metadata lifetime and
+adversarial validation checks. The owning components specification records the
+accepted contract. Acceptance of the choice is distinct from implementation proof.
