@@ -1233,3 +1233,23 @@ witness agrees. The native test deliberately tears down registry, definition,
 prepared factory and instance before releasing an external custom typed output.
 Four native test cases and all seven current CTest targets pass strict and
 sanitized. Commands, reproduced failures and remaining scope are in progress.
+
+### Coverage/history preparation and native storage prerequisite recovery
+
+Implemented independent preparation helpers for the exact complete-key/gap
+partition, retained original keys, source bounds and required count history.
+Readiness counts actual usable inputs before the first eligible requested update;
+it never shifts the configured evaluation interval. Chained requirements use
+max-parent history plus the local count, rather than summing fan-out duplicates.
+These are timeline/admission helpers, not provider-correctness or payload-validity
+proofs; full source services still need integration.
+
+The previously stalled approved dependency provisioning now completed with native
+Arrow/Parquet 26.0.0. An intermediate extracted-bottle shared link failed because
+Homebrew install-name placeholders were unrelocated; the official installation
+resolved that. Native CONFIG/shared linking passes the actual-reader prototype,
+all nine current Lexongine targets, and all four existing storage targets in the
+normal build. The Lexongine project sanitizer suite also passes nine targets;
+prebuilt dependency binaries are not instrumented. No storage implementation was
+changed, and these results do not stand in for the unfinished Lexongine adapter
+or whole-run acceptance. Exact commands and dependency versions are in progress.

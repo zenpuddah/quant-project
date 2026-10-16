@@ -27,6 +27,7 @@ lexongine_test(lexongine_contract_tests ../../tests/lexongine_contract_tests.cpp
 lexongine_test(lexongine_lifetime_tests ../../tests/lexongine_lifetime_tests.cpp)
 lexongine_test(lexongine_sma_tests ../../tests/lexongine_sma_tests.cpp)
 lexongine_test(lexongine_graph_tests ../../tests/lexongine_graph_tests.cpp)
+lexongine_test(lexongine_prepare_tests ../../tests/lexongine_prepare_tests.cpp)
 add_executable(lexongine_arithmetic_probe arithmetic_probe.cpp)
 target_link_libraries(lexongine_arithmetic_probe PRIVATE lexongine_core)
 find_package(Python3 COMPONENTS Interpreter)

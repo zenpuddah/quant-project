@@ -15,7 +15,7 @@ Advisor inspected remote implementation/data-integrity-2026-10-03 at f75cd3c179f
 | 3 Native plugins | Verified | Bounded native arm64/macOS same-build loader and typed round-trip; 4/4 native cases normal and ASan/UBSan under accepted Apple platform boundary |
 | 4 Strict XML | InProgress | Pinned TinyXML2 11.0.0 frontend/owned schema resolution pass; CLI overrides/projection and source-admission integration pending |
 | 5 Graph/sharing | InProgress | Product canonical-identity/graph/walk checks pass; prepared-run and observation integration pending |
-| 6 Preparation/source bridge | Pending | Actual Arrow/Parquet prerequisite and adapter tests unverified |
+| 6 Preparation/source bridge | InProgress | Coverage/history helpers pass; native Arrow/Parquet 26 packages and existing reader/storage tests verified; full adapter/admission wiring pending |
 | 7 Fixture/SMA/lag | InProgress | Canonical numerical helpers and generated bars verified; registered component/scheduler integration pending |
 | 8 Standalone/hosted executor | Pending | Host probe is proposed, not financial backtester |
 | 9 Cross-run result store | Pending | Filesystem/uncertainty tests unverified |
@@ -554,3 +554,59 @@ are trusted build-pipeline records bound to actual binaries, not signatures or
 reverse compilation. Native Arrow CONFIG and full persisted reader integration
 remain separate and unverified. Source/preparation, complete scheduling, result
 reuse, CLI/evidence and integrated acceptance are still pending.
+
+## Coverage/history preparation and native prerequisite recovery
+
+Starting HEAD `134dacd9413399ace514ba27ac7b532b0b6a2fe2`. Added bounded timeline
+partition validation, original-key Strict/Skip handling, require-value readiness
+using actual complete-record counts, and checked count-history propagation over
+the frozen logical order. The initial syntax-only check failed at missing
+prepare.hpp. Both focused strict and sanitized `lexongine_prepare_tests` targets
+now pass **4/4 cases**. Tests cover uncovered/overlapping/reordered/missing-tail
+data, explicit gaps, malformed gap extents, point-event time regression without
+sorting, physical payload bounds, all-gap/insufficient-history rejection, preserved
+evaluation boundaries and history recurrence 49→68 / 49→50. These helpers do not
+certify provider/canonical payload validity or implement the full source service.
+
+Native prerequisite recovery used the owner's existing provisioning approval.
+Installed Snappy 1.3.1, re2 2025-11-05_2 and utf8proc 2.12.0 from cached bottles.
+The first actual Arrow CONFIG retry then failed at AWSSDKAlt. A new bounded
+Homebrew retry succeeded for aws-sdk-cpp 1.11.900_2 and its required dependency
+upgrades. The extracted Arrow 25 CONFIG could then configure/link, but its
+unrelocated `@@HOMEBREW_PREFIX@@` shared-library install names failed at runtime;
+that run is a failure, not native-library verification.
+
+The official `brew install apache-arrow` subsequently succeeded at **26.0.0**.
+Its required dependencies included protobuf 36.2, grpc 1.84.0_2, z3 5.1.0,
+llvm 23.1.3_1, simdjson 5.0.5, thrift 0.25.0_1 and uriparser 1.0.2. Project builds
+continue using AppleClang 21 through /usr/bin/c++, not the newly installed LLVM.
+Homebrew cleanup removed the old cached Arrow 25 archive; its separately extracted
+scratch copy and recorded digest remain historical evidence.
+
+Actual native package commands:
+
+```sh
+cmake -S integration/lexongine -B "$TMP/lexongine-native" -DCMAKE_BUILD_TYPE=Debug -DLEXONGINE_QAEDALUS_BRIDGE=ON -DLEXONGINE_XML_FRONTEND=ON -DLEXONGINE_TINYXML2_SOURCE_DIR="$TMP/tinyxml2-11.0.0" -DArrow_DIR=/opt/homebrew/opt/apache-arrow/lib/cmake/Arrow -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/apache-arrow
+cmake --build "$TMP/lexongine-native" -j 4
+ctest --test-dir "$TMP/lexongine-native" --output-on-failure
+cmake -S integration/lexongine -B "$TMP/lexongine-sanitized" -DCMAKE_BUILD_TYPE=Debug -DLEXONGINE_QAEDALUS_BRIDGE=ON -DLEXONGINE_SANITIZERS=ON -DLEXONGINE_XML_FRONTEND=ON -DLEXONGINE_TINYXML2_SOURCE_DIR="$TMP/tinyxml2-11.0.0" -DArrow_DIR=/opt/homebrew/opt/apache-arrow/lib/cmake/Arrow -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/apache-arrow
+cmake --build "$TMP/lexongine-sanitized" -j 4
+ctest --test-dir "$TMP/lexongine-sanitized" --output-on-failure
+cmake -S integration/storage -B "$TMP/lexongine-storage-native" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/apache-arrow -DArrow_DIR=/opt/homebrew/opt/apache-arrow/lib/cmake/Arrow -DParquet_DIR=/opt/homebrew/opt/apache-arrow/lib/cmake/Parquet
+cmake --build "$TMP/lexongine-storage-native" -j 4
+ctest --test-dir "$TMP/lexongine-storage-native" --output-on-failure
+```
+
+Results: **9/9 current Lexongine CTest targets pass** through native Arrow CONFIG,
+both normal and ASan/UBSan project builds, including the actual-reader prototype.
+**4/4 existing storage targets pass** against native Arrow/Parquet 26.0.0 in the
+normal build. Dependency finders emitted lz4/Thrift CONFIG warnings before their
+supported library fallback succeeded. Project compiler warnings remain errors.
+Prebuilt Arrow/Parquet and platform libraries were not sanitizer-instrumented.
+
+The historical native-package availability blocker is now resolved in this
+environment. The actual Lexongine replay adapter, complete source/preparation
+service, registered component wiring, shared run lifecycle, result store and
+CLI/evidence acceptance remain implementation work. No full milestone completion
+is inferred from these prerequisite/helper results; existing storage source code
+and integrity contracts were not modified.

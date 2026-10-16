@@ -76,6 +76,14 @@ sanitized full suites pass 7/7 targets. The owner accepted hashing application
 dependencies while recording/trusting the Apple shared-cache/delayed platform
 boundary. Broader source/run/cache/CLI acceptance remains pending.
 
+**Native prerequisites recovered:** Approved Homebrew provisioning completed at
+Arrow/Parquet 26.0.0. Current Lexongine suites pass 9/9 targets normally and with
+project sanitizers, now including native CONFIG/shared-library reader-prototype
+verification. The existing storage suite passes 4/4 normally. Preparation coverage
+and history helpers pass four focused cases; the full source service/adapter and
+execution/reuse/CLI integration remain pending. Historical blocked entries above
+describe their earlier checkpoints.
+
 ## Deferred work
 
 Concurrency, dynamic run reconfiguration, algebraic equivalence, richer joins/alignments, checkpoint continuation, general outcome-aware branching, stronger plugin isolation, mutable outputs, stronger crash durability, real session/filling policies, numerical/performance upgrades, interactive visualization/breakpoints and ML feedback protocols remain future work. Explicit fixed-count lag and automatic validated cross-run reuse are already v1, not deferred.

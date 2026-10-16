@@ -68,7 +68,10 @@ inline constexpr auto schema_descriptors = std::to_array<SchemaDescriptor>({
     {"NodeDeclarationV1", "id,ordinal,operation,alignment,initialization,parameters,inputs,location"},
     {"CompositionDeclarationV1", "run,limits,plugins,cache,sources,nodes,observations"},
     {"ResolvedParametersV1", "definition,parameters"},
-    {"CompositionV1", "declaration,sources,nodes"}
+    {"CompositionV1", "declaration,sources,nodes"},
+    {"SourceValidationLimitsV1", "max_records,max_timeline_events,max_gap_entries,max_expected_updates"},
+    {"CoverageSummaryV1", "complete_updates,missing_intervals,timeline_events"},
+    {"CountHistoryPlanV1", "preceding"}
 });
 [[nodiscard]] constexpr const SchemaDescriptor* schema_descriptor(std::string_view name) noexcept {
     for (const auto& record : schema_descriptors) { if (record.name == name) { return &record; } }
