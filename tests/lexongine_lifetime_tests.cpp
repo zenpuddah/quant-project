@@ -69,6 +69,14 @@ void hold_limit() {
     rejects(value.share("second", "external"), FailureCode::ResourceExceeded);
     require(value.get() == 1, "quota failure invalidated original holder");
 }
+void exclusive_transfer() {
+    auto resources = take(ResourceAccount::create({{4096, 4096, 4096, 4096, 4096, 65536, 65536}, 16, 1, 64, 2}));
+    const TypeContract semantic{"test.integer", 1, {1, {}}};
+    auto value = take(make_owned<std::int64_t>(resources, ResourceKind::Retention, 8, {}, [] { return std::int64_t{3}; }));
+    auto erased = take(ErasedValue::from(std::move(value), semantic));
+    require(resources->current(ResourceKind::Retention) == 8 && erased.control()->type() == std::type_index(typeid(std::int64_t)),
+            "exclusive transfer duplicated ownership/charge");
+}
 void atomic_bundle_and_reads() {
     auto resources = account();
     const TypeContract semantic{"test.integer", 1, {1, {}}};
@@ -94,6 +102,8 @@ void atomic_bundle_and_reads() {
     rejects(slot->read<std::uint64_t>(0, first), FailureCode::TypeMismatch);
     auto future = first; future.decision_time_ns = 9;
     rejects(slot->read<std::int64_t>(0, future), FailureCode::FutureRead);
+    auto wrong_extent = first; wrong_extent.extent = PointTime{11};
+    rejects(slot->read<std::int64_t>(0, wrong_extent), FailureCode::UpdateProtocol);
     auto duplicate = take(PendingOutcome::create(resources, first, 2));
     duplicate.warming(1);
     rejects(validate_pending(std::move(duplicate), *slot, first), FailureCode::UpdateProtocol);
@@ -151,11 +161,43 @@ void provenance_envelope() {
     const std::array<BoundInput, 2> two_bindings{{{input, 0, 0}, {input, 0, 0}}};
     rejects(ProvenanceValidator::attach(bad, take(allocator.parents({right, left})), two_bindings, 1, second), FailureCode::OutputInvalid);
 }
+void bounded_history_and_callback_failure() {
+    auto resources = account();
+    const TypeContract semantic{"test.integer", 1, {1, {}}};
+    const ValueContract integer{semantic, std::type_index(typeid(std::int64_t)), StorageKind::ScalarCopy, {}};
+    auto slot = take(ResultSlot::create(resources, {integer}, 1, Sha256{}, std::nullopt));
+    for (std::uint64_t key = 0; key < 3; ++key) {
+        const UpdateContext context{{"clock", key}, PointTime{static_cast<std::int64_t>(key)}, static_cast<std::int64_t>(key), static_cast<std::int64_t>(key)};
+        auto pending = take(PendingOutcome::create(resources, context, 1));
+        auto payload = take(make_owned<std::int64_t>(resources, ResourceKind::Retention, 8, {}, [key] { return static_cast<std::int64_t>(key); }));
+        success(pending.set_output(0, take(ErasedValue::from(std::move(payload), semantic))));
+        slot->commit(take(validate_pending(std::move(pending), *slot, context)));
+    }
+    require(resources->current(ResourceKind::Retention) == 16, "one prior plus current did not retain exactly two scalar payloads");
+    const UpdateContext current{{"clock", 2}, PointTime{2}, 2, 2};
+    require(take(slot->read_previous<std::int64_t>(0, current, 1)).value == 1, "wrong retained publication selected");
+    rejects(slot->read_previous<std::int64_t>(0, current, 2), FailureCode::MissingRequired);
+    auto escaped = take(slot->read<std::int64_t>(0, current));
+    auto charge = take(resources->reserve(ResourceKind::State, 4096));
+    auto failed = take(KernelInstance::create({}, std::move(charge), [resources, semantic](const UpdateContext& context) -> Result<PendingOutcome> {
+        auto pending = take(PendingOutcome::create(resources, context, 2));
+        auto payload = take(make_owned<std::int64_t>(resources, ResourceKind::Retention, 8, {}, [] { return std::int64_t{99}; }));
+        success(pending.set_output(0, take(ErasedValue::from(std::move(payload), semantic))));
+        throw std::runtime_error("second output callback failed");
+    }));
+    rejects(failed.step({{"clock", 3}, PointTime{3}, 3, 3}), FailureCode::CallbackException);
+    require(resources->current(ResourceKind::Retention) == 16 && escaped.value == 2, "failed staged bundle leaked or changed earlier publication");
+    slot.reset();
+    require(resources->current(ResourceKind::Retention) == 8 && escaped.value == 2, "external hold did not survive slot destruction");
+}
 }
 int main() {
     const Case cases[]{{"reservation precedes allocation", reserve_before_allocation},
         {"escaped shared payload lifetime", external_lifetime}, {"immutable copy and bounded warning", immutable_copy_and_warning},
         {"host pin spans typed destructor", pinned_destruction}, {"holder quota without invalidation", hold_limit},
-        {"atomic bundle and causal reads", atomic_bundle_and_reads}, {"typed bounded provenance envelope", provenance_envelope}};
+        {"exclusive ownership transfer", exclusive_transfer},
+        {"atomic bundle and causal reads", atomic_bundle_and_reads},
+        {"typed bounded provenance envelope", provenance_envelope},
+        {"bounded history and callback failure", bounded_history_and_callback_failure}};
     return lexongine::test::run(cases);
 }

@@ -52,10 +52,10 @@ public:
             auto account = value.control()->account();
             auto charge = account->reserve(ResourceKind::Staging, std::get<std::uint64_t>(bytes));
             if (const auto* error = std::get_if<Diagnostic>(&charge)) { return *error; }
-            auto held = account->hold(value.control()->id(), "slot", "complete_bundle");
-            if (const auto* error = std::get_if<Diagnostic>(&held)) { return *error; }
-            return ErasedValue{std::get<Reservation>(std::move(charge)), value.control(),
-                               std::get<HoldLease>(std::move(held)), semantic};
+            // Transfer the producer's existing lease; erasure does not create a
+            // second holder or require extra holder capacity for the same owner.
+            return ErasedValue{std::get<Reservation>(std::move(charge)), std::move(value.control_),
+                               std::move(value.hold_), semantic};
         });
     }
     [[nodiscard]] const auto& control() const noexcept { return control_; }
@@ -158,6 +158,9 @@ public:
         if (current_->available_at_ns > context.decision_time_ns) {
             return diagnostic(FailureCode::FutureRead, "publication is not yet available");
         }
+        if (current_->context.extent != context.extent) {
+            return diagnostic(FailureCode::UpdateProtocol, "current key has a different temporal extent");
+        }
         if (index >= contracts_.size() || contracts_[index].witness != std::type_index(typeid(T))) {
             return diagnostic(FailureCode::TypeMismatch, "read requested wrong C++ output type");
         }
@@ -165,6 +168,29 @@ public:
         if (const auto* error = std::get_if<Diagnostic>(&view)) { return *error; }
         return ReadValue<T>{std::get<Immutable<T>>(std::move(view)), contracts_[index].storage,
                             current_->certificates[index], input};
+    }
+    template<class T> Result<ReadValue<T>> read_previous(PortIndex index, const UpdateContext& context,
+                                                        std::uint64_t prior, std::optional<PortIndex> input = std::nullopt) const noexcept {
+        if (auto valid = validate_context(context); std::holds_alternative<Diagnostic>(valid)) { return std::get<Diagnostic>(valid); }
+        if (!current_ || current_->kind != OutcomeKind::Published || current_->context.key != context.key ||
+            prior == 0 || prior >= history_.size() || prior >= published_count_) {
+            return diagnostic(FailureCode::MissingRequired, "requested publication is outside declared retained history");
+        }
+        if (current_->context.extent != context.extent) { return diagnostic(FailureCode::UpdateProtocol, "retained read activation extent mismatch"); }
+        if (index >= contracts_.size() || contracts_[index].witness != std::type_index(typeid(T))) {
+            return diagnostic(FailureCode::TypeMismatch, "retained read requested wrong C++ output type");
+        }
+        const auto latest = next_history_ == 0 ? history_.size() - 1 : next_history_ - 1;
+        const auto offset = static_cast<std::size_t>(prior);
+        const auto position = offset <= latest ? latest - offset : history_.size() - (offset - latest);
+        const auto& frame = history_[position];
+        if (!frame) { return diagnostic(FailureCode::MissingRequired, "retained publication is unavailable"); }
+        if (current_->available_at_ns > context.decision_time_ns || frame->available_at_ns > context.decision_time_ns) {
+            return diagnostic(FailureCode::FutureRead, "retained publication is not causally available");
+        }
+        auto view = Immutable<T>::from_control(frame->outputs[index]->control(), "reader", "declared_history");
+        if (const auto* error = std::get_if<Diagnostic>(&view)) { return *error; }
+        return ReadValue<T>{std::get<Immutable<T>>(std::move(view)), contracts_[index].storage, frame->certificates[index], input};
     }
 private:
     friend class ProvenanceValidator;

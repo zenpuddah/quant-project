@@ -58,6 +58,10 @@ private:
 
 class ResourceAccount : public std::enable_shared_from_this<ResourceAccount> {
 public:
+    ResourceAccount(const ResourceAccount&) = delete;
+    ResourceAccount& operator=(const ResourceAccount&) = delete;
+    ResourceAccount(ResourceAccount&&) = delete;
+    ResourceAccount& operator=(ResourceAccount&&) = delete;
     static Result<std::shared_ptr<ResourceAccount>> create(const AccountLimits&) noexcept;
     Result<Reservation> reserve(ResourceKind, std::uint64_t bytes) noexcept;
     Result<HoldLease> hold(std::uint64_t allocation, std::string_view holder, std::string_view reason) noexcept;
@@ -140,6 +144,12 @@ public:
         if (const auto* error = std::get_if<Diagnostic>(&held)) { return *error; }
         return Immutable{control_, std::get<HoldLease>(std::move(held))};
     }
+private:
+    friend class ErasedValue;
+    friend class ResultSlot;
+    template<class> friend class ReadValue;
+    template<class U, class Factory> friend Result<Immutable<U>> make_owned(
+        std::shared_ptr<ResourceAccount>, ResourceKind, std::uint64_t, ModulePin, Factory&&) noexcept;
     [[nodiscard]] const std::shared_ptr<const AllocationControl>& control() const noexcept { return control_; }
     static Result<Immutable> from_control(std::shared_ptr<const AllocationControl> control,
                                          std::string_view holder, std::string_view reason) noexcept {
@@ -150,7 +160,6 @@ public:
         if (const auto* error = std::get_if<Diagnostic>(&held)) { return *error; }
         return Immutable{std::move(control), std::get<HoldLease>(std::move(held))};
     }
-private:
     Immutable(std::shared_ptr<const AllocationControl> control, HoldLease hold) noexcept
         : control_(std::move(control)), hold_(std::move(hold)) {}
     std::shared_ptr<const AllocationControl> control_;

@@ -63,6 +63,12 @@ sanitized configurations. Declaration/encoding and policy-acceptance regressions
 were observed failing before their fixes. This is configuration evidence, not
 source admission or execution; CLI/projection integration remains pending.
 
+**Resume:** Clean checkpoint `24557020537e2935f37fc0ec08a8d96614df31fa` confirmed.
+Lifetime hardening now passes 9 cases in strict and sanitizer builds, including
+exclusive transfer, temporal extent, bounded history and staged-failure cleanup.
+Proceeding into the accepted native plugin mechanism; task/milestone closure is
+still governed by the full progress matrix.
+
 ## Deferred work
 
 Concurrency, dynamic run reconfiguration, algebraic equivalence, richer joins/alignments, checkpoint continuation, general outcome-aware branching, stronger plugin isolation, mutable outputs, stronger crash durability, real session/filling policies, numerical/performance upgrades, interactive visualization/breakpoints and ML feedback protocols remain future work. Explicit fixed-count lag and automatic validated cross-run reuse are already v1, not deferred.

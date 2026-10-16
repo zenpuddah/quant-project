@@ -313,7 +313,8 @@ Result<void> ProvenanceValidator::attach(PendingOutcome& pending, ParentSelectio
     for (std::size_t index = 0; index < inputs.size(); ++index) {
         const auto& input = inputs[index];
         if (!input.slot || !input.slot->current_ || input.slot->current_->kind != OutcomeKind::Published ||
-            input.slot->current_->context.key != context.key || input.port >= input.slot->contracts_.size()) {
+            input.slot->current_->context.key != context.key || input.slot->current_->context.extent != context.extent ||
+            input.port >= input.slot->contracts_.size()) {
             return diagnostic(FailureCode::UpdateProtocol, "provenance input is not currently published");
         }
         const auto& current = input.slot->current_->certificates[input.port];

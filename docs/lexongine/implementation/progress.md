@@ -456,3 +456,37 @@ unknown schemas remain distinguishable from the supported empty disabled-cache
 record. Provider-specific completeness/availability policy validation, full source
 admission, CLI overrides and complete XML projection round trips remain later
 integration obligations. No run execution or accepted cache publication is claimed.
+
+## Resume checkpoint — 2026-10-15
+
+Owner requested continuation from the paused XML checkpoint. Verified clean
+`implementation/lexongine-v1` at full HEAD
+`24557020537e2935f37fc0ec08a8d96614df31fa`; the original integrity checkout remains
+at `f75cd3c179f3b070f9a85c054ec3704b89f4cb69`. Six local checkpoint commits follow
+the owner's published `61ecf87892a9eebfce397cea522941864d92a6c7`. No owner dirty
+files or additional local changes were present. Resume with foundation lifetime
+checks and the accepted native plugin mechanism, retaining prior accepted
+provenance/selector clarifications and the explicit native-package limitations.
+
+### Resumed lifetime checkpoint
+
+Added focused checks before the fixes: the lifetime executable failed **6/8
+cases** on exclusive transfer (`holder metadata exhausted`) and a current-key
+read with a different extent (`expected a diagnostic, received success`). Erasure
+now transfers the existing producer lease; current/provenance reads enforce the
+activation extent. Raw immutable control adoption is internal to host adapters,
+and accounts cannot be moved while leases refer to them.
+
+Added explicit bounded previous-publication access, preserving original metadata
+and checking the current activation, type, availability and declared retention.
+The new check initially failed compilation at the missing API. It now verifies
+one prior plus current payload, out-of-bound rejection, callback failure after
+staging one port, cleanup and an external hold surviving slot destruction.
+Committed history retains k+1 payloads; additional pending payloads and metadata
+remain charged while staging, including when external holders prevent release.
+
+Commands: `cmake --build "$TMP/lexongine-build" --target lexongine_lifetime_tests`
+then `ctest --test-dir "$TMP/lexongine-build" -R '^lexongine_lifetime_tests$' -V`,
+and the equivalent `lexongine-sanitized` commands. Both pass **1/1 targets, 9/9
+cases**, with no sanitizer diagnostics. Full source/host/final-evidence integration
+is still pending. Next: native same-build module/registry transaction verification.
