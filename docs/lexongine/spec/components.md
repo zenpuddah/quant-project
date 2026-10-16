@@ -182,3 +182,34 @@ which retained parent supplied a lagged value.
   scheduler, expose mutable metadata or replace full ordered computation identity.
   The existing outcome/parent wire projection carries the validated metadata;
   runtime authority tokens are never serialized or hashed as semantic identity.
+
+## Native dependency boundary — owner accepted during implementation
+
+Pin plugin/core and non-system dependency files by actual SHA-256 content, with
+the same-build manifest bound to the final module binary. Record actual loaded
+Apple image UUIDs, OS build/release/architecture and SDK/build identity. Apple
+shared-cache images, including explicitly weak/delayed system frameworks not in
+the active image list, belong to the trusted platform boundary. Record those
+deferred references explicitly; do not report a fabricated file digest for them.
+Unresolved non-system dependencies still reject preparation. This is the owner's
+selected bounded policy, not verification of every shared-cache byte.
+
+The native integration uses a generated ABI contract (SDK header digest, compiler,
+libc++, SDK/architecture, C++20, RTTI/exceptions/visibility and sanitizer/build
+flags) and a separate build sidecar `<module>.lexongine-build`. The strict four-line
+sidecar is `lexongine-plugin-build-v1`, ABI contract ID, source/build-input SHA-256,
+and final module SHA-256, each newline-terminated. CMake emits it after linking;
+the loader checks the binary binding and loaded image UUID before registration.
+Source/build identity is a trusted build-pipeline record, not source-code recovery
+from executable bytes. No general loader, hot-reload or dependency-discovery
+service is authorized by this implementation mechanism.
+
+The host injects the verified implementation identity and registration pin into
+staged definitions. Registry installation is a nonthrowing swap only after the
+module entry succeeds and preserves pre-existing definitions/types. Module
+registration has an explicit metadata reservation and checks descriptor adoption
+against that bound. `bind_type` reuses a nominal SDK type only after exact C++
+witness/storage agreement; it does not replace an existing type meaning.
+`PublicationAllocator::copy_output(port,value)` uses the declared prebound typed
+policy. The resulting host control retains operation and type code pins until
+paired destruction returns, including copies retained by a native consumer.

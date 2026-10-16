@@ -12,7 +12,7 @@ Advisor inspected remote implementation/data-integrity-2026-10-03 at f75cd3c179f
 | --- | --- | --- |
 | 1 Owned contracts/registry | InProgress | Owned records/schema/typed factories tested; actual-API prototype passes with cached Arrow static libraries; full source/host declarations/review remain open |
 | 2 Typed binding/immutable ownership | InProgress | Accounted ownership, host destruction and atomic slot primitives tested; complete card not yet verified |
-| 3 Native plugins | Pending | Native macOS round-trip unverified |
+| 3 Native plugins | Verified | Bounded native arm64/macOS same-build loader and typed round-trip; 4/4 native cases normal and ASan/UBSan under accepted Apple platform boundary |
 | 4 Strict XML | InProgress | Pinned TinyXML2 11.0.0 frontend/owned schema resolution pass; CLI overrides/projection and source-admission integration pending |
 | 5 Graph/sharing | InProgress | Product canonical-identity/graph/walk checks pass; prepared-run and observation integration pending |
 | 6 Preparation/source bridge | Pending | Actual Arrow/Parquet prerequisite and adapter tests unverified |
@@ -490,3 +490,67 @@ then `ctest --test-dir "$TMP/lexongine-build" -R '^lexongine_lifetime_tests$' -V
 and the equivalent `lexongine-sanitized` commands. Both pass **1/1 targets, 9/9
 cases**, with no sanitizer diagnostics. Full source/host/final-evidence integration
 is still pending. Next: native same-build module/registry transaction verification.
+
+## Native plugin checkpoint — 2026-10-15 (Task 3)
+
+Starting HEAD `0cd80b06bb68bc48b393631d030b840b0d988f01` on
+`implementation/lexongine-v1`. Implemented bounded prepare-time native loading,
+generated same-build SDK contract, completed-build manifest/binary binding,
+dependency inventory, transactional registry staging and host-held lifetime pins.
+Explicit output-port policies are prebound into PublicationAllocator; numerical
+callbacks can allocate/freeze their declared typed outputs without registry access.
+Pins cover both operation code and type/freeze/deletion code. Exact native type
+binding can reuse a pre-registered SDK type; a different witness/storage rejects.
+
+Initial plugin compilation failed at the missing output-copy capability. The
+first native runtime run then failed **0/3 cases** because CoreFoundation appeared
+as a delayed-initialization dependency outside the active dyld image list. The
+SDK's `dylib_use_command`/`DYLIB_USE_DELAYED_INIT` definitions and Apple's dyld
+source were checked. The owner selected **Pin app dependencies**: hash application
+and non-system dependency files, record loaded Apple image UUIDs and OS/SDK facts,
+and explicitly trust the Apple shared-cache/delayed platform boundary. This is
+recorded in the decision ledger and owning component specification.
+
+The actual native target now passes **4/4 cases** using nine CMake-generated
+module variants. Checks include matching build, wrong probe ID, missing probe or
+registration symbol, missing NUL termination, nonzero probe result, partial
+registration rollback, duplicate registration, a pre-registered SDK type,
+different same-sized native witness, distinct actual implementation/build digests
+under one ABI label, malformed/missing manifest, changed binary, explicit limits,
+and module lifetime after registry/definition/prepared-factory/instance teardown.
+The retained custom typed payload is read by the host and released only while its
+native deleter remains pinned. These are native Mach-O executions, not Linux-only
+declaration checks. CMake supplies actual target paths and CMAKE_DL_LIBS.
+
+Verification commands (existing explicit XML/bridge settings retained):
+
+```sh
+cmake --build "$TMP/lexongine-build" --target lexongine_plugin_tests -j 4
+ctest --test-dir "$TMP/lexongine-build" -R '^lexongine_plugin_tests$' -V
+cmake -S integration/lexongine -B "$TMP/lexongine-sanitized" -DCMAKE_BUILD_TYPE=Debug -DLEXONGINE_QAEDALUS_BRIDGE=OFF -DLEXONGINE_SANITIZERS=ON -DLEXONGINE_XML_FRONTEND=ON -DLEXONGINE_TINYXML2_SOURCE_DIR="$TMP/tinyxml2-11.0.0"
+cmake --build "$TMP/lexongine-sanitized" --target lexongine_plugin_tests -j 4
+ctest --test-dir "$TMP/lexongine-sanitized" -R '^lexongine_plugin_tests$' -V
+cmake --build "$TMP/lexongine-build" -j 4
+ctest --test-dir "$TMP/lexongine-build" --output-on-failure
+cmake --build "$TMP/lexongine-sanitized" -j 4
+ctest --test-dir "$TMP/lexongine-sanitized" --output-on-failure
+```
+
+Both complete suites passed **7/7 targets**. After the final bootstrap-budget
+check, the focused normal and sanitized plugin targets again passed **1/1 target,
+4/4 cases**. Project, host, test modules and TinyXML2 are instrumented in the
+sanitizer build; Apple platform libraries are not. No sanitizer diagnostics.
+
+Observed pipeline: arm64, AppleClang 21.0.0.21000101, libc++ 210106, Apple SDK
+26.5, C++20, explicit RTTI/exceptions/default visibility, no fast-math. Each build
+exports `sdk-build-facts.txt` and `generated/lexongine/build_contract.hpp`; every
+module exports its strict `.lexongine-build` sidecar. ABI and source-input hashes
+are regenerated when SDK headers or declared test build inputs change.
+
+Scope/limits: trusted synchronous same-build thin 64-bit macOS modules; no hot
+reload, untrusted-code isolation or all-platform ABI promise. Delayed Apple images
+are explicitly distinguished from hashed non-system files. Source/build manifests
+are trusted build-pipeline records bound to actual binaries, not signatures or
+reverse compilation. Native Arrow CONFIG and full persisted reader integration
+remain separate and unverified. Source/preparation, complete scheduling, result
+reuse, CLI/evidence and integrated acceptance are still pending.

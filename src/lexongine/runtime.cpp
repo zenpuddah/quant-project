@@ -165,6 +165,17 @@ Result<std::shared_ptr<const AllocationControl>> make_allocation_control(ModuleP
             std::move(payload), std::move(overhead), std::move(account), data, destroy, type);
     });
 }
+Result<ModulePin> combine_pins(std::shared_ptr<ResourceAccount> account, ModulePin first, ModulePin second) noexcept {
+    if (!first || first == second) { return second; }
+    if (!second) { return first; }
+    return guarded([&]() -> Result<ModulePin> {
+        struct Pins { Reservation charge; ModulePin first, second; };
+        if (!account) { return diagnostic(FailureCode::InvalidConfig, "composite code pin requires an account"); }
+        auto charge = account->reserve(ResourceKind::Staging, sizeof(Pins) + 256);
+        if (const auto* error = std::get_if<Diagnostic>(&charge)) { return *error; }
+        return std::make_shared<const Pins>(Pins{std::get<Reservation>(std::move(charge)), std::move(first), std::move(second)});
+    });
+}
 
 Result<PendingOutcome> PendingOutcome::create(std::shared_ptr<ResourceAccount> account,
                                              const UpdateContext& context, std::size_t outputs) noexcept {
@@ -443,5 +454,110 @@ const HistoryRequirement& PreparedKernel::history() const noexcept { return impl
 const ResourceBounds& PreparedKernel::resources() const noexcept { return impl_->resources; }
 void PreparedKernel::adopt_preparation_reservation(Reservation reservation) noexcept {
     impl_->preparation_charge = std::move(reservation);
+}
+Result<void> Registry::bind_module(OperationContract& contract, ModulePin& pin) const noexcept {
+    if (!module_pin_) { return ok(); }
+    return guarded([&]() -> Result<void> {
+        auto combined = combine_pins(module_account_, module_pin_, pin);
+        if (const auto* error = std::get_if<Diagnostic>(&combined)) { return *error; }
+        pin = std::get<ModulePin>(std::move(combined));
+        contract.implementation = *module_identity_;
+        return ok();
+    });
+}
+Result<void> Registry::register_module(ModulePin pin, ImplementationIdentity identity, ModuleRegistration entry,
+                                       std::shared_ptr<ResourceAccount> account, std::uint64_t metadata_budget) noexcept {
+    return guarded([&]() -> Result<void> {
+        if (frozen_ || module_pin_ || !pin || !entry || !account) {
+            return diagnostic(FailureCode::InvalidConfig, "invalid module registration phase/capabilities");
+        }
+        std::uint64_t staging_bytes = sizeof(Registry) + 256;
+        auto add_size = [&](std::uint64_t bytes) -> bool {
+            const auto total = checked_add(staging_bytes, bytes);
+            if (std::holds_alternative<Diagnostic>(total)) { return false; }
+            staging_bytes = std::get<std::uint64_t>(total);
+            return staging_bytes <= metadata_budget;
+        };
+        const auto definitions_bytes = checked_multiply(definitions_.size(), sizeof(std::shared_ptr<const OperationDefinition>) * 2);
+        if (std::holds_alternative<Diagnostic>(definitions_bytes) || !add_size(std::get<std::uint64_t>(definitions_bytes))) {
+            return diagnostic(FailureCode::ResourceExceeded, "registration staging exceeds explicit metadata budget");
+        }
+        for (const auto& type : types_) {
+            const auto size = type_storage_bytes(type.semantic);
+            if (std::holds_alternative<Diagnostic>(size) || !add_size(std::get<std::uint64_t>(size)) || !add_size(sizeof(ValueContract) + 128)) {
+                return diagnostic(FailureCode::ResourceExceeded, "registration type staging exceeds metadata budget");
+            }
+        }
+        Registry staged = *this;
+        staged.module_pin_ = pin;
+        staged.module_identity_ = identity;
+        staged.module_account_ = std::move(account);
+        staged.registration_remaining_ = metadata_budget - staging_bytes;
+        auto error = diagnostic(FailureCode::CallbackException, "module registration failed without a diagnostic");
+        if (entry(staged, &error) != 0) { return error; }
+        if (staged.frozen_ || staged.module_pin_ != pin || staged.module_identity_ != identity ||
+            staged.definitions_.size() < definitions_.size() || staged.types_.size() < types_.size()) {
+            return diagnostic(FailureCode::InvalidConfig, "module changed registry ownership or lifecycle");
+        }
+        for (std::size_t i = 0; i < definitions_.size(); ++i) {
+            if (staged.definitions_[i] != definitions_[i]) { return diagnostic(FailureCode::InvalidConfig, "module replaced an existing definition"); }
+        }
+        for (std::size_t i = 0; i < types_.size(); ++i) {
+            if (!(staged.types_[i].semantic == types_[i].semantic) || staged.types_[i].witness != types_[i].witness ||
+                staged.types_[i].storage != types_[i].storage) { return diagnostic(FailureCode::InvalidConfig, "module replaced an existing type"); }
+        }
+        definitions_.swap(staged.definitions_);
+        types_.swap(staged.types_);
+        return ok();
+    });
+}
+Result<void> Registry::consume_registration(std::uint64_t bytes) noexcept {
+    if (!module_pin_) { return ok(); }
+    if (bytes > registration_remaining_) { return diagnostic(FailureCode::ResourceExceeded, "module registration metadata budget exceeded"); }
+    registration_remaining_ -= bytes;
+    return ok();
+}
+Result<void> Registry::consume_registration(const OperationContract& value) noexcept {
+    if (!module_pin_) { return ok(); }
+    struct Meter {
+        std::uint64_t used = sizeof(OperationContract);
+        bool valid = true;
+        void add(std::uint64_t size) noexcept {
+            auto sum = checked_add(used, size);
+            if (const auto* total = std::get_if<std::uint64_t>(&sum)) { used = *total; }
+            else { valid = false; }
+        }
+        void text(const std::string& value) noexcept { add(value.size()); add(32); }
+        void parameters(const CanonicalParams& parameters) noexcept {
+            for (const auto& parameter : parameters.values) {
+                add(sizeof(NamedParam)); text(parameter.name); text(parameter.provenance);
+                if (const auto* value = std::get_if<std::string>(&parameter.value)) { text(*value); }
+            }
+        }
+        void contract(const Contract& value) noexcept { text(value.id); parameters(value.parameters); }
+        void type(const TypeContract& value) noexcept { text(value.nominal_name); parameters(value.meaning); }
+    } meter;
+    meter.text(value.key.name_space); meter.text(value.key.name); meter.text(value.key.implementation_selector);
+    meter.text(value.implementation.sdk_build_contract_id); meter.text(value.description);
+    for (const auto& field : value.parameters.fields) {
+        meter.add(sizeof(ParameterField)); meter.text(field.name);
+        for (const auto& allowed : field.constraints.allowed_text) { meter.add(sizeof(std::string)); meter.text(allowed); }
+    }
+    for (const auto& input : value.inputs) { meter.add(sizeof(InputContract)); meter.text(input.name); meter.type(input.type); }
+    for (const auto& output : value.outputs) {
+        meter.add(sizeof(OutputContract)); meter.text(output.name); meter.type(output.type); meter.contract(output.codec); meter.contract(output.validation);
+    }
+    meter.contract(value.sharing.initialization); meter.contract(value.sharing.update); meter.contract(value.sharing.effect);
+    for (const auto& text : value.sharing.correctness_evidence) { meter.add(sizeof(std::string)); meter.text(text); }
+    for (const auto& text : value.timing_protocols) { meter.add(sizeof(std::string)); meter.text(text); }
+    for (const auto& text : value.history_protocols) { meter.add(sizeof(std::string)); meter.text(text); }
+    meter.add(value.alignment_protocols.size() * sizeof(Alignment));
+    meter.add(value.missing_protocols.size() * sizeof(MissingIntervalPolicy));
+    if (!meter.valid) { return diagnostic(FailureCode::ResourceExceeded, "registration metadata size overflow"); }
+    auto bytes = checked_multiply(meter.used, 4); // Declaration, typed port/factory copies and host controls.
+    if (const auto* error = std::get_if<Diagnostic>(&bytes)) { return *error; }
+    bytes = checked_add(std::get<std::uint64_t>(bytes), 4096);
+    if (const auto* error = std::get_if<Diagnostic>(&bytes)) { return *error; }
+    return consume_registration(std::get<std::uint64_t>(bytes));
 }
 } // namespace lexongine

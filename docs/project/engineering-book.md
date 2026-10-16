@@ -1209,3 +1209,27 @@ version 11.0.1 is rejected at configuration. Eight frontend cases pass strict an
 sanitized, alongside the existing core/numerical/graph checks (six targets total).
 Full source and execution acceptance is still pending; commands/limits are recorded
 in implementation progress.
+
+### Native same-build plugin implementation and platform boundary
+
+The native probe first reproduced a concrete platform mismatch: modern macOS
+records delayed-initialization dylib use (CoreFoundation here), while ordinary
+active-image enumeration need not list that image. The installed SDK loader.h
+documents dylib_use_command and its flags; Apple's dyld Loader.cpp distinguishes
+loaded and delayLoaded collections. Sources checked: the local Apple SDK 26.5
+header and https://github.com/apple-oss-distributions/dyld/blob/main/dyld/Loader.cpp.
+
+The owner selected a bounded trust boundary: actual hashes for plugin/core and
+non-system dependency files, observed UUID/OS/SDK facts for Apple platform images,
+and explicit deferred system references. Full shared-cache byte verification is
+not claimed. This preserves an explainable same-build plugin mechanism without
+turning the task into a platform loader/shared-cache framework.
+
+Implemented generated build facts and a binary-bound source/build sidecar,
+transactional registration, exact type witnesses and host-held destruction pins.
+Output allocation uses declared prebound policies and combines operation/type
+pins; the registry can bind an existing nominal SDK type only when its native
+witness agrees. The native test deliberately tears down registry, definition,
+prepared factory and instance before releasing an external custom typed output.
+Four native test cases and all seven current CTest targets pass strict and
+sanitized. Commands, reproduced failures and remaining scope are in progress.

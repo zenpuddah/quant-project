@@ -69,6 +69,13 @@ exclusive transfer, temporal extent, bounded history and staged-failure cleanup.
 Proceeding into the accepted native plugin mechanism; task/milestone closure is
 still governed by the full progress matrix.
 
+**Native plugin checkpoint:** Task 3's bounded macOS same-build mechanism is now
+verified: 4 native cases cover bootstrap, registry rollback, exact RTTI, content
+identity, limits and externally retained typed output lifetime. Strict and
+sanitized full suites pass 7/7 targets. The owner accepted hashing application
+dependencies while recording/trusting the Apple shared-cache/delayed platform
+boundary. Broader source/run/cache/CLI acceptance remains pending.
+
 ## Deferred work
 
 Concurrency, dynamic run reconfiguration, algebraic equivalence, richer joins/alignments, checkpoint continuation, general outcome-aware branching, stronger plugin isolation, mutable outputs, stronger crash durability, real session/filling policies, numerical/performance upgrades, interactive visualization/breakpoints and ML feedback protocols remain future work. Explicit fixed-count lag and automatic validated cross-run reuse are already v1, not deferred.

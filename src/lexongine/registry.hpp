@@ -83,6 +83,7 @@ template<class T> struct RegisteredType {
 };
 template<class T> struct InputPort { std::string name; RegisteredType<T> type; std::uint64_t prior_outputs; };
 template<class T> struct OutputPort { std::string name; RegisteredType<T> type; };
+struct OutputPolicyBinding { std::type_index witness; const void* typed_policy; };
 
 class StateAllocator {
 public:
@@ -93,8 +94,15 @@ private:
 };
 class PublicationAllocator {
 public:
-    PublicationAllocator(std::shared_ptr<ResourceAccount> account, std::uint64_t maximum_parents)
-        : account_(std::move(account)), maximum_parents_(maximum_parents) {}
+    PublicationAllocator(std::shared_ptr<ResourceAccount> account, std::uint64_t maximum_parents,
+                         std::span<const OutputPolicyBinding> outputs = {}, ModulePin pin = {})
+        : account_(std::move(account)), maximum_parents_(maximum_parents), outputs_(outputs), pin_(std::move(pin)) {}
+    template<class T> Result<Immutable<T>> copy_output(PortIndex port, const T& value) noexcept {
+        if (port >= outputs_.size() || outputs_[port].witness != std::type_index(typeid(T))) {
+            return diagnostic(FailureCode::TypeMismatch, "copy requested an undeclared output type/port");
+        }
+        return freeze(value, *static_cast<const RegisteredType<T>*>(outputs_[port].typed_policy));
+    }
     Result<ParentSelections> parents(std::span<const ParentSelection> selected) noexcept {
         return ParentSelections::create(account_, maximum_parents_, selected);
     }
@@ -109,13 +117,17 @@ public:
             if (auto valid = type.policy.validate(input); std::holds_alternative<Diagnostic>(valid)) { return std::get<Diagnostic>(valid); }
             auto bytes = type.policy.measure(input);
             if (const auto* error = std::get_if<Diagnostic>(&bytes)) { return *error; }
-            return make_owned<T>(account_, ResourceKind::Retention, std::get<std::uint64_t>(bytes), type.policy.pin,
+            auto pin = combine_pins(account_, pin_, type.policy.pin);
+            if (const auto* error = std::get_if<Diagnostic>(&pin)) { return *error; }
+            return make_owned<T>(account_, ResourceKind::Retention, std::get<std::uint64_t>(bytes), std::get<ModulePin>(std::move(pin)),
                                  [&] { return type.policy.freeze(input); });
         });
     }
 private:
     std::shared_ptr<ResourceAccount> account_;
     std::uint64_t maximum_parents_;
+    std::span<const OutputPolicyBinding> outputs_;
+    ModulePin pin_;
 };
 struct InstanceServices {
     std::shared_ptr<ResourceAccount> account;
@@ -196,6 +208,7 @@ public:
     }
     [[nodiscard]] Result<PreparedKernel> prepare(const ParamSet&, const PreparationFacts&) const noexcept;
 private:
+    friend class Registry;
     ModulePin pin_;
     OperationContract contract_;
     Prepare prepare_;
@@ -204,11 +217,13 @@ Result<std::shared_ptr<const OperationDefinition>> make_definition(OperationCont
 
 class Registry {
 public:
+    using ModuleRegistration = int (*)(Registry&, Diagnostic*) noexcept;
     [[nodiscard]] static Result<Registry> create() noexcept { return Registry{}; }
     [[nodiscard]] Result<void> register_definition(OperationContract contract, ModulePin pin, OperationDefinition::Prepare prepare) noexcept {
         return guarded([&]() -> Result<void> {
             if (frozen_) { return diagnostic(FailureCode::InvalidConfig, "registry is frozen"); }
             if (!prepare) { return diagnostic(FailureCode::InvalidConfig, "operation requires an explicit typed preparation factory"); }
+            if (auto bound = bind_module(contract, pin); std::holds_alternative<Diagnostic>(bound)) { return std::get<Diagnostic>(bound); }
             if (contract.key.name.empty() || contract.key.name_space.empty() || contract.key.semantic_version == 0 ||
                 contract.key.implementation_selector.empty() || contract.implementation.sdk_build_contract_id.empty()) {
                 return diagnostic(FailureCode::InvalidConfig, "incomplete operation identity");
@@ -225,6 +240,7 @@ public:
                     if (contract.parameters.fields[j].name == field.name) { return diagnostic(FailureCode::InvalidConfig, "duplicate schema field"); }
                 }
             }
+            if (auto budget = consume_registration(contract); std::holds_alternative<Diagnostic>(budget)) { return std::get<Diagnostic>(budget); }
             auto definition = make_definition(std::move(contract), std::move(pin), std::move(prepare));
             if (const auto* error = std::get_if<Diagnostic>(&definition)) { return *error; }
             definitions_.push_back(std::get<std::shared_ptr<const OperationDefinition>>(std::move(definition)));
@@ -234,10 +250,17 @@ public:
     template<class T> Result<RegisteredType<T>> register_type(TypedTypePolicy<T> policy) noexcept {
         return guarded([&]() -> Result<RegisteredType<T>> {
             if (frozen_) { return diagnostic(FailureCode::InvalidConfig, "registry is frozen"); }
+            if (module_pin_) {
+                auto pin = combine_pins(module_account_, module_pin_, policy.pin);
+                if (const auto* error = std::get_if<Diagnostic>(&pin)) { return *error; }
+                policy.pin = std::get<ModulePin>(std::move(pin));
+            }
             if (!policy.validate || !policy.measure || !policy.freeze || policy.contract.nominal_name.empty() ||
                 policy.contract.semantic_version == 0 || policy.storage != PublicationTraits<T>::storage ||
                 (policy.storage == StorageKind::ScalarCopy &&
-                 (policy.freeze_strategy != FreezeStrategy::ScalarCopy || !std::is_trivially_copyable_v<T>))) {
+                 (policy.freeze_strategy != FreezeStrategy::ScalarCopy || !std::is_trivially_copyable_v<T>)) ||
+                (policy.storage == StorageKind::ImmutableOwned && policy.freeze_strategy != FreezeStrategy::ExclusiveConstruction &&
+                 policy.freeze_strategy != FreezeStrategy::DeepCopy)) {
                 return diagnostic(FailureCode::InvalidConfig, "incomplete or contradictory typed storage contract");
             }
             for (const auto& existing : types_) {
@@ -248,11 +271,58 @@ public:
                     return diagnostic(FailureCode::DuplicateDefinition, "type contract already registered");
                 }
             }
+            auto measured = type_storage_bytes(policy.contract);
+            if (const auto* error = std::get_if<Diagnostic>(&measured)) { return *error; }
+            auto bytes = checked_multiply(std::get<std::uint64_t>(measured), 4);
+            if (const auto* error = std::get_if<Diagnostic>(&bytes)) { return *error; }
+            bytes = checked_add(std::get<std::uint64_t>(bytes), 4096);
+            if (const auto* error = std::get_if<Diagnostic>(&bytes)) { return *error; }
+            if (auto budget = consume_registration(std::get<std::uint64_t>(bytes)); std::holds_alternative<Diagnostic>(budget)) { return std::get<Diagnostic>(budget); }
             types_.push_back({policy.contract, std::type_index(typeid(T)), policy.storage, policy.pin});
             auto pin = policy.pin;
             return RegisteredType<T>{std::move(policy), {std::move(pin), std::type_index(typeid(T))}};
         });
     }
+    template<class T> Result<ValueContract> describe_type(const TypeContract& semantic) const noexcept {
+        return guarded([&]() -> Result<ValueContract> {
+            for (const auto& type : types_) {
+                if (type.semantic == semantic) {
+                    if (type.witness != std::type_index(typeid(T)) || type.storage != PublicationTraits<T>::storage) {
+                        return diagnostic(FailureCode::TypeMismatch, "registered nominal type has a different native witness");
+                    }
+                    return type;
+                }
+            }
+            return diagnostic(FailureCode::UnknownDefinition, "type contract is not registered");
+        });
+    }
+    template<class T> Result<RegisteredType<T>> bind_type(TypedTypePolicy<T> policy) noexcept {
+        return guarded([&]() -> Result<RegisteredType<T>> {
+            if (frozen_) { return diagnostic(FailureCode::InvalidConfig, "type binding is preparation-only"); }
+            for (const auto& existing : types_) {
+                if (!(existing.semantic == policy.contract)) { continue; }
+                if (existing.witness != std::type_index(typeid(T)) || existing.storage != policy.storage ||
+                    policy.storage != PublicationTraits<T>::storage) {
+                    return diagnostic(FailureCode::TypeMismatch, "shared nominal type has a different native witness/storage");
+                }
+                if (!policy.validate || !policy.measure || !policy.freeze ||
+                    (policy.storage == StorageKind::ScalarCopy && (policy.freeze_strategy != FreezeStrategy::ScalarCopy || !std::is_trivially_copyable_v<T>)) ||
+                    (policy.storage == StorageKind::ImmutableOwned && policy.freeze_strategy != FreezeStrategy::ExclusiveConstruction && policy.freeze_strategy != FreezeStrategy::DeepCopy)) {
+                    return diagnostic(FailureCode::InvalidConfig, "incomplete or contradictory typed binding policy");
+                }
+                if (module_pin_) {
+                    auto pin = combine_pins(module_account_, module_pin_, policy.pin);
+                    if (const auto* error = std::get_if<Diagnostic>(&pin)) { return *error; }
+                    policy.pin = std::get<ModulePin>(std::move(pin));
+                }
+                auto pin = policy.pin;
+                return RegisteredType<T>{std::move(policy), {std::move(pin), std::type_index(typeid(T))}};
+            }
+            return register_type<T>(std::move(policy));
+        });
+    }
+    Result<void> register_module(ModulePin, ImplementationIdentity, ModuleRegistration,
+                                 std::shared_ptr<ResourceAccount>, std::uint64_t metadata_budget) noexcept;
     template<class P, class S, class... In, class... Out>
     Result<void> register_definition(TypedOperation<P, S, std::tuple<In...>, std::tuple<Out...>>) noexcept;
     [[nodiscard]] Result<std::shared_ptr<const OperationDefinition>> resolve(const OperationKey& key) const noexcept {
@@ -265,9 +335,16 @@ public:
     [[nodiscard]] bool frozen() const noexcept { return frozen_; }
     [[nodiscard]] const auto& definitions() const noexcept { return definitions_; }
 private:
+    Result<void> bind_module(OperationContract&, ModulePin&) const noexcept;
+    Result<void> consume_registration(std::uint64_t) noexcept;
+    Result<void> consume_registration(const OperationContract&) noexcept;
     bool frozen_ = false;
     std::vector<std::shared_ptr<const OperationDefinition>> definitions_;
     std::vector<ValueContract> types_;
+    ModulePin module_pin_;
+    std::optional<ImplementationIdentity> module_identity_;
+    std::shared_ptr<ResourceAccount> module_account_;
+    std::uint64_t registration_remaining_ = 0;
 };
 
 } // namespace lexongine

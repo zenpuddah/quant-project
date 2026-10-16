@@ -126,6 +126,7 @@ inline constexpr std::uint64_t ownership_control_reserve = sizeof(AllocationCont
 Result<std::shared_ptr<const AllocationControl>> make_allocation_control(
     ModulePin, Reservation, Reservation, std::shared_ptr<ResourceAccount>, void*, void (*)(void*) noexcept,
     std::type_index) noexcept;
+Result<ModulePin> combine_pins(std::shared_ptr<ResourceAccount>, ModulePin, ModulePin) noexcept;
 
 template<class T> class Immutable {
 public:

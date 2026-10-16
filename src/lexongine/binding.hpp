@@ -70,6 +70,7 @@ private:
 };
 template<class T> class ReadValue {
 private:
+    ModulePin consumer_pin_;
     Immutable<T> lease_;
     StorageKind storage_;
     std::shared_ptr<const ParentCertificate> certificate_;
@@ -77,8 +78,9 @@ private:
 public:
     const T& value;
     ReadValue(Immutable<T> lease, StorageKind storage, std::shared_ptr<const ParentCertificate> certificate,
-              std::optional<PortIndex> input)
-        : lease_(std::move(lease)), storage_(storage), certificate_(std::move(certificate)), input_(input), value(lease_.get()) {}
+              std::optional<PortIndex> input, ModulePin consumer_pin)
+        : consumer_pin_(std::move(consumer_pin)), lease_(std::move(lease)), storage_(storage),
+          certificate_(std::move(certificate)), input_(input), value(lease_.get()) {}
     ReadValue(ReadValue&&) noexcept = default;
     ReadValue(const ReadValue&) = delete;
     ReadValue& operator=(const ReadValue&) = delete;
@@ -87,8 +89,10 @@ public:
     [[nodiscard]] Result<Immutable<T>> retain(std::string_view holder, std::string_view reason) const noexcept {
         if (storage_ == StorageKind::ScalarCopy) {
             if constexpr (std::is_trivially_copyable_v<T>) {
+                auto pin = combine_pins(lease_.control()->account(), consumer_pin_, lease_.control()->pin_);
+                if (const auto* error = std::get_if<Diagnostic>(&pin)) { return *error; }
                 auto copied = make_owned<T>(lease_.control()->account(), ResourceKind::Retention, sizeof(T),
-                                            lease_.control()->pin_, [&] { return value; });
+                                            std::get<ModulePin>(std::move(pin)), [&] { return value; });
                 if (const auto* error = std::get_if<Diagnostic>(&copied)) { return *error; }
                 return std::get<Immutable<T>>(copied).share(holder, reason);
             } else {
@@ -150,7 +154,7 @@ public:
     [[nodiscard]] const OutcomeFrame* current() const noexcept { return current_.get(); }
     [[nodiscard]] const auto& contracts() const noexcept { return contracts_; }
     template<class T> Result<ReadValue<T>> read(PortIndex index, const UpdateContext& context,
-                                              std::optional<PortIndex> input = std::nullopt) const noexcept {
+                                              std::optional<PortIndex> input = std::nullopt, ModulePin consumer_pin = {}) const noexcept {
         if (auto result = validate_context(context); std::holds_alternative<Diagnostic>(result)) { return std::get<Diagnostic>(result); }
         if (!current_ || current_->context.key != context.key || current_->kind != OutcomeKind::Published) {
             return diagnostic(FailureCode::MissingRequired, "no published value at current key");
@@ -167,10 +171,11 @@ public:
         auto view = Immutable<T>::from_control(current_->outputs[index]->control(), "reader", "current_output");
         if (const auto* error = std::get_if<Diagnostic>(&view)) { return *error; }
         return ReadValue<T>{std::get<Immutable<T>>(std::move(view)), contracts_[index].storage,
-                            current_->certificates[index], input};
+                            current_->certificates[index], input, std::move(consumer_pin)};
     }
     template<class T> Result<ReadValue<T>> read_previous(PortIndex index, const UpdateContext& context,
-                                                        std::uint64_t prior, std::optional<PortIndex> input = std::nullopt) const noexcept {
+                                                        std::uint64_t prior, std::optional<PortIndex> input = std::nullopt,
+                                                        ModulePin consumer_pin = {}) const noexcept {
         if (auto valid = validate_context(context); std::holds_alternative<Diagnostic>(valid)) { return std::get<Diagnostic>(valid); }
         if (!current_ || current_->kind != OutcomeKind::Published || current_->context.key != context.key ||
             prior == 0 || prior >= history_.size() || prior >= published_count_) {
@@ -190,7 +195,7 @@ public:
         }
         auto view = Immutable<T>::from_control(frame->outputs[index]->control(), "reader", "declared_history");
         if (const auto* error = std::get_if<Diagnostic>(&view)) { return *error; }
-        return ReadValue<T>{std::get<Immutable<T>>(std::move(view)), contracts_[index].storage, frame->certificates[index], input};
+        return ReadValue<T>{std::get<Immutable<T>>(std::move(view)), contracts_[index].storage, frame->certificates[index], input, std::move(consumer_pin)};
     }
 private:
     friend class ProvenanceValidator;

@@ -13,8 +13,8 @@ template<class... T> Result<ParentSelections> current_parents(const std::tuple<R
 }
 template<class... T, std::size_t... I>
 Result<std::tuple<ReadValue<T>...>> read_inputs(const std::vector<BoundInput>& inputs, const UpdateContext& context,
-                                              std::index_sequence<I...>) {
-    auto reads = std::tuple{inputs[I].slot->template read<T>(inputs[I].port, context, static_cast<PortIndex>(I))...};
+                                              const ModulePin& pin, std::index_sequence<I...>) {
+    auto reads = std::tuple{inputs[I].slot->template read<T>(inputs[I].port, context, static_cast<PortIndex>(I), pin)...};
     std::optional<Diagnostic> error;
     std::apply([&](const auto&... result) {
         ([&] { if (const auto* failure = std::get_if<Diagnostic>(&result); failure && !error) { error = *failure; } }(), ...);
@@ -54,6 +54,7 @@ template<class P, class S, class... In, class... Out>
 Result<void> Registry::register_definition(TypedOperation<P, S, std::tuple<In...>, std::tuple<Out...>> operation) noexcept {
     return guarded([&]() -> Result<void> {
         using Op = TypedOperation<P, S, std::tuple<In...>, std::tuple<Out...>>;
+        if (auto bound = bind_module(operation.contract, operation.pin); std::holds_alternative<Diagnostic>(bound)) { return std::get<Diagnostic>(bound); }
         if (!operation.parse_params || !operation.canonicalize || !operation.history || !operation.resources ||
             !operation.make_state || !operation.step || !operation.validate_outputs ||
             operation.contract.inputs.size() != sizeof...(In) || operation.contract.outputs.size() != sizeof...(Out)) {
@@ -134,12 +135,15 @@ Result<void> Registry::register_definition(TypedOperation<P, S, std::tuple<In...
                                     [operation, parameters, mutable_state, services, preceding, maximum_parents](const UpdateContext& context) -> Result<PendingOutcome> {
                                         return guarded([&]() -> Result<PendingOutcome> {
                                             if (auto valid = validate_context(context); std::holds_alternative<Diagnostic>(valid)) { return std::get<Diagnostic>(valid); }
-                                            auto inputs = detail::read_inputs<In...>(services.inputs, context, std::index_sequence_for<In...>{});
+                                            auto inputs = detail::read_inputs<In...>(services.inputs, context, operation.pin, std::index_sequence_for<In...>{});
                                             if (const auto* error = std::get_if<Diagnostic>(&inputs)) { return *error; }
                                             auto staged = PendingOutcome::create(services.account, context, sizeof...(Out));
                                             if (const auto* error = std::get_if<Diagnostic>(&staged)) { return *error; }
                                             auto pending = std::get<PendingOutcome>(std::move(staged));
-                                            PublicationAllocator allocator{services.account, maximum_parents};
+                                            const auto policies = std::apply([](const auto&... output) {
+                                                return std::array<OutputPolicyBinding, sizeof...(Out)>{OutputPolicyBinding{output.type.witness.type, &output.type}...};
+                                            }, operation.outputs);
+                                            PublicationAllocator allocator{services.account, maximum_parents, policies, operation.pin};
                                             auto result = operation.step(*mutable_state, parameters,
                                                 std::get<std::tuple<ReadValue<In>...>>(inputs), context, allocator);
                                             if (const auto* error = std::get_if<Diagnostic>(&result)) { return *error; }
