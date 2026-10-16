@@ -610,3 +610,18 @@ service, registered component wiring, shared run lifecycle, result store and
 CLI/evidence acceptance remain implementation work. No full milestone completion
 is inferred from these prerequisite/helper results; existing storage source code
 and integrity contracts were not modified.
+
+## Implementation publication authorization — 2026-10-15
+
+The owner explicitly requested pushing the current implementation snapshot to
+`origin/implementation/lexongine-v1`. Pre-push inspection found a clean worktree
+at `c49850895d04e86f842a02a13cd2a56ea73be0a8`, nine local commits ahead of remote
+`61ecf87892a9eebfce397cea522941864d92a6c7`, with no divergence. The outgoing commit
+list, changed-file inventory and whitespace checks were reviewed. This publication
+includes the recorded partial implementation and verification evidence; the task
+matrix above remains authoritative about unfinished milestone work. The approval
+is for this branch snapshot, not a main-branch merge or a completed v1 release.
+
+This checkpoint changes documentation only. Runtime results remain the previously
+recorded 9/9 Lexongine normal/sanitized targets and 4/4 native storage targets;
+they were not rerun for publication.
