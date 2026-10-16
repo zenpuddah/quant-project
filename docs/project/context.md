@@ -250,6 +250,8 @@ See `docs/architecture/phase1-data-integrity-session-2026-10-03.md` for the auth
 
 ## Last updated
 
+- **Axthena launch guidance — 2026-10-16:** The owner created a separate folder for the second session. `docs/axthena/IMPLEMENTATION_PROMPT.md` now includes safe checkout setup and isolation from the concurrently running Lexongine session. Existing Axthena slice gates and architecture-selection status are unchanged; this is documentation only.
+
 - **Accepted/reviewed:** 2026-10-03 data-integrity decisions and three final closure contracts recorded; context, AGENTS.md, historical cross-references, and the current OpenCode handoff updated for the owner-requested GitHub publication. Documentation-only changes; no new production implementation or implementation-test claims.
 
 Earlier dated entries retain the status at that time; the accepted closure above supersedes their open-decision status.
